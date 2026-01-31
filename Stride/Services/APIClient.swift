@@ -32,7 +32,7 @@ class APIClient {
     static let shared = APIClient()
     
     // Railway deployment URL
-    private let baseURL = "https://stride-production-1d57.up.railway.app"
+    private let baseURL = "https://stride-production-1615.up.railway.app"
     
     private let session: URLSession
     private let encoder: JSONEncoder
