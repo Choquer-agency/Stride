@@ -31,12 +31,8 @@ enum APIError: Error, LocalizedError {
 class APIClient {
     static let shared = APIClient()
     
-    // TODO: Update this to your Railway deployment URL
-    #if DEBUG
-    private let baseURL = "http://localhost:3000"
-    #else
-    private let baseURL = "https://your-app.up.railway.app"  // Replace with your Railway URL
-    #endif
+    // Railway deployment URL
+    private let baseURL = "https://stride-production-1d57.up.railway.app"
     
     private let session: URLSession
     private let encoder: JSONEncoder
