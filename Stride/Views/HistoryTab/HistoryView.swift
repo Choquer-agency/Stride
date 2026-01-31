@@ -3,15 +3,16 @@ import SwiftUI
 /// Workout history list
 struct HistoryView: View {
     @ObservedObject var storageManager: StorageManager
+    @ObservedObject var authManager = AuthManager.shared
     
     var body: some View {
         NavigationStack {
             ZStack {
-                if !NeonClient.shared.isConfigured {
-                    // Not configured state
-                    CloudNotConfiguredEmptyState(
+                if !authManager.isAuthenticated {
+                    // Not authenticated state
+                    NotAuthenticatedEmptyState(
                         title: "No Workout History",
-                        message: "Connect to Neon cloud database to sync and view your workout history."
+                        message: "Sign in to sync and view your workout history."
                     )
                 } else if storageManager.workouts.isEmpty && !storageManager.isLoading {
                     // Empty state
@@ -68,7 +69,7 @@ struct HistoryView: View {
         }
         .navigationTitle("History")
         .onAppear {
-            if NeonClient.shared.isConfigured && storageManager.workouts.isEmpty {
+            if authManager.isAuthenticated && storageManager.workouts.isEmpty {
                 Task {
                     await storageManager.loadWorkoutsAsync()
                 }
@@ -115,4 +116,3 @@ struct WorkoutRowView: View {
         .padding(.vertical, 4)
     }
 }
-

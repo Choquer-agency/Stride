@@ -4,6 +4,7 @@ import Charts
 /// Activity dashboard with time period filtering and statistics
 struct DashboardView: View {
     @ObservedObject var storageManager: StorageManager
+    @ObservedObject var authManager = AuthManager.shared
     
     // State for period selection
     @State private var selectedPeriod: TimePeriod = .month
@@ -31,8 +32,8 @@ struct DashboardView: View {
                         .frame(height: 50)
                         .padding(.top, 8)
                     
-                    // Network status banner (show only if not configured)
-                    if !NeonClient.shared.isConfigured {
+                    // Network status banner (show only if not authenticated)
+                    if !authManager.isAuthenticated {
                         NetworkStatusBanner(storageManager: storageManager)
                             .padding(.horizontal)
                     }
