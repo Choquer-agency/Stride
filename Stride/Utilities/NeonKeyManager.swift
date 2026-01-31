@@ -140,11 +140,13 @@ class NeonKeyManager {
         }
         
         // Mask the password portion
-        if let atIndex = connectionString.firstIndex(of: "@"),
-           let colonIndex = connectionString.lastIndex(of: ":", in: connectionString.startIndex..<atIndex) {
-            let prefix = String(connectionString[...colonIndex])
-            let suffix = String(connectionString[atIndex...])
-            return prefix + "****" + suffix
+        if let atIndex = connectionString.firstIndex(of: "@") {
+            let beforeAt = connectionString[connectionString.startIndex..<atIndex]
+            if let colonIndex = beforeAt.lastIndex(of: ":") {
+                let prefix = String(connectionString[...colonIndex])
+                let suffix = String(connectionString[atIndex...])
+                return prefix + "****" + suffix
+            }
         }
         
         // If we can't parse, just mask most of it

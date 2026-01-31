@@ -4,7 +4,7 @@ import Security
 
 @main
 struct StrideApp: App {
-    @StateObject private var authManager = AuthManager.shared
+    @ObservedObject private var authManager = AuthManager.shared
     @StateObject private var storageManager = StorageManager()
     @StateObject private var bluetoothManager = BluetoothManager()
     @StateObject private var workoutManager: WorkoutManager
