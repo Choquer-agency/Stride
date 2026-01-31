@@ -3,10 +3,11 @@ import SwiftUI
 /// Banner view that shows network/database connection status
 struct NetworkStatusBanner: View {
     @ObservedObject var storageManager: StorageManager
+    @ObservedObject var authManager = AuthManager.shared
     
     var body: some View {
-        if !NeonClient.shared.isConfigured {
-            notConfiguredBanner
+        if !authManager.isAuthenticated {
+            notAuthenticatedBanner
         } else if let error = storageManager.lastError {
             errorBanner(error: error)
         } else if storageManager.isLoading {
@@ -14,40 +15,29 @@ struct NetworkStatusBanner: View {
         }
     }
     
-    private var notConfiguredBanner: some View {
+    private var notAuthenticatedBanner: some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: "person.crop.circle.badge.exclamationmark")
                 .foregroundColor(.orange)
             
             VStack(alignment: .leading, spacing: 2) {
-                Text("Cloud Storage Not Configured")
+                Text("Not Signed In")
                     .font(.subheadline)
                     .fontWeight(.medium)
                 
-                Text("Go to Settings → Cloud Database to connect")
+                Text("Sign in to sync your data to the cloud")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
             
             Spacer()
-            
-            NavigationLink(destination: NeonSettingsView()) {
-                Text("Setup")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.orange)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
-            }
         }
         .padding()
         .background(Color.orange.opacity(0.1))
         .cornerRadius(12)
     }
     
-    private func errorBanner(error: NeonError) -> some View {
+    private func errorBanner(error: APIError) -> some View {
         HStack(spacing: 12) {
             Image(systemName: "wifi.exclamationmark")
                 .foregroundColor(.red)
@@ -130,14 +120,14 @@ struct LoadingOverlay: View {
     }
 }
 
-/// Empty state view when no data and not connected
-struct CloudNotConfiguredEmptyState: View {
-    var title: String = "No Data"
-    var message: String = "Connect to Neon cloud database to sync your data."
+/// Empty state view when not authenticated
+struct NotAuthenticatedEmptyState: View {
+    var title: String = "Sign In Required"
+    var message: String = "Sign in with Apple to sync your data across devices."
     
     var body: some View {
         VStack(spacing: 20) {
-            Image(systemName: "cloud.fill")
+            Image(systemName: "person.crop.circle")
                 .font(.system(size: 64))
                 .foregroundColor(.gray.opacity(0.5))
             
@@ -150,17 +140,6 @@ struct CloudNotConfiguredEmptyState: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-            
-            NavigationLink(destination: NeonSettingsView()) {
-                Label("Configure Cloud Database", systemImage: "gear")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color.cyan)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
@@ -168,19 +147,19 @@ struct CloudNotConfiguredEmptyState: View {
 }
 
 /// Connection required wrapper view
-struct RequiresCloudConnection<Content: View>: View {
-    @ObservedObject var storageManager: StorageManager
+struct RequiresAuthentication<Content: View>: View {
+    @ObservedObject var authManager = AuthManager.shared
     let content: () -> Content
     
     var body: some View {
-        if NeonClient.shared.isConfigured {
+        if authManager.isAuthenticated {
             content()
         } else {
-            CloudNotConfiguredEmptyState()
+            NotAuthenticatedEmptyState()
         }
     }
 }
 
-#Preview("Not Configured") {
+#Preview("Not Authenticated") {
     NetworkStatusBanner(storageManager: StorageManager())
 }
