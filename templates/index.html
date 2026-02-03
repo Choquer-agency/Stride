@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stride - AI Running Coach</title>
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏃</text></svg>">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">🏃</div>
+                <span class="logo-text">Stride</span>
+            </div>
+            <p class="tagline">Your AI-Powered Running Coach</p>
+        </header>
+
+        <!-- Progress Steps -->
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-step active" data-step="1">
+                <span class="step-number">1</span>
+                <span class="step-label">Goal</span>
+            </div>
+            <div class="progress-step" data-step="2">
+                <span class="step-number">2</span>
+                <span class="step-label">Fitness</span>
+            </div>
+            <div class="progress-step" data-step="3">
+                <span class="step-number">3</span>
+                <span class="step-label">Schedule</span>
+            </div>
+            <div class="progress-step" data-step="4">
+                <span class="step-number">4</span>
+                <span class="step-label">History</span>
+            </div>
+            <div class="progress-step" id="conflictProgressStep" data-step="5" style="display: none;">
+                <span class="step-number">!</span>
+                <span class="step-label">Review</span>
+            </div>
+        </div>
+
+        <!-- Form Card -->
+        <div class="form-card" id="formCard">
+            <form id="trainingForm">
+                <!-- Step 1: Goal Information -->
+                <div class="form-step active" data-step="1">
+                    <h2 class="step-title">What's Your Goal?</h2>
+                    <p class="step-description">Tell us about the race you're training for</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Race Distance <span class="required">*</span></label>
+                                <select class="form-select" name="race_type" required>
+                                    <option value="">Select distance...</option>
+                                    <option value="5K">5K</option>
+                                    <option value="10K">10K</option>
+                                    <option value="Half Marathon">Half Marathon</option>
+                                    <option value="Marathon">Marathon</option>
+                                    <option value="50K">50K Ultra</option>
+                                    <option value="80K">80K Ultra</option>
+                                    <option value="100K">100K</option>
+                                    <option value="160K">160K</option>
+                                    <option value="160+ km">160+ km</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Race Date <span class="required">*</span></label>
+                                <input type="date" class="form-input" name="race_date" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Race Name</label>
+                                <input type="text" class="form-input" name="race_name" placeholder="e.g., Boston Marathon">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Goal Time</label>
+                                <input type="text" class="form-input" name="goal_time" placeholder="e.g., 3:30:00 or 'finish strong'">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            Continue
+                            <span>→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Current Fitness -->
+                <div class="form-step" data-step="2">
+                    <h2 class="step-title">Current Fitness Level</h2>
+                    <p class="step-description">Help us understand where you're starting from</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Current Weekly Kilometres <span class="required">*</span></label>
+                                <input type="number" class="form-input" name="current_weekly_mileage" min="0" max="300" placeholder="e.g., 40" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Longest Recent Run (km) <span class="required">*</span></label>
+                                <input type="number" class="form-input" name="longest_recent_run" min="0" max="160" placeholder="e.g., 16" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Fitness Level <span class="required">*</span></label>
+                            <select class="form-select" name="fitness_level" required>
+                                <option value="">Select your level...</option>
+                                <option value="beginner">Beginner - New to structured training</option>
+                                <option value="intermediate">Intermediate - Consistent runner, some race experience</option>
+                                <option value="advanced">Advanced - Experienced racer, high weekly volume</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Recent Race Times</label>
+                            <textarea class="form-textarea" name="recent_race_times" placeholder="e.g., Half marathon: 1:45:00 (3 months ago)&#10;10K: 48:00 (last month)"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Recent Runs (Last 7-14 Days)</label>
+                            <textarea class="form-textarea" name="recent_runs" placeholder="e.g., Monday: 10 km easy&#10;Wednesday: 10 km easy&#10;Sunday: Planning 21 km long run at easy pace"></textarea>
+                            <span class="form-hint">Describe your runs from the past week or two, including distances and efforts</span>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <span>←</span>
+                            Back
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            Continue
+                            <span>→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Schedule Constraints -->
+                <div class="form-step" data-step="3">
+                    <h2 class="step-title">Your Training Schedule</h2>
+                    <p class="step-description">Let us know your availability and preferences</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Training Start Date <span class="required">*</span></label>
+                            <input type="date" class="form-input" name="start_date" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Preferred Rest Days</label>
+                            <div class="checkbox-group">
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="rest_days" value="Monday">
+                                    <span class="checkbox-label">Mon</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="rest_days" value="Tuesday">
+                                    <span class="checkbox-label">Tue</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="rest_days" value="Wednesday">
+                                    <span class="checkbox-label">Wed</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="rest_days" value="Thursday">
+                                    <span class="checkbox-label">Thu</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="rest_days" value="Friday">
+                                    <span class="checkbox-label">Fri</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="rest_days" value="Saturday">
+                                    <span class="checkbox-label">Sat</span>
+                                </label>
+                                <label class="checkbox-item">
+                                    <input type="checkbox" name="rest_days" value="Sunday">
+                                    <span class="checkbox-label">Sun</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Preferred Long Run Day <span class="required">*</span></label>
+                                <select class="form-select" name="long_run_day" required>
+                                    <option value="Sunday">Sunday</option>
+                                    <option value="Saturday">Saturday</option>
+                                    <option value="Monday">Monday</option>
+                                    <option value="Tuesday">Tuesday</option>
+                                    <option value="Wednesday">Wednesday</option>
+                                    <option value="Thursday">Thursday</option>
+                                    <option value="Friday">Friday</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Allow Double Days?</label>
+                                <div class="toggle-container">
+                                    <label class="toggle">
+                                        <input type="checkbox" name="double_days_allowed">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span class="toggle-text">Two workouts in one day</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Weekly Training Volume Section -->
+                        <div class="training-volume-section">
+                            <div class="section-header">
+                                <h3 class="section-title">Weekly Training Volume</h3>
+                                <button type="button" class="btn-auto-select" onclick="autoSelectSchedule()">
+                                    <span class="auto-icon">✨</span>
+                                    Let Stride Decide
+                                </button>
+                            </div>
+                            
+                            <div class="form-grid-2">
+                                <div class="form-group">
+                                    <label class="form-label">Running Days per Week</label>
+                                    <select class="form-select" id="running_days_select" name="running_days_per_week">
+                                        <option value="3">3 days</option>
+                                        <option value="4">4 days</option>
+                                        <option value="5" selected>5 days</option>
+                                        <option value="6">6 days</option>
+                                        <option value="7">7 days</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Gym Sessions per Week</label>
+                                    <select class="form-select" id="gym_days_select" name="gym_days_per_week">
+                                        <option value="0">0 days (none)</option>
+                                        <option value="1">1 day</option>
+                                        <option value="2" selected>2 days</option>
+                                        <option value="3">3 days</option>
+                                        <option value="4">4 days</option>
+                                    </select>
+                                    <span class="form-hint">Includes strength training, cross-training, or mobility work</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <span>←</span>
+                            Back
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="nextStep()">
+                            Continue
+                            <span>→</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Running History -->
+                <div class="form-step" data-step="4">
+                    <h2 class="step-title">Your Running Background</h2>
+                    <p class="step-description">Share your experience and any considerations</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Years of Running Experience <span class="required">*</span></label>
+                            <input type="number" class="form-input" name="years_running" min="0" max="50" placeholder="e.g., 3" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Previous Injuries or Limitations</label>
+                            <textarea class="form-textarea" name="previous_injuries" placeholder="e.g., IT band issues in 2024 (fully recovered), prone to calf tightness"></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Previous Experience at Goal Distance</label>
+                            <textarea class="form-textarea" name="previous_experience" placeholder="e.g., Completed one marathon in 4:15 two years ago, or 'This will be my first half marathon'"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <span>←</span>
+                            Back
+                        </button>
+                        <button type="submit" class="btn btn-primary" id="generateBtn">
+                            Generate My Plan
+                            <span>🏃</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 5: Conflict Resolution -->
+                <div class="form-step" data-step="5">
+                    <h2 class="step-title">Training Considerations</h2>
+                    <p class="step-description">We've identified some factors that may affect your training plan</p>
+                    
+                    <div class="conflict-resolution-container">
+                        <!-- Summary -->
+                        <p class="conflict-summary" id="conflictSummary"></p>
+                        
+                        <!-- Goal Comparison (shown when goals differ) -->
+                        <div class="goal-comparison" id="goalComparison" style="display: none;"></div>
+                        
+                        <!-- Conflicts List -->
+                        <div class="conflicts-list" id="conflictsList"></div>
+                        
+                        <!-- Choice Section -->
+                        <div class="choice-section">
+                            <h3 class="choice-title">Choose Your Approach</h3>
+                            
+                            <div class="mode-buttons">
+                                <button type="button" class="mode-btn mode-aggressive" data-mode="aggressive" onclick="selectPlanMode('aggressive')">
+                                    <div class="mode-icon">🎯</div>
+                                    <div class="mode-content">
+                                        <span class="mode-name">Override - Train for My Goal</span>
+                                        <span class="mode-description">Build an aggressive plan that progressively works toward my original goal. I understand the challenge.</span>
+                                    </div>
+                                </button>
+                                
+                                <button type="button" class="mode-btn mode-recommended" data-mode="recommended" onclick="selectPlanMode('recommended')">
+                                    <div class="mode-icon">✓</div>
+                                    <div class="mode-content">
+                                        <span class="mode-name">Accept Recommendation</span>
+                                        <span class="mode-description">Use the adjusted goal for a more sustainable training approach. I can always exceed it on race day.</span>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-secondary" onclick="prevStep()">
+                            <span>←</span>
+                            Back
+                        </button>
+                        <button type="button" class="btn btn-primary" id="conflictGenerateBtn" onclick="generatePlanWithMode()" disabled>
+                            Generate My Plan
+                            <span>🏃</span>
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Loading State -->
+            <div class="loading-indicator" id="loadingIndicator">
+                <div class="spinner"></div>
+                <span class="loading-text" id="loadingText">Crafting your personalized training plan...</span>
+            </div>
+        </div>
+
+        <!-- Plan Display -->
+        <div class="plan-container" id="planContainer">
+            <div class="plan-header">
+                <h2>Your Training Plan</h2>
+                <div class="plan-actions">
+                    <button class="btn-icon" onclick="copyPlan()">
+                        📋 Copy
+                    </button>
+                    <button class="btn-icon" onclick="downloadPlan()">
+                        ⬇️ Download
+                    </button>
+                    <button class="btn-icon" onclick="printPlan()">
+                        🖨️ Print
+                    </button>
+                    <button class="btn-icon" onclick="newPlan()">
+                        ➕ New Plan
+                    </button>
+                </div>
+            </div>
+            <div class="plan-output" id="planOutput"></div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
