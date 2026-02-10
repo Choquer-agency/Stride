@@ -1,5 +1,5 @@
 from pathlib import Path
-from app.models.schemas import TrainingPlanRequest, RaceType, PlanMode
+from app.models.schemas import TrainingPlanRequest, PlanEditRequest, RaceType, PlanMode
 from app.services.conflict_analyzer import REQUIRED_BENCHMARKS
 from datetime import timedelta
 
@@ -248,6 +248,33 @@ RECOMMENDED MODE INSTRUCTIONS:
 """
         
         return ""
+
+    def get_edit_system_prompt(self) -> str:
+        """Load the plan modification system prompt."""
+        return self._load_prompt("coach_edit.txt")
+
+    def build_edit_user_prompt(self, request: PlanEditRequest) -> str:
+        """
+        Build the user prompt for plan editing.
+
+        Combines the current plan content with the athlete's edit instructions.
+        """
+        return f"""CURRENT TRAINING PLAN
+=====================================
+Race Distance: {request.race_type.value}
+Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
+Race Name: {request.race_name or "Not specified"}
+Goal Time: {request.goal_time or "Not specified"}
+Plan Start Date: {request.start_date.strftime("%A, %B %d, %Y")}
+
+{request.current_plan_content}
+
+=====================================
+MODIFICATION REQUEST
+=====================================
+{request.edit_instructions}
+
+Please output the COMPLETE modified plan following the exact same format as above."""
 
 
 # Singleton instance

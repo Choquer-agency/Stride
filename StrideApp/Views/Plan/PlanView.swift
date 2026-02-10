@@ -7,6 +7,7 @@ struct PlanView: View {
     @State private var selectedWorkout: Workout?
     @State private var lastHapticWeek: Int = 0
     @State private var showDeleteConfirmation = false
+    @State private var showEditSheet = false
 
     let plan: TrainingPlan
     let readOnly: Bool
@@ -154,6 +155,9 @@ struct PlanView: View {
         } message: {
             Text("Archive keeps your plan in Previous Plans. Delete removes it permanently.")
         }
+        .fullScreenCover(isPresented: $showEditSheet) {
+            PlanEditInputView(plan: plan)
+        }
     }
     
     // MARK: - Plan Header View
@@ -193,7 +197,7 @@ struct PlanView: View {
                     // Three-dot menu
                     Menu {
                         Button(action: {
-                            // Edit plan — not yet implemented
+                            showEditSheet = true
                         }) {
                             Label("Edit Plan", systemImage: "pencil")
                         }

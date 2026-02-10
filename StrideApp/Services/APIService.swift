@@ -132,6 +132,88 @@ class APIService: ObservableObject {
         }
     }
     
+    // MARK: - Edit Plan (Streaming)
+    func editPlan(
+        request: PlanEditRequest,
+        onChunk: @escaping (String) -> Void,
+        onComplete: @escaping (String) -> Void,
+        onError: @escaping (Error) -> Void
+    ) async {
+        let url = URL(string: "\(baseURL)/api/edit-plan")!
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        do {
+            let encoder = JSONEncoder()
+            urlRequest.httpBody = try encoder.encode(request)
+
+            isLoading = true
+            streamingContent = ""
+            error = nil
+
+            let (bytes, response) = try await URLSession.shared.bytes(for: urlRequest)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200 else {
+                throw APIServiceError.invalidResponse
+            }
+
+            var fullContent = ""
+
+            for try await line in bytes.lines {
+                if line.hasPrefix("data: ") {
+                    let jsonString = String(line.dropFirst(6))
+
+                    if let data = jsonString.data(using: .utf8),
+                       let chunk = try? JSONDecoder().decode(StreamChunk.self, from: data) {
+
+                        if let content = chunk.content {
+                            fullContent += content
+                            streamingContent = fullContent
+                            onChunk(content)
+                        }
+
+                        if chunk.done == true {
+                            isLoading = false
+                            onComplete(fullContent)
+                            return
+                        }
+
+                        if let errorMsg = chunk.error {
+                            throw APIServiceError.serverError(errorMsg)
+                        }
+                    }
+                }
+            }
+
+            isLoading = false
+            onComplete(fullContent)
+
+        } catch {
+            isLoading = false
+            self.error = error.localizedDescription
+            onError(error)
+        }
+    }
+
+    // MARK: - Build Edit Request from TrainingPlan
+    static func buildEditRequest(from plan: TrainingPlan, editInstructions: String) -> PlanEditRequest {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd"
+
+        return PlanEditRequest(
+            raceType: plan.raceType.rawValue,
+            raceDate: dateFormatter.string(from: plan.raceDate),
+            raceName: plan.raceName,
+            goalTime: plan.goalTime,
+            startDate: dateFormatter.string(from: plan.startDate),
+            currentPlanContent: plan.rawPlanContent ?? "",
+            editInstructions: editInstructions
+        )
+    }
+
     // MARK: - Build Request from Onboarding Data
     static func buildRequest(from data: OnboardingData) -> TrainingPlanRequest {
         let dateFormatter = DateFormatter()

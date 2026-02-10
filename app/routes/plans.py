@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
-from app.models.schemas import TrainingPlanRequest, ConflictAnalysisResponse
+from app.models.schemas import TrainingPlanRequest, PlanEditRequest, ConflictAnalysisResponse
 from app.services.openai_client import OpenAIClient
 from app.services.prompt_builder import prompt_builder
 from app.services.conflict_analyzer import conflict_analyzer
@@ -81,5 +81,49 @@ async def generate_training_plan(request: TrainingPlanRequest):
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no"  # Disable nginx buffering
+        }
+    )
+
+
+@router.post("/edit-plan")
+async def edit_training_plan(request: PlanEditRequest):
+    """
+    Edit an existing training plan based on natural language instructions.
+
+    Streams back the complete modified plan via SSE.
+    """
+    if not request.current_plan_content.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Current plan content is required"
+        )
+
+    if not request.edit_instructions.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Edit instructions are required"
+        )
+
+    system_prompt = prompt_builder.get_edit_system_prompt()
+    user_prompt = prompt_builder.build_edit_user_prompt(request)
+
+    client = OpenAIClient()
+
+    async def generate():
+        """Stream the edited plan."""
+        try:
+            async for chunk in client.generate_plan_stream(system_prompt, user_prompt):
+                yield f"data: {json.dumps({'content': chunk})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
         }
     )

@@ -102,6 +102,27 @@ struct DetectedConflict: Codable, Identifiable {
     }
 }
 
+// MARK: - Plan Edit Request
+struct PlanEditRequest: Codable {
+    let raceType: String
+    let raceDate: String
+    let raceName: String?
+    let goalTime: String?
+    let startDate: String
+    let currentPlanContent: String
+    let editInstructions: String
+
+    enum CodingKeys: String, CodingKey {
+        case raceType = "race_type"
+        case raceDate = "race_date"
+        case raceName = "race_name"
+        case goalTime = "goal_time"
+        case startDate = "start_date"
+        case currentPlanContent = "current_plan_content"
+        case editInstructions = "edit_instructions"
+    }
+}
+
 // MARK: - Stream Chunk
 struct StreamChunk: Codable {
     let content: String?

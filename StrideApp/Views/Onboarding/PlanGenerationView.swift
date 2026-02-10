@@ -4,10 +4,31 @@ struct PlanGenerationView: View {
     let streamingContent: String
     let isComplete: Bool
     let onViewPlan: () -> Void
-    
+    var isEditMode: Bool = false
+
     @State private var elapsedSeconds: Int = 0
     @State private var timer: Timer?
-    
+
+    private var titleText: String {
+        isEditMode ? "UPDATING YOUR TRAINING PLAN" : "PERSONALIZING YOUR TRAINING PLAN"
+    }
+
+    private var subtitleText: String {
+        isEditMode ? "This usually takes 1–2 minutes" : "This usually takes 2–3 minutes"
+    }
+
+    private var loadingText: String {
+        isEditMode ? "Applying your changes..." : "Generating your coaching overview..."
+    }
+
+    private var buttonText: String {
+        isEditMode ? "View Updated Plan" : "View Plan"
+    }
+
+    private var estimatedTotalSeconds: Int {
+        isEditMode ? 90 : 150
+    }
+
     // Extract only the coaching overview portion (before week data starts)
     private var overviewContent: String {
         let content = streamingContent
@@ -23,15 +44,12 @@ struct PlanGenerationView: View {
     
     private var estimatedProgress: Double {
         if isComplete { return 1.0 }
-        // Estimate based on elapsed time (~150 seconds = 2.5 min average)
-        let estimatedTotal: Double = 150
-        return min(Double(elapsedSeconds) / estimatedTotal, 0.95)
+        return min(Double(elapsedSeconds) / Double(estimatedTotalSeconds), 0.95)
     }
-    
+
     private var timeRemainingText: String {
         if isComplete { return "Complete!" }
-        let estimatedTotal = 150
-        let remaining = max(estimatedTotal - elapsedSeconds, 10)
+        let remaining = max(estimatedTotalSeconds - elapsedSeconds, 10)
         if remaining >= 60 {
             let minutes = remaining / 60
             let seconds = remaining % 60
@@ -52,14 +70,14 @@ struct PlanGenerationView: View {
             .padding(.bottom, 24)
             
             // Title
-            Text("PERSONALIZING YOUR TRAINING PLAN")
+            Text(titleText)
                 .font(.barlowCondensed(size: 24, weight: .bold))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
                 .padding(.bottom, 8)
-            
+
             // Time estimate
-            Text("This usually takes 2–3 minutes")
+            Text(subtitleText)
                 .font(.inter(size: 12))
                 .foregroundColor(.secondary)
                 .padding(.bottom, 20)
@@ -91,7 +109,7 @@ struct PlanGenerationView: View {
                                 ProgressView()
                                     .tint(.stridePrimary)
                                     .scaleEffect(0.8)
-                                Text("Generating your coaching overview...")
+                                Text(loadingText)
                                     .font(.inter(size: 14))
                                     .foregroundColor(.secondary)
                             }
@@ -125,7 +143,7 @@ struct PlanGenerationView: View {
                         HStack {
                             Spacer()
                             Button(action: onViewPlan) {
-                                Text("View Plan")
+                                Text(buttonText)
                                     .font(.inter(size: 16, weight: .semibold))
                                     .foregroundColor(.white)
                                     .frame(width: buttonWidth)

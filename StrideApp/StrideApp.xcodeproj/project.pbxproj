@@ -78,6 +78,9 @@
 		FB247FE730FB98CBFA0BB5A6 /* StrideApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4606D673C404874E395422F9 /* StrideApp.swift */; };
 		FE272FC0F51F1066BEC6B46D /* BarlowCondensed-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = E51BA7A68DA682181845EC5C /* BarlowCondensed-Bold.ttf */; };
 		FEDE74C63729822C2FDB5C2C /* APIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = C565B695627C8DAB71312497 /* APIService.swift */; };
+		A1B2C3D4E5F60718A1B2C3D4 /* PlanEditViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718A1B2C3D5 /* PlanEditViewModel.swift */; };
+		A1B2C3D4E5F60718A1B2C3D6 /* PlanEditInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718A1B2C3D7 /* PlanEditInputView.swift */; };
+		A1B2C3D4E5F60718A1B2C3D8 /* ArchivedPlansView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718A1B2C3D9 /* ArchivedPlansView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -153,6 +156,9 @@
 		F9EB90E244CCD02B0D2F1B2C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		FD9CC12B1C80611018D3AA5E /* TrainingCompositionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingCompositionView.swift; sourceTree = "<group>"; };
 		FFFD5F0DCAB21632E5C504DF /* DayCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DayCardView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718A1B2C3D5 /* PlanEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanEditViewModel.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718A1B2C3D7 /* PlanEditInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanEditInputView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718A1B2C3D9 /* ArchivedPlansView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedPlansView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -254,6 +260,7 @@
 			isa = PBXGroup;
 			children = (
 				FFFD5F0DCAB21632E5C504DF /* DayCardView.swift */,
+				A1B2C3D4E5F60718A1B2C3D7 /* PlanEditInputView.swift */,
 				E12C4563B3A9C86BC74AEF33 /* PlanView.swift */,
 				8D39D6A0F2300867AEF3D76D /* RaceFinishView.swift */,
 				49F41395A768E39642797E30 /* WeekAccordionView.swift */,
@@ -291,6 +298,7 @@
 		B5822CBB6E2AC72D91D87189 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				A1B2C3D4E5F60718A1B2C3D9 /* ArchivedPlansView.swift */,
 				9A2DE0138F37155C1405C5C1 /* SettingsView.swift */,
 				D569319A5A7EE27281DEA5BB /* TempWorkoutEditView.swift */,
 			);
@@ -339,6 +347,7 @@
 			isa = PBXGroup;
 			children = (
 				3D7D1971254E98A8E6A0092A /* OnboardingViewModel.swift */,
+				A1B2C3D4E5F60718A1B2C3D5 /* PlanEditViewModel.swift */,
 				53DA8DC5D138828DBCBEDBD0 /* PlanViewModel.swift */,
 				5916DA4949AEE665B4FD810E /* RunViewModel.swift */,
 				670673888B3CFAB76CA70992 /* StatsViewModel.swift */,
@@ -466,6 +475,9 @@
 				E1E51C53610B11E225DAE7DE /* PlanLogger.swift in Sources */,
 				A86CA2C5C2C55FE60F406C65 /* PlanParser.swift in Sources */,
 				9B100CD117119562B7B08449 /* PlanView.swift in Sources */,
+				A1B2C3D4E5F60718A1B2C3D4 /* PlanEditViewModel.swift in Sources */,
+				A1B2C3D4E5F60718A1B2C3D6 /* PlanEditInputView.swift in Sources */,
+				A1B2C3D4E5F60718A1B2C3D8 /* ArchivedPlansView.swift in Sources */,
 				5CB5227B856A48363017DDCB /* PlanViewModel.swift in Sources */,
 				5043F39D92A7E58637CAC9F2 /* ProgressIndicator.swift in Sources */,
 				9560771F597566CE22EF32FB /* RaceFinishView.swift in Sources */,
