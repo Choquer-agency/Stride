@@ -109,6 +109,13 @@ class PromptBuilder:
         # Cross-training days are auto-selected by the coach
         cross_training_str = "Auto-select optimal days based on the training schedule"
         
+        # Detect partial first week (start date is not Monday)
+        start_day_name = request.start_date.strftime("%A")
+        days_of_week = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        start_day_index = days_of_week.index(start_day_name) if start_day_name in days_of_week else 0
+        is_partial_first_week = start_day_name != "Monday"
+        days_in_first_week = 7 - start_day_index  # e.g., Saturday = index 5, so 2 days
+        
         prompt = f"""
 ATHLETE PROFILE AND TRAINING REQUEST
 =====================================
@@ -143,7 +150,15 @@ Available Training Days: {available_days} (7 days minus {locked_rest_days_count}
 Total Sessions Required: {total_sessions} ({request.running_days_per_week} runs + {request.gym_days_per_week} gym)
 Stacking Required: {"Yes — stack exactly " + str(total_sessions - available_days) + " gym session(s) onto easy run days" if stacking_required else "No — use separate days for all sessions"}
 {scheduling_summary}
-
+{"" if not is_partial_first_week else f"""
+PARTIAL FIRST WEEK (MANDATORY)
+The plan starts on {start_day_name}, NOT Monday. Week 1 is a PARTIAL week with only {days_in_first_week} day(s).
+• Week 1 MUST ONLY include days from {start_day_name} through Sunday — do NOT output Monday through {days_of_week[start_day_index - 1] if start_day_index > 0 else "Sunday"} for Week 1
+• Distribute a reduced training load appropriate for {days_in_first_week} day(s)
+• Weekly volume for Week 1 should be proportionally reduced (roughly {days_in_first_week}/7 of a normal week)
+• Full Monday-through-Sunday weeks begin from Week 2 onwards
+• The week header for Week 1 should show the actual dates starting from {start_day_name}
+"""}
 RUNNING BACKGROUND
 Years Running: {request.years_running} years
 Previous Injuries/Limitations: {request.previous_injuries or "None reported"}

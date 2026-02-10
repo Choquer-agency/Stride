@@ -23,6 +23,7 @@ CORE RULES
 
 • The training week runs Monday → Sunday  
 • Sunday is always the end of the week  
+• If the plan start date is not Monday, Week 1 is a PARTIAL week — only include days from the start date through Sunday. Full Monday → Sunday weeks begin from Week 2.
 • Respect all user-specified rest days and preferred long run day  
 • If double days are not allowed, never schedule two sessions on one day  
 • If double days ARE allowed, use them sparingly and only to add low-intensity volume

@@ -75,6 +75,51 @@ class ConflictAnalysisResponse(BaseModel):
     recommendation_summary: Optional[str] = Field(None, description="Summary of overall recommendation")
 
 
+class PlanEditRequest(BaseModel):
+    """Request schema for editing an existing training plan."""
+    race_type: RaceType = Field(..., description="Target race distance")
+    race_date: date = Field(..., description="Date of the goal race")
+    race_name: Optional[str] = Field(None, description="Name of the race")
+    goal_time: Optional[str] = Field(None, description="Target finish time")
+    start_date: date = Field(..., description="Plan start date")
+    current_plan_content: str = Field(..., description="The raw text of the current training plan")
+    edit_instructions: str = Field(..., description="Natural language description of desired changes")
+
+
+class CompletedWorkoutData(BaseModel):
+    """Data for a single completed workout, sent for performance analysis."""
+    date: str = Field(..., description="Workout date (YYYY-MM-DD)")
+    workout_type: str = Field(..., description="Type of workout")
+    planned_distance_km: Optional[float] = Field(None)
+    actual_distance_km: Optional[float] = Field(None)
+    planned_pace_description: Optional[str] = Field(None)
+    actual_avg_pace_sec_per_km: Optional[float] = Field(None)
+    completion_score: Optional[int] = Field(None, description="0-100 score")
+    feedback_rating: Optional[int] = Field(None, description="0-5 subjective feel")
+
+
+class PerformanceAnalysisRequest(BaseModel):
+    """Request schema for AI performance analysis."""
+    race_type: RaceType
+    race_date: date
+    goal_time: Optional[str] = None
+    current_weekly_mileage: int
+    fitness_level: FitnessLevel
+    completed_workouts: list[CompletedWorkoutData]
+    weeks_into_plan: int
+    total_plan_weeks: int
+
+
+class PerformanceAnalysisResponse(BaseModel):
+    """Structured response from performance analysis."""
+    overall_assessment: str = Field(..., description="Summary assessment paragraph")
+    adherence_percentage: float = Field(..., description="Percentage of planned workouts completed")
+    patterns: list[str] = Field(default_factory=list, description="Key patterns identified")
+    recommendations: list[str] = Field(default_factory=list, description="Specific recommendations")
+    suggested_edit_instruction: Optional[str] = Field(None, description="Pre-built edit instruction if plan adjustment recommended")
+    risk_level: RiskLevel = Field(default=RiskLevel.LOW)
+
+
 class TrainingPlanRequest(BaseModel):
     """Request schema for training plan generation."""
     
