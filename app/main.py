@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,8 +11,10 @@ from app.routes.runs import router as runs_router
 from app.routes.community import router as community_router
 from app.routes.admin import router as admin_router
 from app.routes.social import router as social_router
+from app.routes.shoes import router as shoes_router
 from sqlalchemy import text
 from app.database import init_db, async_session, engine
+from app.models.shoe import Shoe  # noqa: F401 — ensure table is created
 from app.services import analytics
 from app.services.achievement_service import seed_achievement_definitions
 from app.services.challenge_service import auto_generate_weekly_challenges, auto_generate_monthly_challenge
@@ -52,6 +55,7 @@ app.include_router(runs_router)
 app.include_router(community_router)
 app.include_router(admin_router)
 app.include_router(social_router)
+app.include_router(shoes_router)
 
 
 @app.on_event("startup")
@@ -63,6 +67,7 @@ async def startup():
     async with engine.begin() as conn:
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(255)"))
+        await conn.execute(text("ALTER TABLE runs ADD COLUMN IF NOT EXISTS shoe_id UUID REFERENCES shoes(id)"))
 
     async with async_session() as db:
         await seed_achievement_definitions(db)
@@ -81,7 +86,6 @@ async def shutdown():
 @app.get("/")
 async def home():
     """Serve the marketing website homepage."""
-    from fastapi.responses import FileResponse
     return FileResponse(WEBSITE_DIST / "index.html")
 
 
