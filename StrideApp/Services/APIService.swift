@@ -313,6 +313,7 @@ class APIService: ObservableObject {
             raceDate: dateFormatter.string(from: plan.raceDate),
             startDate: dateFormatter.string(from: plan.startDate),
             goalTime: plan.goalTime,
+            customDistanceKm: plan.customDistanceKm,
             currentWeeklyMileage: plan.currentWeeklyMileage,
             fitnessLevel: plan.fitnessLevel.rawValue,
             completedWorkouts: completedWorkouts,
@@ -332,6 +333,7 @@ class APIService: ObservableObject {
             raceDate: dateFormatter.string(from: plan.raceDate),
             raceName: plan.raceName,
             goalTime: plan.goalTime,
+            customDistanceKm: plan.customDistanceKm,
             startDate: dateFormatter.string(from: plan.startDate),
             currentPlanContent: plan.rawPlanContent ?? "",
             editInstructions: editInstructions
@@ -342,12 +344,15 @@ class APIService: ObservableObject {
     static func buildRequest(from data: OnboardingData) -> TrainingPlanRequest {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
-        
+
         return TrainingPlanRequest(
             raceType: data.raceType.rawValue,
             raceDate: dateFormatter.string(from: data.raceDate),
             raceName: data.raceName.isEmpty ? nil : data.raceName,
             goalTime: data.goalTime.isEmpty ? nil : data.goalTime,
+            customDistanceKm: data.raceType == .custom ? data.customDistanceKm : nil,
+            terrainType: data.isUltraDistance ? data.terrainType?.rawValue : nil,
+            elevationGainM: data.isUltraDistance ? data.elevationGainM : nil,
             currentWeeklyMileage: data.currentWeeklyMileage,
             longestRecentRun: data.longestRecentRun,
             recentRaceTimes: data.recentRaceTimes.isEmpty ? nil : data.recentRaceTimes,
@@ -774,6 +779,97 @@ class APIService: ObservableObject {
     }
 }
 
+    // MARK: - Shoes
+
+    func fetchShoes(includeRetired: Bool = false) async throws -> [ShoeResponse] {
+        var components = URLComponents(string: "\(baseURL)/api/shoes")!
+        if includeRetired {
+            components.queryItems = [URLQueryItem(name: "include_retired", value: "true")]
+        }
+
+        var request = URLRequest(url: components.url!)
+        request.httpMethod = "GET"
+        addAuthHeader(to: &request)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+        return try JSONDecoder().decode([ShoeResponse].self, from: data)
+    }
+
+    func createShoe(name: String, isDefault: Bool) async throws -> ShoeResponse {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/shoes")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+
+        let body = ShoeCreateRequest(name: name, isDefault: isDefault)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+        return try JSONDecoder().decode(ShoeResponse.self, from: data)
+    }
+
+    func updateShoe(id: String, name: String? = nil, isDefault: Bool? = nil, isRetired: Bool? = nil) async throws -> ShoeResponse {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/shoes/\(id)")!)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+
+        let body = ShoeUpdateRequest(name: name, isDefault: isDefault, isRetired: isRetired)
+        request.httpBody = try JSONEncoder().encode(body)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+        return try JSONDecoder().decode(ShoeResponse.self, from: data)
+    }
+
+    func deleteShoe(id: String) async throws {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/shoes/\(id)")!)
+        request.httpMethod = "DELETE"
+        addAuthHeader(to: &request)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+    }
+
+    func uploadShoePhoto(id: String, imageData: Data) async throws -> ShoeResponse {
+        let boundary = UUID().uuidString
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/shoes/\(id)/photo")!)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        addAuthHeader(to: &request)
+
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"shoe.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+        request.httpBody = body
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+        return try JSONDecoder().decode(ShoeResponse.self, from: data)
+    }
+}
+
 // MARK: - API Service Error
 enum APIServiceError: LocalizedError {
     case invalidResponse
@@ -802,14 +898,17 @@ struct OnboardingData {
     var raceDate: Date = Date().addingTimeInterval(86400 * 84) // 12 weeks
     var raceName: String = ""
     var goalTime: String = ""
-    
+    var customDistanceKm: Double? = nil
+    var terrainType: TerrainType? = nil
+    var elevationGainM: Int? = nil
+
     // Step 2: Fitness
     var currentWeeklyMileage: Int = 0
     var longestRecentRun: Int = 0
     var recentRaceTimes: String = ""
     var recentRuns: String = ""
     var fitnessLevel: FitnessLevel = .intermediate
-    
+
     // Step 3: Schedule
     var startDate: Date = Date()
     var restDays: Set<DayOfWeek> = []
@@ -817,33 +916,44 @@ struct OnboardingData {
     var doubleDaysAllowed: Bool = false
     var runningDaysPerWeek: Int = 5
     var gymDaysPerWeek: Int = 2
-    
+
     // Step 4: History
     var yearsRunning: Int = 0
     var previousInjuries: String = ""
     var previousExperience: String = ""
-    
+
     // Step 5: Conflict Resolution (optional)
     var planMode: PlanMode? = nil
     var recommendedGoalTime: String? = nil
-    
+
+    // MARK: - Computed Helpers
+
+    /// Whether the custom distance qualifies as ultra (50km+)
+    var isUltraDistance: Bool {
+        raceType == .custom && (customDistanceKm ?? 0) >= 50
+    }
+
     // Validation
     var isStep1Valid: Bool {
-        !raceName.trimmingCharacters(in: .whitespaces).isEmpty &&
-        !goalTime.trimmingCharacters(in: .whitespaces).isEmpty &&
-        raceDate > startDate
+        let baseValid = !raceName.trimmingCharacters(in: .whitespaces).isEmpty &&
+            !goalTime.trimmingCharacters(in: .whitespaces).isEmpty &&
+            raceDate > startDate
+        if raceType == .custom {
+            return baseValid && (customDistanceKm ?? 0) > 0
+        }
+        return baseValid
     }
-    
+
     var isStep2Valid: Bool {
         currentWeeklyMileage >= 0 && longestRecentRun >= 0
     }
-    
+
     var isStep3Valid: Bool {
         let availableDays = 7 - restDays.count
         let totalSessions = runningDaysPerWeek + gymDaysPerWeek
         return totalSessions <= availableDays || doubleDaysAllowed
     }
-    
+
     var isStep4Valid: Bool {
         yearsRunning >= 0
     }

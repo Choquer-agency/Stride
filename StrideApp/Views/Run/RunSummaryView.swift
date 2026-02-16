@@ -3,10 +3,12 @@ import SwiftUI
 struct RunSummaryView: View {
     let result: RunResult
     let score: Int?
-    var onSave: (_ feedbackRating: Int?, _ notes: String) -> Void
-    
+    let shoes: [Shoe]
+    var onSave: (_ feedbackRating: Int?, _ notes: String, _ shoeId: UUID?, _ shoeName: String?) -> Void
+
     @State private var feedbackRating: Int? = nil
     @State private var feedbackNotes: String = ""
+    @State private var selectedShoe: Shoe?
     
     var body: some View {
         ScrollView {
@@ -53,11 +55,19 @@ struct RunSummaryView: View {
                     
                     // Notes
                     notesSection
-                        .padding(.bottom, 28)
-                    
+                        .padding(.bottom, 20)
+
+                    // Shoe Picker
+                    if !shoes.isEmpty {
+                        shoePickerSection
+                            .padding(.bottom, 28)
+                    } else {
+                        Spacer().frame(height: 8)
+                    }
+
                     // Save Workout Button
                     Button {
-                        onSave(feedbackRating, feedbackNotes)
+                        onSave(feedbackRating, feedbackNotes, selectedShoe?.id, selectedShoe?.name)
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: "checkmark.circle")
@@ -78,6 +88,9 @@ struct RunSummaryView: View {
             }
         }
         .background(Color(.systemBackground))
+        .onAppear {
+            selectedShoe = shoes.first(where: \.isDefault)
+        }
     }
     
     // MARK: - Score Ring
@@ -422,6 +435,59 @@ struct RunSummaryView: View {
         }
     }
     
+    // MARK: - Shoe Picker Section
+
+    private var shoePickerSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Shoe")
+                .font(.inter(size: 15, weight: .semibold))
+                .foregroundColor(.primary)
+
+            Menu {
+                Button {
+                    selectedShoe = nil
+                } label: {
+                    if selectedShoe == nil {
+                        Label("None", systemImage: "checkmark")
+                    } else {
+                        Text("None")
+                    }
+                }
+
+                ForEach(shoes, id: \.id) { shoe in
+                    Button {
+                        selectedShoe = shoe
+                    } label: {
+                        if selectedShoe?.id == shoe.id {
+                            Label(shoe.name, systemImage: "checkmark")
+                        } else {
+                            Text(shoe.name)
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "shoe.2")
+                        .font(.system(size: 14))
+                        .foregroundColor(.stridePrimary)
+
+                    Text(selectedShoe?.name ?? "None")
+                        .font(.inter(size: 14, weight: .medium))
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+                .padding(14)
+                .background(Color(hex: "F9F9F9"))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+        }
+    }
+
     // MARK: - Helpers
     
     private func formatDistance(_ km: Double) -> String {
@@ -487,6 +553,7 @@ struct RunSummaryView: View {
             treadmillBrand: "Assault Runner"
         ),
         score: 85,
-        onSave: { _, _ in }
+        shoes: [],
+        onSave: { _, _, _, _ in }
     )
 }

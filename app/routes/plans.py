@@ -56,7 +56,7 @@ async def generate_training_plan(request: TrainingPlanRequest, current_user: Use
             detail="Training period must be at least 2 weeks"
         )
 
-    system_prompt = prompt_builder.get_system_prompt(request.race_type)
+    system_prompt = prompt_builder.get_system_prompt(request.race_type, request.custom_distance_km)
     user_prompt = prompt_builder.build_user_prompt(request)
 
     client = AnthropicClient()
@@ -114,7 +114,7 @@ async def edit_training_plan(request: PlanEditRequest, current_user: User = Depe
             detail="Edit instructions are required"
         )
 
-    system_prompt = prompt_builder.get_edit_system_prompt(request.race_type)
+    system_prompt = prompt_builder.get_edit_system_prompt(request.race_type, request.custom_distance_km)
     user_prompt = prompt_builder.build_edit_user_prompt(request)
 
     client = AnthropicClient()
@@ -170,7 +170,7 @@ async def analyze_performance(request: PerformanceAnalysisRequest, current_user:
             detail="Current plan content is required"
         )
 
-    system_prompt = prompt_builder.get_analysis_system_prompt(request.race_type)
+    system_prompt = prompt_builder.get_analysis_system_prompt(request.race_type, request.custom_distance_km)
     user_prompt = prompt_builder.build_analysis_user_prompt(request)
 
     client = AnthropicClient()

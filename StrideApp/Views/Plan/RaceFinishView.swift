@@ -38,7 +38,7 @@ struct RaceFinishView: View {
             
             // Race Details
             VStack(spacing: 8) {
-                Text(plan.raceName ?? plan.raceType.displayName)
+                Text(plan.raceName ?? plan.displayDistance)
                     .font(.title.weight(.bold))
                     .multilineTextAlignment(.center)
                 

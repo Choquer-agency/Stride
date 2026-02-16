@@ -20,6 +20,7 @@ from app.services.challenge_service import check_challenge_participation
 from app.services.event_service import check_event_participation
 from app.services import analytics
 from app.services.social_service import log_activity
+from app.services.shoe_service import add_mileage as shoe_add_mileage
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -59,6 +60,7 @@ async def sync_runs(
             week_number=run_payload.week_number,
             data_source=run_payload.data_source,
             treadmill_brand=run_payload.treadmill_brand,
+            shoe_id=run_payload.shoe_id,
             is_leaderboard_eligible=is_eligible,
             synced_at=now,
         ).on_conflict_do_nothing(index_elements=["id"])
@@ -95,6 +97,9 @@ async def sync_runs(
                 completed_at=run_payload.completed_at,
                 is_eligible=is_eligible,
             )
+            # Increment shoe mileage
+            if run_payload.shoe_id:
+                await shoe_add_mileage(db, run_payload.shoe_id, current_user.id, run_payload.distance_km)
             # Log activity for feed
             await log_activity(
                 db, current_user.id, "run", run_payload.id,

@@ -67,7 +67,8 @@ class RunSyncService {
                         planName: run.planName,
                         weekNumber: run.weekNumber,
                         dataSource: run.dataSource,
-                        treadmillBrand: run.treadmillBrand
+                        treadmillBrand: run.treadmillBrand,
+                        shoeId: run.shoeId?.uuidString
                     )
                 }
 

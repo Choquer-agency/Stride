@@ -6,50 +6,47 @@ enum RaceType: String, Codable, CaseIterable, Identifiable {
     case tenK = "10K"
     case halfMarathon = "Half Marathon"
     case marathon = "Marathon"
-    case fiftyK = "50K"
-    case eightyK = "80K"
-    case hundredK = "100K"
-    case hundredSixtyK = "160K"
-    case hundredSixtyPlus = "160+ km"
-    
+    case custom = "Custom"
+
     var id: String { rawValue }
-    
+
     var displayName: String { rawValue }
-    
+
     var shortName: String {
         switch self {
         case .fiveK: return "5K"
         case .tenK: return "10K"
         case .halfMarathon: return "Half"
         case .marathon: return "Full"
-        case .fiftyK: return "50K"
-        case .eightyK: return "80K"
-        case .hundredK: return "100K"
-        case .hundredSixtyK: return "160K"
-        case .hundredSixtyPlus: return "160+"
+        case .custom: return "Custom"
         }
     }
-    
-    var distanceKm: Double {
+
+    /// Distance in km for standard types, nil for custom (distance lives in OnboardingData/TrainingPlan)
+    var distanceKm: Double? {
         switch self {
         case .fiveK: return 5.0
         case .tenK: return 10.0
         case .halfMarathon: return 21.1
         case .marathon: return 42.195
-        case .fiftyK: return 50.0
-        case .eightyK: return 80.0
-        case .hundredK: return 100.0
-        case .hundredSixtyK: return 160.0
-        case .hundredSixtyPlus: return 160.0
+        case .custom: return nil
         }
     }
-    
-    var isUltra: Bool {
+}
+
+// MARK: - Terrain Type
+enum TerrainType: String, Codable, CaseIterable, Identifiable {
+    case road = "road"
+    case trail = "trail"
+    case mountain = "mountain"
+
+    var id: String { rawValue }
+
+    var displayName: String {
         switch self {
-        case .fiftyK, .eightyK, .hundredK, .hundredSixtyK, .hundredSixtyPlus:
-            return true
-        default:
-            return false
+        case .road: return "Road"
+        case .trail: return "Trail"
+        case .mountain: return "Mountain"
         }
     }
 }

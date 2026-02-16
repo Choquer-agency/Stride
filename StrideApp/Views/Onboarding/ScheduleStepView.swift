@@ -211,16 +211,18 @@ struct ScheduleStepView: View {
     }
     
     private func autoSelectSchedule() {
-        let isUltra = data.raceType.isUltra
-        let isMarathonDistance = [.halfMarathon, .marathon].contains(data.raceType)
+        let isUltra = data.isUltraDistance
+        let customKm = data.customDistanceKm ?? 0
+        let isMarathonRange = [.halfMarathon, .marathon].contains(data.raceType)
+            || (data.raceType == .custom && customKm >= 15 && customKm < 50)
         let isBeginner = data.fitnessLevel == .beginner
         let isAdvanced = data.fitnessLevel == .advanced
-        
+
         withAnimation(.spring(response: 0.3)) {
             if isUltra {
                 data.runningDaysPerWeek = isAdvanced ? 6 : 5
                 data.gymDaysPerWeek = 2
-            } else if isMarathonDistance {
+            } else if isMarathonRange {
                 if isBeginner {
                     data.runningDaysPerWeek = 4
                     data.gymDaysPerWeek = 2

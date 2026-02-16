@@ -19,84 +19,99 @@ from app.models.schemas import (
 )
 
 
-# Race distances in km
+# Known distance→value curves for interpolation
+# Sorted by distance in km
+_DISTANCE_CURVE = [
+    (5.0, "5K"),
+    (10.0, "10K"),
+    (21.1, "HM"),
+    (42.195, "M"),
+    (50.0, "50K"),
+    (80.0, "80K"),
+    (100.0, "100K"),
+    (160.0, "160K"),
+    (200.0, "160+"),
+]
+
+# Race distances in km for standard types
 RACE_DISTANCES = {
     RaceType.FIVE_K: 5.0,
     RaceType.TEN_K: 10.0,
     RaceType.HALF_MARATHON: 21.1,
     RaceType.MARATHON: 42.195,
-    RaceType.FIFTY_K: 50.0,
-    RaceType.EIGHTY_K: 80.0,
-    RaceType.HUNDRED_K: 100.0,
-    RaceType.HUNDRED_SIXTY_K: 160.0,
-    RaceType.HUNDRED_SIXTY_PLUS: 160.0,
 }
 
-# Minimum recommended training weeks by race type
-MIN_TRAINING_WEEKS = {
-    RaceType.FIVE_K: 6,
-    RaceType.TEN_K: 8,
-    RaceType.HALF_MARATHON: 10,
-    RaceType.MARATHON: 12,
-    RaceType.FIFTY_K: 14,
-    RaceType.EIGHTY_K: 16,
-    RaceType.HUNDRED_K: 18,
-    RaceType.HUNDRED_SIXTY_K: 20,
-    RaceType.HUNDRED_SIXTY_PLUS: 24,
-}
+# Known distance→value data for interpolation
+_MIN_WEEKS_CURVE = [
+    (5.0, 6), (10.0, 8), (21.1, 10), (42.195, 12),
+    (50.0, 14), (80.0, 16), (100.0, 18), (160.0, 20), (200.0, 24),
+]
 
-# Minimum recommended weekly volume (km) for aggressive goals by race type
-MIN_VOLUME_FOR_AGGRESSIVE = {
-    RaceType.FIVE_K: 25,
-    RaceType.TEN_K: 30,
-    RaceType.HALF_MARATHON: 40,
-    RaceType.MARATHON: 50,
-    RaceType.FIFTY_K: 60,
-    RaceType.EIGHTY_K: 70,
-    RaceType.HUNDRED_K: 80,
-    RaceType.HUNDRED_SIXTY_K: 90,
-    RaceType.HUNDRED_SIXTY_PLUS: 100,
-}
+_MIN_VOLUME_CURVE = [
+    (5.0, 25), (10.0, 30), (21.1, 40), (42.195, 50),
+    (50.0, 60), (80.0, 70), (100.0, 80), (160.0, 90), (200.0, 100),
+]
 
-# Required training benchmarks by race type (mirrored from coach prompts)
-# These are the minimum peak long run and peak weekly volume to be race-ready
+_PEAK_LONG_RUN_CURVE = [
+    (5.0, 12), (10.0, 16), (21.1, 20), (42.195, 30),
+    (50.0, 40), (80.0, 50), (100.0, 55), (160.0, 60), (200.0, 65),
+]
+
+_PEAK_VOLUME_CURVE = [
+    (5.0, 30), (10.0, 40), (21.1, 50), (42.195, 75),
+    (50.0, 90), (80.0, 100), (100.0, 110), (160.0, 120), (200.0, 130),
+]
+
+
+def _interpolate(curve: list[tuple[float, float]], distance_km: float) -> float:
+    """Linearly interpolate a value from a sorted (distance, value) curve."""
+    if distance_km <= curve[0][0]:
+        return curve[0][1]
+    if distance_km >= curve[-1][0]:
+        return curve[-1][1]
+    for i in range(len(curve) - 1):
+        d0, v0 = curve[i]
+        d1, v1 = curve[i + 1]
+        if d0 <= distance_km <= d1:
+            t = (distance_km - d0) / (d1 - d0)
+            return v0 + t * (v1 - v0)
+    return curve[-1][1]
+
+
+def get_race_distance_km(request: TrainingPlanRequest) -> float:
+    """Get the effective race distance in km from a request."""
+    if request.race_type == RaceType.CUSTOM:
+        return request.custom_distance_km or 42.195
+    return RACE_DISTANCES.get(request.race_type, 42.195)
+
+
+def get_min_training_weeks(request: TrainingPlanRequest) -> int:
+    """Get minimum recommended training weeks for a request."""
+    km = get_race_distance_km(request)
+    return round(_interpolate(_MIN_WEEKS_CURVE, km))
+
+
+def get_min_volume_for_aggressive(request: TrainingPlanRequest) -> int:
+    """Get minimum volume for aggressive goals for a request."""
+    km = get_race_distance_km(request)
+    return round(_interpolate(_MIN_VOLUME_CURVE, km))
+
+
+def get_required_benchmarks(request: TrainingPlanRequest) -> dict:
+    """Get required training benchmarks for a request."""
+    km = get_race_distance_km(request)
+    return {
+        "peak_long_run_km": round(_interpolate(_PEAK_LONG_RUN_CURVE, km)),
+        "peak_weekly_volume_km": round(_interpolate(_PEAK_VOLUME_CURVE, km)),
+    }
+
+
+# Legacy dict for prompt_builder REQUIRED_BENCHMARKS import
 REQUIRED_BENCHMARKS = {
-    RaceType.FIVE_K: {
-        "peak_long_run_km": 12,
-        "peak_weekly_volume_km": 30,
-    },
-    RaceType.TEN_K: {
-        "peak_long_run_km": 16,
-        "peak_weekly_volume_km": 40,
-    },
-    RaceType.HALF_MARATHON: {
-        "peak_long_run_km": 20,  # 18-22 km range, use 20 as target
-        "peak_weekly_volume_km": 50,
-    },
-    RaceType.MARATHON: {
-        "peak_long_run_km": 30,  # 28-32 km range, use 30 as target
-        "peak_weekly_volume_km": 75,
-    },
-    RaceType.FIFTY_K: {
-        "peak_long_run_km": 40,
-        "peak_weekly_volume_km": 90,
-    },
-    RaceType.EIGHTY_K: {
-        "peak_long_run_km": 50,
-        "peak_weekly_volume_km": 100,
-    },
-    RaceType.HUNDRED_K: {
-        "peak_long_run_km": 55,
-        "peak_weekly_volume_km": 110,
-    },
-    RaceType.HUNDRED_SIXTY_K: {
-        "peak_long_run_km": 60,
-        "peak_weekly_volume_km": 120,
-    },
-    RaceType.HUNDRED_SIXTY_PLUS: {
-        "peak_long_run_km": 65,
-        "peak_weekly_volume_km": 130,
-    },
+    RaceType.FIVE_K: {"peak_long_run_km": 12, "peak_weekly_volume_km": 30},
+    RaceType.TEN_K: {"peak_long_run_km": 16, "peak_weekly_volume_km": 40},
+    RaceType.HALF_MARATHON: {"peak_long_run_km": 20, "peak_weekly_volume_km": 50},
+    RaceType.MARATHON: {"peak_long_run_km": 30, "peak_weekly_volume_km": 75},
 }
 
 
@@ -165,7 +180,7 @@ def estimate_reasonable_goal_time(request: TrainingPlanRequest) -> str | None:
         return None
     
     race_text = request.recent_race_times.lower()
-    race_distance = RACE_DISTANCES.get(request.race_type, 42.195)
+    race_distance = get_race_distance_km(request)
     
     # Try to extract half marathon time
     half_match = re.search(r'half[- ]?marathon[:\s]*(\d+:\d+:\d+|\d+:\d+)', race_text)
@@ -246,19 +261,19 @@ class ConflictAnalyzer:
         goal_seconds = parse_time_to_seconds(request.goal_time)
         if not goal_seconds:
             return None
-        
-        race_distance = RACE_DISTANCES.get(request.race_type, 42.195)
+
+        race_distance = get_race_distance_km(request)
         goal_pace = calculate_pace_per_km(goal_seconds, race_distance)
-        
+
         # Try to estimate current fitness from recent races
         estimated_time = estimate_reasonable_goal_time(request)
         if not estimated_time:
             return None
-        
+
         estimated_seconds = parse_time_to_seconds(estimated_time)
         if not estimated_seconds:
             return None
-        
+
         estimated_pace = calculate_pace_per_km(estimated_seconds, race_distance)
         
         # Check if goal pace is >15% faster than estimated
@@ -347,7 +362,7 @@ class ConflictAnalyzer:
         training_days = (request.race_date - request.start_date).days
         training_weeks = training_days // 7
         
-        min_weeks = MIN_TRAINING_WEEKS.get(request.race_type, 12)
+        min_weeks = get_min_training_weeks(request)
         
         if training_weeks < min_weeks:
             is_severe = training_weeks < min_weeks * 0.7
@@ -371,7 +386,7 @@ class ConflictAnalyzer:
     
     def _check_volume_insufficient(self, request: TrainingPlanRequest) -> DetectedConflict | None:
         """Check if current weekly volume is too low for an aggressive goal."""
-        min_volume = MIN_VOLUME_FOR_AGGRESSIVE.get(request.race_type, 50)
+        min_volume = get_min_volume_for_aggressive(request)
         
         # Only flag if there's an aggressive time goal
         if not request.goal_time:
@@ -382,9 +397,9 @@ class ConflictAnalyzer:
         if not goal_seconds:
             return None
         
-        race_distance = RACE_DISTANCES.get(request.race_type, 42.195)
+        race_distance = get_race_distance_km(request)
         goal_pace = calculate_pace_per_km(goal_seconds, race_distance)
-        
+
         # Sub-5:00/km pace for marathon is aggressive
         is_aggressive_pace = goal_pace < 300  # 5:00/km in seconds
         
@@ -410,9 +425,7 @@ class ConflictAnalyzer:
         Check if required training benchmarks (peak long run, volume) are reachable 
         within the available timeline using safe progression (10% weekly increase).
         """
-        benchmarks = REQUIRED_BENCHMARKS.get(request.race_type)
-        if not benchmarks:
-            return None
+        benchmarks = get_required_benchmarks(request)
         
         required_peak_long_run = benchmarks["peak_long_run_km"]
         current_long_run = request.longest_recent_run
@@ -436,12 +449,10 @@ class ConflictAnalyzer:
         total_weeks_needed = weeks_for_long_run + recovery_weeks
         
         # Add 2 weeks for taper (marathon and longer distances)
-        if request.race_type in [
-            RaceType.MARATHON, RaceType.FIFTY_K, RaceType.EIGHTY_K,
-            RaceType.HUNDRED_K, RaceType.HUNDRED_SIXTY_K, RaceType.HUNDRED_SIXTY_PLUS
-        ]:
+        race_km = get_race_distance_km(request)
+        if race_km >= 42.0:
             total_weeks_needed += 2
-        elif request.race_type == RaceType.HALF_MARATHON:
+        elif race_km >= 15.0:
             total_weeks_needed += 1
         
         # Calculate available training weeks
@@ -465,7 +476,8 @@ class ConflictAnalyzer:
             risk_level = RiskLevel.LOW
         
         # Build specific messaging
-        race_name = request.race_type.value
+        race_km = get_race_distance_km(request)
+        race_name = f"{race_km:.0f} km" if request.race_type == RaceType.CUSTOM else request.race_type.value
         
         return DetectedConflict(
             conflict_type=ConflictType.BENCHMARKS_UNREACHABLE,

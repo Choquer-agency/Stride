@@ -1,21 +1,27 @@
 from pathlib import Path
 from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, RaceType, PlanMode
-from app.services.conflict_analyzer import REQUIRED_BENCHMARKS
+from app.services.conflict_analyzer import REQUIRED_BENCHMARKS, get_required_benchmarks
 from datetime import timedelta
 
 
-# Map race types to their specialized coach prompt files
-RACE_TYPE_TO_COACH = {
-    RaceType.FIVE_K: "coach_speed.txt",
-    RaceType.TEN_K: "coach_speed.txt",
-    RaceType.HALF_MARATHON: "coach_marathon.txt",
-    RaceType.MARATHON: "coach_marathon.txt",
-    RaceType.FIFTY_K: "coach_ultra.txt",
-    RaceType.EIGHTY_K: "coach_ultra.txt",
-    RaceType.HUNDRED_K: "coach_ultra.txt",
-    RaceType.HUNDRED_SIXTY_K: "coach_ultra.txt",
-    RaceType.HUNDRED_SIXTY_PLUS: "coach_ultra.txt",
-}
+def get_coach_file(race_type: RaceType, custom_distance_km: float | None = None) -> str:
+    """Route to the correct coach prompt based on race type and custom distance."""
+    if race_type != RaceType.CUSTOM:
+        return {
+            RaceType.FIVE_K: "coach_speed.txt",
+            RaceType.TEN_K: "coach_speed.txt",
+            RaceType.HALF_MARATHON: "coach_half_marathon.txt",
+            RaceType.MARATHON: "coach_marathon.txt",
+        }.get(race_type, "coach_marathon.txt")
+    # Custom: route by distance
+    km = custom_distance_km or 42.195
+    if km >= 50:
+        return "coach_ultra.txt"
+    if km >= 35:
+        return "coach_marathon.txt"
+    if km >= 15:
+        return "coach_half_marathon.txt"
+    return "coach_speed.txt"
 
 
 class PromptBuilder:
@@ -32,20 +38,18 @@ class PromptBuilder:
             self._prompt_cache[filename] = prompt_path.read_text(encoding="utf-8")
         return self._prompt_cache[filename]
     
-    def get_system_prompt(self, race_type: RaceType) -> str:
+    def get_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
         """
         Get the appropriate system prompt for the given race type.
-        
+
         Args:
             race_type: The target race distance
-            
+            custom_distance_km: Custom distance in km (for Custom race type)
+
         Returns:
             The specialized coaching system prompt
         """
-        coach_file = RACE_TYPE_TO_COACH.get(race_type)
-        if coach_file is None:
-            # Fallback to marathon coach for unknown types
-            coach_file = "coach_marathon.txt"
+        coach_file = get_coach_file(race_type, custom_distance_km)
         return self._load_prompt(coach_file)
     
     @property
@@ -116,15 +120,32 @@ class PromptBuilder:
         is_partial_first_week = start_day_name != "Monday"
         days_in_first_week = 7 - start_day_index  # e.g., Saturday = index 5, so 2 days
         
+        # Build race distance string
+        if request.race_type == RaceType.CUSTOM and request.custom_distance_km:
+            race_distance_str = f"{request.custom_distance_km} km (Custom)"
+        else:
+            race_distance_str = request.race_type.value
+
+        # Build terrain block
+        terrain_block = ""
+        if request.terrain_type or request.elevation_gain_m:
+            terrain_lines = ["\nTERRAIN & ELEVATION"]
+            if request.terrain_type:
+                terrain_lines.append(f"Terrain Type: {request.terrain_type.value.capitalize()}")
+            if request.elevation_gain_m is not None:
+                terrain_lines.append(f"Total Elevation Gain: {request.elevation_gain_m} meters")
+            terrain_block = "\n".join(terrain_lines)
+
         prompt = f"""
 ATHLETE PROFILE AND TRAINING REQUEST
 =====================================
 
 GOAL INFORMATION
-Race Distance: {request.race_type.value}
+Race Distance: {race_distance_str}
 Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
 Race Name: {request.race_name or "Not specified"}
 Goal Time: {request.goal_time or "Finish strong (no specific time goal)"}
+{terrain_block}
 
 TRAINING TIMELINE
 Start Date: {request.start_date.strftime("%A, %B %d, %Y")}
@@ -194,7 +215,7 @@ Start the plan on {request.start_date.strftime("%A, %B %d, %Y")} and end with ra
             goal_time = request.goal_time or "their stated goal"
             
             # Get required benchmarks for this race type
-            benchmarks = REQUIRED_BENCHMARKS.get(request.race_type, {})
+            benchmarks = get_required_benchmarks(request)
             peak_long_run = benchmarks.get("peak_long_run_km", 30)
             peak_volume = benchmarks.get("peak_weekly_volume_km", 75)
             
@@ -249,9 +270,9 @@ RECOMMENDED MODE INSTRUCTIONS:
         
         return ""
 
-    def get_analysis_system_prompt(self, race_type: RaceType) -> str:
+    def get_analysis_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
         """Load the performance analysis system prompt, composed with the race-specific coach persona."""
-        coach_file = RACE_TYPE_TO_COACH.get(race_type, "coach_marathon.txt")
+        coach_file = get_coach_file(race_type, custom_distance_km)
         coach_persona = self._load_prompt(coach_file)
         analysis_instructions = self._load_prompt("coach_analysis.txt")
         return coach_persona + "\n\n" + analysis_instructions
@@ -284,11 +305,13 @@ RECOMMENDED MODE INSTRUCTIONS:
 
         workouts_text = "\n".join(workout_lines)
 
+        analysis_distance = f"{request.custom_distance_km} km (Custom)" if request.race_type == RaceType.CUSTOM and request.custom_distance_km else request.race_type.value
+
         return f"""PERFORMANCE ANALYSIS REQUEST
 =====================================
 
 PLAN INFORMATION
-Race Distance: {request.race_type.value}
+Race Distance: {analysis_distance}
 Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
 Plan Start Date: {request.start_date.strftime("%A, %B %d, %Y")}
 Goal Time: {request.goal_time or "Not specified"}
@@ -308,9 +331,9 @@ COMPLETED WORKOUT DATA ({len(request.completed_workouts)} workouts)
 
 Please analyze this athlete's training execution and provide your assessment."""
 
-    def get_edit_system_prompt(self, race_type: RaceType) -> str:
+    def get_edit_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
         """Load the plan modification system prompt, composed with the race-specific coach persona."""
-        coach_file = RACE_TYPE_TO_COACH.get(race_type, "coach_marathon.txt")
+        coach_file = get_coach_file(race_type, custom_distance_km)
         coach_persona = self._load_prompt(coach_file)
         edit_instructions = self._load_prompt("coach_edit.txt")
         return coach_persona + "\n\n" + edit_instructions
@@ -321,9 +344,11 @@ Please analyze this athlete's training execution and provide your assessment."""
 
         Combines the current plan content with the athlete's edit instructions.
         """
+        edit_distance = f"{request.custom_distance_km} km (Custom)" if request.race_type == RaceType.CUSTOM and request.custom_distance_km else request.race_type.value
+
         return f"""CURRENT TRAINING PLAN
 =====================================
-Race Distance: {request.race_type.value}
+Race Distance: {edit_distance}
 Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
 Race Name: {request.race_name or "Not specified"}
 Goal Time: {request.goal_time or "Not specified"}

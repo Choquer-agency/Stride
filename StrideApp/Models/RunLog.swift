@@ -21,6 +21,10 @@ final class RunLog {
     var dataSource: String = "manual"  // "bluetooth_ftms" | "manual"
     var treadmillBrand: String?
 
+    // Shoe context (denormalized — survives shoe deletion)
+    var shoeId: UUID?
+    var shoeName: String?
+
     // Plan context snapshot (denormalized — survives plan deletion)
     var plannedWorkoutId: UUID?
     var plannedWorkoutTitle: String?
@@ -103,6 +107,8 @@ final class RunLog {
         notes: String? = nil,
         dataSource: String = "manual",
         treadmillBrand: String? = nil,
+        shoeId: UUID? = nil,
+        shoeName: String? = nil,
         plannedWorkoutId: UUID? = nil,
         plannedWorkoutTitle: String? = nil,
         plannedWorkoutTypeRaw: String? = nil,
@@ -123,6 +129,8 @@ final class RunLog {
         self.notes = notes
         self.dataSource = dataSource
         self.treadmillBrand = treadmillBrand
+        self.shoeId = shoeId
+        self.shoeName = shoeName
         self.plannedWorkoutId = plannedWorkoutId
         self.plannedWorkoutTitle = plannedWorkoutTitle
         self.plannedWorkoutTypeRaw = plannedWorkoutTypeRaw

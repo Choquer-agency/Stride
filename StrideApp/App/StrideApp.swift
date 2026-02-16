@@ -14,7 +14,8 @@ struct StrideApp: App {
                 TrainingPlan.self,
                 Week.self,
                 Workout.self,
-                RunLog.self
+                RunLog.self,
+                Shoe.self
             ])
 
             let modelConfiguration = ModelConfiguration(
@@ -75,7 +76,7 @@ struct StrideApp: App {
                     plannedDurationMinutes: isFreeRun ? nil : workout.durationMinutes,
                     plannedPaceDescription: isFreeRun ? nil : workout.paceDescription,
                     completionScore: workout.completionScore,
-                    planName: workout.week?.plan?.raceName ?? workout.week?.plan?.raceType.displayName,
+                    planName: workout.week?.plan?.raceName ?? workout.week?.plan?.displayDistance,
                     weekNumber: workout.week?.weekNumber
                 )
                 runLog.completedAt = workout.completedAt ?? workout.date

@@ -35,7 +35,7 @@ struct StatsSummarySection: View {
                 StatCardView(
                     title: "Race Countdown",
                     value: "\(viewModel.plan.daysUntilRace) days",
-                    subtitle: viewModel.plan.raceName ?? viewModel.plan.raceType.displayName
+                    subtitle: viewModel.plan.raceName ?? viewModel.plan.displayDistance
                 )
             }
         }

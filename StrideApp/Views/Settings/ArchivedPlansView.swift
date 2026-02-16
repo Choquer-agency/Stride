@@ -63,7 +63,7 @@ struct ArchivedPlanRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(plan.raceName ?? plan.raceType.displayName)
+            Text(plan.raceName ?? plan.displayDistance)
                 .font(.inter(size: 16, weight: .semibold))
 
             Text(dateRangeString)

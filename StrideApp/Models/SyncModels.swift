@@ -19,6 +19,7 @@ struct RunSyncPayload: Codable {
     let weekNumber: Int?
     let dataSource: String
     let treadmillBrand: String?
+    let shoeId: String?
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -37,6 +38,7 @@ struct RunSyncPayload: Codable {
         case weekNumber = "week_number"
         case dataSource = "data_source"
         case treadmillBrand = "treadmill_brand"
+        case shoeId = "shoe_id"
     }
 }
 

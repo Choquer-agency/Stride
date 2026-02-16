@@ -189,6 +189,7 @@ struct RunTabContainer: View {
     @EnvironmentObject private var bluetoothManager: BluetoothManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Workout.date) private var allWorkouts: [Workout]
+    @Query(filter: #Predicate<Shoe> { $0.isRetired == false }, sort: \Shoe.name) private var shoes: [Shoe]
     @StateObject private var viewModel = RunViewModel()
     @State private var runState: RunState = .lobby
     
@@ -237,13 +238,13 @@ struct RunTabContainer: View {
                 })
                 
             case .summary(let result, let score):
-                RunSummaryView(result: result, score: score, onSave: { feedbackRating, notes in
+                RunSummaryView(result: result, score: score, shoes: Array(shoes), onSave: { feedbackRating, notes, shoeId, shoeName in
                     PostHogSDK.shared.capture("run_completed", properties: [
                         "distance_km": result.distanceKm,
                         "duration_seconds": result.durationSeconds,
                         "is_planned": result.isPlannedRun,
                     ])
-                    saveRun(result: result, score: score, feedbackRating: feedbackRating, notes: notes)
+                    saveRun(result: result, score: score, feedbackRating: feedbackRating, notes: notes, shoeId: shoeId, shoeName: shoeName)
                     viewModel.reset()
                     withAnimation {
                         runState = .lobby
@@ -257,7 +258,7 @@ struct RunTabContainer: View {
     
     // MARK: - Persistence
     
-    private func saveRun(result: RunResult, score: Int?, feedbackRating: Int?, notes: String) {
+    private func saveRun(result: RunResult, score: Int?, feedbackRating: Int?, notes: String, shoeId: UUID? = nil, shoeName: String? = nil) {
         // Encode km splits to JSON
         let splitsJSON: String? = {
             let codableSplits = result.kmSplits.map { split in
@@ -289,6 +290,8 @@ struct RunTabContainer: View {
             notes: notesValue,
             dataSource: result.dataSource,
             treadmillBrand: result.treadmillBrand,
+            shoeId: shoeId,
+            shoeName: shoeName,
             plannedWorkoutId: result.plannedWorkoutId,
             plannedWorkoutTitle: workout?.title ?? result.plannedWorkoutTitle,
             plannedWorkoutTypeRaw: workout?.workoutTypeRaw ?? result.plannedWorkoutType?.rawValue,
@@ -296,7 +299,7 @@ struct RunTabContainer: View {
             plannedDurationMinutes: workout?.durationMinutes ?? result.targetDurationMinutes,
             plannedPaceDescription: workout?.paceDescription ?? result.targetPaceDescription,
             completionScore: result.isPlannedRun ? score : nil,
-            planName: workout?.week?.plan?.raceName ?? workout?.week?.plan?.raceType.displayName,
+            planName: workout?.week?.plan?.raceName ?? workout?.week?.plan?.displayDistance,
             weekNumber: workout?.week?.weekNumber
         )
         modelContext.insert(runLog)
@@ -315,6 +318,11 @@ struct RunTabContainer: View {
         }
 
         // C) Free runs only produce a RunLog — no Workout object created
+
+        // D) Update local shoe mileage
+        if let shoeId, let shoe = shoes.first(where: { $0.id == shoeId }) {
+            shoe.totalDistanceKm += result.distanceKm
+        }
 
         try? modelContext.save()
 
@@ -420,9 +428,18 @@ struct EmptyStateView: View {
 // MARK: - Race Type Badge
 struct RaceTypeBadge: View {
     let raceType: RaceType
-    
+    var customDistanceKm: Double? = nil
+
+    var badgeText: String {
+        if raceType == .custom, let km = customDistanceKm {
+            if km >= 50 { return "\(Int(km))K" }
+            return "\(Int(km)) km"
+        }
+        return raceType.shortName
+    }
+
     var body: some View {
-        Text(raceType.shortName)
+        Text(badgeText)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, 10)
             .padding(.vertical, 6)

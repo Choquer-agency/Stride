@@ -38,6 +38,9 @@ class Run(Base):
     treadmill_brand = Column(String(100), nullable=True)
     is_leaderboard_eligible = Column(Boolean, nullable=False, default=False)
 
+    # Shoe tracking
+    shoe_id = Column(UUID(as_uuid=True), ForeignKey("shoes.id"), nullable=True)
+
     # Sync metadata
     synced_at = Column(
         DateTime(timezone=True),

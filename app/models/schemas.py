@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional
 from datetime import date
 from enum import Enum
@@ -10,11 +10,14 @@ class RaceType(str, Enum):
     TEN_K = "10K"
     HALF_MARATHON = "Half Marathon"
     MARATHON = "Marathon"
-    FIFTY_K = "50K"
-    EIGHTY_K = "80K"
-    HUNDRED_K = "100K"
-    HUNDRED_SIXTY_K = "160K"
-    HUNDRED_SIXTY_PLUS = "160+ km"
+    CUSTOM = "Custom"
+
+
+class TerrainType(str, Enum):
+    """Terrain types for ultra/custom distances."""
+    ROAD = "road"
+    TRAIL = "trail"
+    MOUNTAIN = "mountain"
 
 
 class FitnessLevel(str, Enum):
@@ -81,6 +84,7 @@ class PlanEditRequest(BaseModel):
     race_date: date = Field(..., description="Date of the goal race")
     race_name: Optional[str] = Field(None, description="Name of the race")
     goal_time: Optional[str] = Field(None, description="Target finish time")
+    custom_distance_km: Optional[float] = Field(None, ge=1, le=500, description="Custom race distance in km")
     start_date: date = Field(..., description="Plan start date")
     current_plan_content: str = Field(..., description="The raw text of the current training plan")
     edit_instructions: str = Field(..., description="Natural language description of desired changes")
@@ -104,6 +108,7 @@ class PerformanceAnalysisRequest(BaseModel):
     race_date: date
     start_date: date
     goal_time: Optional[str] = None
+    custom_distance_km: Optional[float] = Field(None, ge=1, le=500, description="Custom race distance in km")
     current_weekly_mileage: int
     fitness_level: FitnessLevel
     completed_workouts: list[CompletedWorkoutData]
@@ -120,7 +125,10 @@ class TrainingPlanRequest(BaseModel):
     race_date: date = Field(..., description="Date of the goal race")
     race_name: Optional[str] = Field(None, description="Name of the race (optional)")
     goal_time: Optional[str] = Field(None, description="Target finish time (optional)")
-    
+    custom_distance_km: Optional[float] = Field(None, ge=1, le=500, description="Custom race distance in km")
+    terrain_type: Optional[TerrainType] = Field(None, description="Terrain type for ultra distances")
+    elevation_gain_m: Optional[int] = Field(None, ge=0, le=20000, description="Total elevation gain in meters")
+
     # Current Fitness
     current_weekly_mileage: int = Field(..., ge=0, le=300, description="Current weekly running volume in km")
     longest_recent_run: int = Field(..., ge=0, le=160, description="Longest run in past 4 weeks in km")
@@ -145,6 +153,12 @@ class TrainingPlanRequest(BaseModel):
     # Plan Mode (set after conflict resolution)
     plan_mode: Optional[PlanMode] = Field(None, description="Plan generation mode chosen after conflict resolution")
     recommended_goal_time: Optional[str] = Field(None, description="Adjusted goal time if user accepts recommendation")
+
+    @model_validator(mode="after")
+    def validate_custom_distance(self):
+        if self.race_type == RaceType.CUSTOM and not self.custom_distance_km:
+            raise ValueError("custom_distance_km is required when race_type is Custom")
+        return self
 
     class Config:
         json_schema_extra = {

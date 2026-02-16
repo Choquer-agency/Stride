@@ -79,7 +79,7 @@ struct PlanEditInputView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(Color.stridePrimary)
 
-                Text(plan.raceName ?? plan.raceType.displayName)
+                Text(plan.raceName ?? plan.displayDistance)
                     .font(.inter(size: 13, weight: .medium))
 
                 if let goalTime = plan.goalTime {

@@ -126,6 +126,18 @@ struct SettingsSectionsView: View {
             Text("Training History")
         }
 
+        // Gear Section
+        Section {
+            NavigationLink {
+                ShoesView()
+            } label: {
+                Label("Shoes", systemImage: "shoe.2")
+                    .foregroundStyle(Color.primary, Color.stridePrimary)
+            }
+        } header: {
+            Text("Gear")
+        }
+
         // Account Section
         Section {
             NavigationLink {

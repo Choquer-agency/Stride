@@ -45,6 +45,9 @@ class RunSyncPayload(BaseModel):
     data_source: str = "manual"  # "bluetooth_ftms" | "manual"
     treadmill_brand: Optional[str] = None
 
+    # Shoe tracking
+    shoe_id: Optional[UUID] = None
+
 
 class RunBatchSyncRequest(BaseModel):
     """Batch of runs to sync to server."""

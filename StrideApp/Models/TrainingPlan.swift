@@ -18,10 +18,15 @@ final class TrainingPlan {
     var longestRecentRun: Int
     var fitnessLevelRaw: String
     
+    // MARK: - Custom Distance & Terrain
+    var customDistanceKm: Double?
+    var terrainTypeRaw: String?
+    var elevationGainM: Int?
+
     // MARK: - Plan Configuration
     var startDate: Date
     var planModeRaw: String?
-    
+
     // MARK: - Raw Plan Content (from AI)
     var rawPlanContent: String?
 
@@ -36,8 +41,31 @@ final class TrainingPlan {
     
     // MARK: - Computed Properties
     var raceType: RaceType {
-        get { RaceType(rawValue: raceTypeRaw) ?? .marathon }
+        get {
+            if let rt = RaceType(rawValue: raceTypeRaw) {
+                return rt
+            }
+            // Legacy ultra raw values map to .custom
+            let legacyUltra = ["50K", "80K", "100K", "160K", "160+ km"]
+            if legacyUltra.contains(raceTypeRaw) {
+                return .custom
+            }
+            return .marathon
+        }
         set { raceTypeRaw = newValue.rawValue }
+    }
+
+    /// User-friendly distance label. For custom plans shows "80 km", for standard shows "Marathon" etc.
+    var displayDistance: String {
+        if raceType == .custom || ["50K", "80K", "100K", "160K", "160+ km"].contains(raceTypeRaw) {
+            if let km = customDistanceKm {
+                let intKm = Int(km)
+                return km == Double(intKm) ? "\(intKm) km" : String(format: "%.1f km", km)
+            }
+            // Legacy plans that stored distance in the raw value
+            return raceTypeRaw
+        }
+        return raceType.displayName
     }
     
     var fitnessLevel: FitnessLevel {
@@ -101,6 +129,9 @@ final class TrainingPlan {
         raceDate: Date,
         raceName: String? = nil,
         goalTime: String? = nil,
+        customDistanceKm: Double? = nil,
+        terrainTypeRaw: String? = nil,
+        elevationGainM: Int? = nil,
         currentWeeklyMileage: Int,
         longestRecentRun: Int,
         fitnessLevel: FitnessLevel,
@@ -113,6 +144,9 @@ final class TrainingPlan {
         self.raceDate = raceDate
         self.raceName = raceName
         self.goalTime = goalTime
+        self.customDistanceKm = customDistanceKm
+        self.terrainTypeRaw = terrainTypeRaw
+        self.elevationGainM = elevationGainM
         self.currentWeeklyMileage = currentWeeklyMileage
         self.longestRecentRun = longestRecentRun
         self.fitnessLevelRaw = fitnessLevel.rawValue

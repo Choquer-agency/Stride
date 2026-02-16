@@ -55,8 +55,8 @@ struct StatsView: View {
                         progression: viewModel.longRunProgression,
                         longestRunEver: viewModel.longestRunEver,
                         peakLongRunWeek: viewModel.peakLongRunWeek,
-                        raceDistance: plan.raceType.distanceKm,
-                        planName: plan.raceName ?? plan.raceType.displayName,
+                        raceDistance: plan.customDistanceKm ?? plan.raceType.distanceKm ?? 42.195,
+                        planName: plan.raceName ?? plan.displayDistance,
                         totalWeeks: plan.sortedWeeks.count
                     )
                     .padding(.horizontal, 16)

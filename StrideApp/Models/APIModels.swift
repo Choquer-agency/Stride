@@ -7,14 +7,17 @@ struct TrainingPlanRequest: Codable {
     let raceDate: String
     let raceName: String?
     let goalTime: String?
-    
+    let customDistanceKm: Double?
+    let terrainType: String?
+    let elevationGainM: Int?
+
     // Current Fitness
     let currentWeeklyMileage: Int
     let longestRecentRun: Int
     let recentRaceTimes: String?
     let recentRuns: String?
     let fitnessLevel: String
-    
+
     // Schedule Constraints
     let startDate: String
     let restDays: [String]
@@ -23,21 +26,24 @@ struct TrainingPlanRequest: Codable {
     let crossTrainingDays: [String]?
     let runningDaysPerWeek: Int
     let gymDaysPerWeek: Int
-    
+
     // Running History
     let yearsRunning: Int
     let previousInjuries: String?
     let previousExperience: String?
-    
+
     // Plan Mode (after conflict resolution)
     let planMode: String?
     let recommendedGoalTime: String?
-    
+
     enum CodingKeys: String, CodingKey {
         case raceType = "race_type"
         case raceDate = "race_date"
         case raceName = "race_name"
         case goalTime = "goal_time"
+        case customDistanceKm = "custom_distance_km"
+        case terrainType = "terrain_type"
+        case elevationGainM = "elevation_gain_m"
         case currentWeeklyMileage = "current_weekly_mileage"
         case longestRecentRun = "longest_recent_run"
         case recentRaceTimes = "recent_race_times"
@@ -108,6 +114,7 @@ struct PlanEditRequest: Codable {
     let raceDate: String
     let raceName: String?
     let goalTime: String?
+    let customDistanceKm: Double?
     let startDate: String
     let currentPlanContent: String
     let editInstructions: String
@@ -117,6 +124,7 @@ struct PlanEditRequest: Codable {
         case raceDate = "race_date"
         case raceName = "race_name"
         case goalTime = "goal_time"
+        case customDistanceKm = "custom_distance_km"
         case startDate = "start_date"
         case currentPlanContent = "current_plan_content"
         case editInstructions = "edit_instructions"
@@ -152,6 +160,7 @@ struct PerformanceAnalysisRequest: Codable {
     let raceDate: String
     let startDate: String
     let goalTime: String?
+    let customDistanceKm: Double?
     let currentWeeklyMileage: Int
     let fitnessLevel: String
     let completedWorkouts: [CompletedWorkoutData]
@@ -164,6 +173,7 @@ struct PerformanceAnalysisRequest: Codable {
         case raceDate = "race_date"
         case startDate = "start_date"
         case goalTime = "goal_time"
+        case customDistanceKm = "custom_distance_km"
         case currentWeeklyMileage = "current_weekly_mileage"
         case fitnessLevel = "fitness_level"
         case completedWorkouts = "completed_workouts"
