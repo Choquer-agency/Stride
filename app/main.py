@@ -85,10 +85,10 @@ async def home():
     return FileResponse(WEBSITE_DIST / "index.html")
 
 
-@app.get("/hero-video.mp4")
+@app.get("/hero-video2.mp4")
 async def hero_video():
     """Serve the hero video."""
-    return FileResponse(WEBSITE_DIST / "hero-video.mp4", media_type="video/mp4")
+    return FileResponse(WEBSITE_DIST / "hero-video2.mp4", media_type="video/mp4")
 
 
 @app.get("/stride-icon.svg")
