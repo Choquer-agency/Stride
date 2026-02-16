@@ -6,7 +6,7 @@ export default function PhonePreview() {
       {/* Full-bleed background image */}
       <div className="absolute inset-0">
         <img
-          src="/photos/motion-track.jpg"
+          src="/photos/runner-airrunner-pro.webp"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
         />

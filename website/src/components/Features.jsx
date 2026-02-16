@@ -48,7 +48,7 @@ export default function Features() {
       {/* Full-bleed background image */}
       <div className="absolute inset-0">
         <img
-          src="/photos/track-lines.jpg"
+          src="/photos/runner-sprint-dark.webp"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
         />
