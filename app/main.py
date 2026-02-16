@@ -37,7 +37,12 @@ app.add_middleware(
 # Mount static files
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 
-# Templates
+# Mount website dist assets (CSS/JS/images from Vite build)
+WEBSITE_DIST = BASE_DIR / "website" / "dist"
+app.mount("/assets", StaticFiles(directory=WEBSITE_DIST / "assets"), name="website-assets")
+app.mount("/photos", StaticFiles(directory=WEBSITE_DIST / "photos"), name="website-photos")
+
+# Templates (for admin)
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 # Include routers
@@ -74,9 +79,22 @@ async def shutdown():
 
 
 @app.get("/")
-async def home(request: Request):
-    """Render the main application page."""
-    return templates.TemplateResponse("index.html", {"request": request})
+async def home():
+    """Serve the marketing website homepage."""
+    from fastapi.responses import FileResponse
+    return FileResponse(WEBSITE_DIST / "index.html")
+
+
+@app.get("/hero-video.mp4")
+async def hero_video():
+    """Serve the hero video."""
+    return FileResponse(WEBSITE_DIST / "hero-video.mp4", media_type="video/mp4")
+
+
+@app.get("/stride-icon.svg")
+async def stride_icon():
+    """Serve the stride icon."""
+    return FileResponse(WEBSITE_DIST / "stride-icon.svg", media_type="image/svg+xml")
 
 
 @app.get("/health")
