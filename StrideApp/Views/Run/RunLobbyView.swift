@@ -146,6 +146,16 @@ struct RunLobbyView: View {
                         .textCase(.uppercase)
                         .tracking(0.5)
 
+                    if workout.isCompleted {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundColor(.green)
+
+                        Text("Run Again")
+                            .font(.inter(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+
                     Spacer()
 
                     Image(systemName: "chevron.right")

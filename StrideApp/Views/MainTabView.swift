@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PostHog
 
 struct MainTabView: View {
     @State private var selectedTab: Tab = .plan
@@ -9,14 +10,16 @@ struct MainTabView: View {
         case run = 0
         case plan = 1
         case stats = 2
-        case settings = 3
-        
+        case community = 3
+        case profile = 4
+
         var title: String {
             switch self {
             case .run: return "Run"
             case .plan: return "Plan"
             case .stats: return "Stats"
-            case .settings: return "Settings"
+            case .community: return "Community"
+            case .profile: return "Profile"
             }
         }
     }
@@ -35,9 +38,13 @@ struct MainTabView: View {
                     NavigationStack {
                         StatsView(selectedTab: $selectedTab)
                     }
-                case .settings:
+                case .community:
                     NavigationStack {
-                        SettingsView()
+                        CommunityView()
+                    }
+                case .profile:
+                    NavigationStack {
+                        ProfileView()
                     }
                 }
             }
@@ -56,6 +63,9 @@ struct MainTabView: View {
             }
         }
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onChange(of: selectedTab) { _, newTab in
+            PostHogSDK.shared.capture("tab_switched", properties: ["tab": newTab.title])
+        }
     }
 }
 
@@ -64,10 +74,10 @@ struct CustomTabBar: View {
     @Binding var selectedTab: MainTabView.Tab
     let screenWidth: CGFloat
     
-    // Proportional sizing (based on 402px Figma frame)
-    private var pillWidth: CGFloat { screenWidth * 0.7438 }
+    // Proportional sizing (based on 402px Figma frame, widened for 5 tabs)
+    private var pillWidth: CGFloat { screenWidth * 0.90 }
     private var pillHeight: CGFloat { 62 }
-    private var buttonsWidth: CGFloat { screenWidth * 0.619 }
+    private var buttonsWidth: CGFloat { screenWidth * 0.82 }
     private var bottomOffset: CGFloat { screenWidth * 0.0373 }
     private var blurHeight: CGFloat { screenWidth * 0.209 }
     
@@ -113,12 +123,19 @@ struct CustomTabBar: View {
                     icon: { StatsIconView(size: 24, color: $0) },
                     title: "Stats"
                 )
-                
+
                 TabBarButton(
-                    tab: .settings,
+                    tab: .community,
                     selectedTab: $selectedTab,
-                    icon: { SettingsIconView(size: 24, color: $0) },
-                    title: "Settings"
+                    icon: { CommunityIconView(size: 22, color: $0) },
+                    title: "Community"
+                )
+
+                TabBarButton(
+                    tab: .profile,
+                    selectedTab: $selectedTab,
+                    icon: { ProfileIconView(size: 24, color: $0) },
+                    title: "Profile"
                 )
             }
             .frame(width: buttonsWidth)
@@ -193,6 +210,7 @@ struct RunTabContainer: View {
                         viewModel.reset()
                         viewModel.loadPlannedWorkout(workout)
                         viewModel.attach(bluetoothManager: bluetoothManager)
+                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": true])
                         withAnimation {
                             runState = .active
                             hideTabBar = true
@@ -201,6 +219,7 @@ struct RunTabContainer: View {
                     onStartFreeRun: {
                         viewModel.reset()
                         viewModel.attach(bluetoothManager: bluetoothManager)
+                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": false])
                         withAnimation {
                             runState = .active
                             hideTabBar = true
@@ -219,6 +238,11 @@ struct RunTabContainer: View {
                 
             case .summary(let result, let score):
                 RunSummaryView(result: result, score: score, onSave: { feedbackRating, notes in
+                    PostHogSDK.shared.capture("run_completed", properties: [
+                        "distance_km": result.distanceKm,
+                        "duration_seconds": result.durationSeconds,
+                        "is_planned": result.isPlannedRun,
+                    ])
                     saveRun(result: result, score: score, feedbackRating: feedbackRating, notes: notes)
                     viewModel.reset()
                     withAnimation {
@@ -247,46 +271,56 @@ struct RunTabContainer: View {
             guard let data = try? JSONEncoder().encode(codableSplits) else { return nil }
             return String(data: data, encoding: .utf8)
         }()
-        
+
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if let workoutId = result.plannedWorkoutId {
-            // --- Planned Run: update the existing Workout ---
-            if let workout = allWorkouts.first(where: { $0.id == workoutId }) {
-                workout.isCompleted = true
-                workout.completedAt = Date()
-                workout.actualDistanceKm = result.distanceKm
-                workout.actualDurationSeconds = result.durationSeconds
-                workout.actualAvgPaceSecPerKm = result.avgPaceSecPerKm
-                workout.completionScore = score
-                workout.kmSplitsJSON = splitsJSON
-                workout.feedbackRating = feedbackRating
-                workout.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
-            }
-        } else {
-            // --- Free Run: create a new standalone Workout ---
-            let freeRun = Workout(
-                date: Date(),
-                workoutType: .easyRun,
-                title: "Free Run"
-            )
-            freeRun.isCompleted = true
-            freeRun.completedAt = Date()
-            freeRun.actualDistanceKm = result.distanceKm
-            freeRun.actualDurationSeconds = result.durationSeconds
-            freeRun.actualAvgPaceSecPerKm = result.avgPaceSecPerKm
-            freeRun.completionScore = nil  // Free runs don't get a score
-            freeRun.kmSplitsJSON = splitsJSON
-            freeRun.feedbackRating = feedbackRating
-            freeRun.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
-            // Also set the planned fields to match actual so existing stats queries work
-            freeRun.distanceKm = result.distanceKm
-            freeRun.durationMinutes = Int(result.durationSeconds / 60.0)
-            modelContext.insert(freeRun)
+        let notesValue = trimmedNotes.isEmpty ? nil : trimmedNotes
+
+        // A) Always create a RunLog — the authoritative run record
+        let workout: Workout? = result.plannedWorkoutId.flatMap { wid in
+            allWorkouts.first { $0.id == wid }
         }
-        
+
+        let runLog = RunLog(
+            distanceKm: result.distanceKm,
+            durationSeconds: result.durationSeconds,
+            avgPaceSecPerKm: result.avgPaceSecPerKm,
+            kmSplitsJSON: splitsJSON,
+            feedbackRating: feedbackRating,
+            notes: notesValue,
+            dataSource: result.dataSource,
+            treadmillBrand: result.treadmillBrand,
+            plannedWorkoutId: result.plannedWorkoutId,
+            plannedWorkoutTitle: workout?.title ?? result.plannedWorkoutTitle,
+            plannedWorkoutTypeRaw: workout?.workoutTypeRaw ?? result.plannedWorkoutType?.rawValue,
+            plannedDistanceKm: workout?.distanceKm ?? result.targetDistanceKm,
+            plannedDurationMinutes: workout?.durationMinutes ?? result.targetDurationMinutes,
+            plannedPaceDescription: workout?.paceDescription ?? result.targetPaceDescription,
+            completionScore: result.isPlannedRun ? score : nil,
+            planName: workout?.week?.plan?.raceName ?? workout?.week?.plan?.raceType.displayName,
+            weekNumber: workout?.week?.weekNumber
+        )
+        modelContext.insert(runLog)
+
+        // B) For planned runs, also update Workout as a display cache
+        if let workout {
+            workout.isCompleted = true
+            workout.completedAt = Date()
+            workout.actualDistanceKm = result.distanceKm
+            workout.actualDurationSeconds = result.durationSeconds
+            workout.actualAvgPaceSecPerKm = result.avgPaceSecPerKm
+            workout.completionScore = score
+            workout.kmSplitsJSON = splitsJSON
+            workout.feedbackRating = feedbackRating
+            workout.notes = notesValue
+        }
+
+        // C) Free runs only produce a RunLog — no Workout object created
+
         try? modelContext.save()
-        
+
+        // Sync to server
+        RunSyncService.shared.syncPendingRuns()
+
         // Haptic feedback
         Haptics.notification(.success)
     }
@@ -362,7 +396,10 @@ struct EmptyStateView: View {
                     .frame(height: 32)
                 
                 // CTA Button
-                Button(action: { showOnboarding = true }) {
+                Button(action: {
+                    PostHogSDK.shared.capture("onboarding_started")
+                    showOnboarding = true
+                }) {
                     Text("Start Building My Plan")
                         .font(.inter(size: 16, weight: .semibold))
                         .foregroundColor(.white)

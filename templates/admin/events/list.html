@@ -1,0 +1,107 @@
+{% if not partial %}
+{% extends "admin/base.html" %}
+{% block title %}Events - Stride Admin{% endblock %}
+{% block content %}
+{% endif %}
+
+{% if not partial %}
+<div class="page-header">
+    <h1>Events</h1>
+    <a href="/admin/events/new" class="btn btn-primary">+ New Event</a>
+</div>
+
+<div class="tab-bar">
+    <button class="tab {% if status == 'all' %}active{% endif %}"
+            hx-get="/admin/events?status=all" hx-target="#events-table" hx-swap="innerHTML">
+        All
+    </button>
+    <button class="tab {% if status == 'active' %}active{% endif %}"
+            hx-get="/admin/events?status=active" hx-target="#events-table" hx-swap="innerHTML">
+        Active
+    </button>
+    <button class="tab {% if status == 'upcoming' %}active{% endif %}"
+            hx-get="/admin/events?status=upcoming" hx-target="#events-table" hx-swap="innerHTML">
+        Upcoming
+    </button>
+    <button class="tab {% if status == 'past' %}active{% endif %}"
+            hx-get="/admin/events?status=past" hx-target="#events-table" hx-swap="innerHTML">
+        Past
+    </button>
+</div>
+
+<div id="events-table">
+{% endif %}
+
+{% if events %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Event</th>
+            <th>Type</th>
+            <th>Dates</th>
+            <th>Registrations</th>
+            <th>Status</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for event in events %}
+        <tr id="event-row-{{ event.id }}">
+            <td>
+                <div class="event-name-cell">
+                    {% if event.banner_image_url %}
+                    <img src="{{ event.banner_image_url }}" class="event-thumb" alt="">
+                    {% endif %}
+                    <div>
+                        <strong>{{ event.title }}</strong>
+                        {% if event.is_featured %}<span class="badge badge-gold">Featured</span>{% endif %}
+                        {% if not event.is_active %}<span class="badge badge-gray">Inactive</span>{% endif %}
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="badge badge-blue">{{ event.event_type }}</span>
+                {% if event.distance_category %}
+                <span class="badge badge-outline">{{ event.distance_category }}</span>
+                {% endif %}
+            </td>
+            <td class="date-cell">
+                {{ event.starts_at.strftime('%b %d, %Y') }}<br>
+                <span class="text-muted">to {{ event.ends_at.strftime('%b %d, %Y') }}</span>
+            </td>
+            <td>{{ counts.get(event.id, 0) }}{% if event.max_participants %} / {{ event.max_participants }}{% endif %}</td>
+            <td>
+                {% if event.ends_at < now_utc %}
+                <span class="badge badge-gray">Past</span>
+                {% elif event.starts_at > now_utc %}
+                <span class="badge badge-blue">Upcoming</span>
+                {% else %}
+                <span class="badge badge-green">Active</span>
+                {% endif %}
+            </td>
+            <td class="actions-cell">
+                <a href="/admin/events/{{ event.id }}/detail" class="btn btn-sm">View</a>
+                <a href="/admin/events/{{ event.id }}/edit" class="btn btn-sm">Edit</a>
+                <button class="btn btn-sm btn-danger"
+                        hx-delete="/admin/events/{{ event.id }}"
+                        hx-target="#event-row-{{ event.id }}"
+                        hx-swap="outerHTML"
+                        hx-confirm="Delete this event? This cannot be undone.">
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No events found.</p>
+    <a href="/admin/events/new" class="btn btn-primary">Create your first event</a>
+</div>
+{% endif %}
+
+{% if not partial %}
+</div>
+{% endblock %}
+{% endif %}

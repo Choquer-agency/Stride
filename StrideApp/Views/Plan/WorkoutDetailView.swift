@@ -72,11 +72,15 @@ struct WorkoutDetailView: View {
                     
                     // Workout Type Badge
                     HStack(spacing: 8) {
-                        Circle()
-                            .fill(workout.typeColor)
-                            .frame(width: 16, height: 16)
-                        
-                        Text(workout.workoutType.displayName)
+                        if workout.isCompleted {
+                            CheckmarkCircleView(isCompleted: true, size: 16)
+                        } else {
+                            Circle()
+                                .fill(workout.typeColor)
+                                .frame(width: 16, height: 16)
+                        }
+
+                        Text(workout.isCompleted ? "\(workout.title) Completed" : workout.workoutType.displayName)
                             .font(.inter(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
                     }
@@ -167,13 +171,16 @@ struct WorkoutDetailView: View {
                         .padding(.horizontal, 16)
                     }
                     
-                    // Bottom Action Button
-                    if workout.workoutType != .rest {
+                    // Workout Results Card (for completed workouts with actual data)
+                    workoutResultsCard
+
+                    // Bottom Action Button (only for non-completed workouts)
+                    if workout.workoutType != .rest && !workout.isCompleted {
                         Button(action: {
                             onComplete()
                             dismiss()
                         }) {
-                            Text(workout.isCompleted ? "Completed" : "Start Workout")
+                            Text("Start Workout")
                                 .font(.interSemibold(16))
                                 .foregroundColor(.white)
                                 .frame(width: UIScreen.main.bounds.width * 0.52)
@@ -199,6 +206,214 @@ struct WorkoutDetailView: View {
         }
         .presentationDetents([.height(sheetHeight)])
         .presentationDragIndicator(.hidden)
+    }
+
+    // MARK: - Workout Results Card
+
+    @ViewBuilder
+    private var workoutResultsCard: some View {
+        if workout.isCompleted, workout.actualDistanceKm != nil {
+            VStack(spacing: 16) {
+                // Header
+                HStack(spacing: 8) {
+                    CheckmarkCircleView(isCompleted: true, size: 18)
+
+                    Text("Workout Results")
+                        .font(.interSemibold(15))
+                        .foregroundStyle(.primary)
+                }
+
+                // Primary stats row: Distance | Time | Pace
+                HStack(spacing: 0) {
+                    // Distance
+                    VStack(spacing: 4) {
+                        Text(formatResultDistance(workout.actualDistanceKm ?? 0))
+                            .font(.barlowCondensed(size: 40, weight: .medium))
+                            .foregroundColor(.primary)
+                        Text("km")
+                            .font(.inter(size: 13, weight: .regular))
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Rectangle()
+                        .fill(Color(.systemGray4))
+                        .frame(width: 1, height: 44)
+
+                    // Time
+                    VStack(spacing: 4) {
+                        Text(formatResultDuration(workout.actualDurationSeconds ?? 0))
+                            .font(.barlowCondensed(size: 40, weight: .medium))
+                            .foregroundColor(.primary)
+                        Text("Time")
+                            .font(.inter(size: 13, weight: .regular))
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    Rectangle()
+                        .fill(Color(.systemGray4))
+                        .frame(width: 1, height: 44)
+
+                    // Pace
+                    VStack(spacing: 4) {
+                        Text(formatResultPace(workout.actualPaceDisplay))
+                            .font(.barlowCondensed(size: 40, weight: .medium))
+                            .foregroundColor(.primary)
+                        Text("Pace /km")
+                            .font(.inter(size: 13, weight: .regular))
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.horizontal, 8)
+
+                // Splits table
+                if !workout.decodedKmSplits.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Rectangle()
+                            .fill(Color(.systemGray5))
+                            .frame(height: 1)
+
+                        Text("Kilometer Splits")
+                            .font(.inter(size: 15, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .padding(.top, 4)
+
+                        // Header row
+                        HStack(spacing: 0) {
+                            Text("KM")
+                                .font(.inter(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .frame(width: 30, alignment: .leading)
+
+                            Spacer()
+
+                            Text("Pace")
+                                .font(.inter(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
+                            Text("Time")
+                                .font(.inter(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                                .frame(width: 70, alignment: .trailing)
+                        }
+
+                        ForEach(workout.decodedKmSplits) { split in
+                            HStack(spacing: 0) {
+                                HStack(spacing: 6) {
+                                    Text("\(split.kilometer)")
+                                        .font(.barlowCondensed(size: 18, weight: .medium))
+                                        .foregroundColor(.primary)
+
+                                    if split.isFastest {
+                                        Image(systemName: "flame.fill")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.stridePrimary)
+                                    }
+                                }
+                                .frame(width: 50, alignment: .leading)
+
+                                Spacer()
+
+                                Text("\(split.pace) /km")
+                                    .font(.barlowCondensed(size: 18, weight: .medium))
+                                    .foregroundColor(.primary)
+
+                                Spacer()
+
+                                Text(formatSplitTime(split.time))
+                                    .font(.barlowCondensed(size: 18, weight: .medium))
+                                    .foregroundColor(.primary)
+                                    .frame(width: 70, alignment: .trailing)
+                            }
+                            .padding(.vertical, 4)
+
+                            if split.kilometer < workout.decodedKmSplits.count {
+                                Rectangle()
+                                    .fill(Color.stridePrimary.opacity(0.15))
+                                    .frame(height: 1)
+                            }
+                        }
+                    }
+                }
+
+                // Score badge
+                if let score = workout.completionScore {
+                    Rectangle()
+                        .fill(Color(.systemGray5))
+                        .frame(height: 1)
+
+                    HStack(spacing: 8) {
+                        Text("Score")
+                            .font(.inter(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+
+                        Text("\(score)")
+                            .font(.barlowCondensed(size: 28, weight: .bold))
+                            .foregroundColor(resultScoreColor(score))
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(16)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - Result Helpers
+
+    private func formatResultDuration(_ seconds: Double) -> String {
+        let totalSeconds = Int(seconds)
+        let h = totalSeconds / 3600
+        let m = (totalSeconds % 3600) / 60
+        let s = totalSeconds % 60
+        if h > 0 {
+            return String(format: "%d:%02d:%02d", h, m, s)
+        }
+        return String(format: "%d:%02d", m, s)
+    }
+
+    private func formatResultPace(_ paceDisplay: String?) -> String {
+        guard let pace = paceDisplay else { return "--" }
+        return pace.replacingOccurrences(of: " /km", with: "")
+    }
+
+    private func formatResultDistance(_ km: Double) -> String {
+        if km == floor(km) {
+            return "\(Int(km))"
+        }
+        return String(format: "%.1f", km)
+    }
+
+    private func resultScoreColor(_ score: Int) -> Color {
+        switch score {
+        case 90...100: return .green
+        case 75..<90: return .stridePrimary
+        case 60..<75: return .orange
+        default: return .red
+        }
+    }
+
+    private func formatSplitTime(_ timeString: String) -> String {
+        let components = timeString.split(separator: ":").compactMap { Int($0) }
+        if components.count == 3 {
+            let hours = components[0]
+            let minutes = components[1]
+            let seconds = components[2]
+            if hours > 0 {
+                return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+            }
+            return String(format: "%d:%02d", minutes, seconds)
+        } else if components.count == 2 {
+            return String(format: "%d:%02d", components[0], components[1])
+        }
+        return timeString
     }
 }
 

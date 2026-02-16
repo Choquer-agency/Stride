@@ -1,0 +1,22 @@
+<aside class="sidebar">
+    <div class="sidebar-brand">
+        <span class="brand-icon">S</span>
+        <span class="brand-text">Stride Admin</span>
+    </div>
+    <nav class="sidebar-nav">
+        <a href="/admin/" class="nav-item {% if request.url.path == '/admin/' %}active{% endif %}">
+            <span class="nav-icon">&#9632;</span>
+            Dashboard
+        </a>
+        <a href="/admin/events" class="nav-item {% if '/events' in request.url.path %}active{% endif %}">
+            <span class="nav-icon">&#9733;</span>
+            Events
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/admin/logout" class="nav-item logout">
+            <span class="nav-icon">&#8592;</span>
+            Sign Out
+        </a>
+    </div>
+</aside>

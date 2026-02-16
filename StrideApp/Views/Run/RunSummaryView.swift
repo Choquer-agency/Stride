@@ -461,8 +461,8 @@ struct RunSummaryView: View {
         guard let targetPace = RunScoringService.parsePaceToSeconds(result.targetPaceDescription) else {
             return true
         }
-        // Actual pace on-target or faster is good
-        return result.avgPaceSecPerKm <= targetPace * 1.05
+        // Within ±5 sec/km of target is good
+        return abs(result.avgPaceSecPerKm - targetPace) <= 5.0
     }
 }
 
@@ -473,16 +473,18 @@ struct RunSummaryView: View {
             durationSeconds: 3120,
             avgPaceSecPerKm: 318.4,
             kmSplits: [
-                KilometerSplit(kilometer: 1, pace: "5:22", time: "00:05:22", isFastest: false),
-                KilometerSplit(kilometer: 2, pace: "5:18", time: "00:10:40", isFastest: true),
-                KilometerSplit(kilometer: 3, pace: "5:25", time: "00:16:05", isFastest: false)
+                KilometerSplit(kilometer: 1, pace: "5:22", time: "00:05:22", isFastest: false, diffFromFastest: 4),
+                KilometerSplit(kilometer: 2, pace: "5:18", time: "00:10:40", isFastest: true, diffFromFastest: 0),
+                KilometerSplit(kilometer: 3, pace: "5:25", time: "00:16:05", isFastest: false, diffFromFastest: 7)
             ],
             plannedWorkoutId: UUID(),
             plannedWorkoutTitle: "Easy 10K",
             plannedWorkoutType: .easyRun,
             targetDistanceKm: 10.0,
             targetPaceDescription: "5:30/km",
-            targetDurationMinutes: 55
+            targetDurationMinutes: 55,
+            dataSource: "bluetooth_ftms",
+            treadmillBrand: "Assault Runner"
         ),
         score: 85,
         onSave: { _, _ in }

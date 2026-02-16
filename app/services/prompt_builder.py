@@ -1,5 +1,5 @@
 from pathlib import Path
-from app.models.schemas import TrainingPlanRequest, PlanEditRequest, RaceType, PlanMode
+from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, RaceType, PlanMode
 from app.services.conflict_analyzer import REQUIRED_BENCHMARKS
 from datetime import timedelta
 
@@ -249,9 +249,71 @@ RECOMMENDED MODE INSTRUCTIONS:
         
         return ""
 
-    def get_edit_system_prompt(self) -> str:
-        """Load the plan modification system prompt."""
-        return self._load_prompt("coach_edit.txt")
+    def get_analysis_system_prompt(self, race_type: RaceType) -> str:
+        """Load the performance analysis system prompt, composed with the race-specific coach persona."""
+        coach_file = RACE_TYPE_TO_COACH.get(race_type, "coach_marathon.txt")
+        coach_persona = self._load_prompt(coach_file)
+        analysis_instructions = self._load_prompt("coach_analysis.txt")
+        return coach_persona + "\n\n" + analysis_instructions
+
+    def build_analysis_user_prompt(self, request: PerformanceAnalysisRequest) -> str:
+        """
+        Build the user prompt for performance analysis.
+
+        Formats plan metadata and completed workout data as structured text.
+        """
+        # Format completed workouts
+        workout_lines = []
+        for w in request.completed_workouts:
+            parts = [f"Date: {w.date}", f"Type: {w.workout_type}"]
+            if w.planned_distance_km is not None:
+                parts.append(f"Planned: {w.planned_distance_km} km")
+            if w.actual_distance_km is not None:
+                parts.append(f"Actual: {w.actual_distance_km} km")
+            if w.planned_pace_description:
+                parts.append(f"Planned pace: {w.planned_pace_description}")
+            if w.actual_avg_pace_sec_per_km is not None:
+                mins = int(w.actual_avg_pace_sec_per_km) // 60
+                secs = int(w.actual_avg_pace_sec_per_km) % 60
+                parts.append(f"Actual pace: {mins}:{secs:02d} /km")
+            if w.completion_score is not None:
+                parts.append(f"Score: {w.completion_score}/100")
+            if w.feedback_rating is not None:
+                parts.append(f"Feel: {w.feedback_rating}/5")
+            workout_lines.append(" | ".join(parts))
+
+        workouts_text = "\n".join(workout_lines)
+
+        return f"""PERFORMANCE ANALYSIS REQUEST
+=====================================
+
+PLAN INFORMATION
+Race Distance: {request.race_type.value}
+Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
+Plan Start Date: {request.start_date.strftime("%A, %B %d, %Y")}
+Goal Time: {request.goal_time or "Not specified"}
+Current Weekly Mileage: {request.current_weekly_mileage} km
+Fitness Level: {request.fitness_level.value.capitalize()}
+Progress: Week {request.weeks_into_plan} of {request.total_plan_weeks}
+
+CURRENT TRAINING PLAN
+{request.current_plan_content}
+
+=====================================
+COMPLETED WORKOUT DATA ({len(request.completed_workouts)} workouts)
+=====================================
+{workouts_text}
+
+=====================================
+
+Please analyze this athlete's training execution and provide your assessment."""
+
+    def get_edit_system_prompt(self, race_type: RaceType) -> str:
+        """Load the plan modification system prompt, composed with the race-specific coach persona."""
+        coach_file = RACE_TYPE_TO_COACH.get(race_type, "coach_marathon.txt")
+        coach_persona = self._load_prompt(coach_file)
+        edit_instructions = self._load_prompt("coach_edit.txt")
+        return coach_persona + "\n\n" + edit_instructions
 
     def build_edit_user_prompt(self, request: PlanEditRequest) -> str:
         """

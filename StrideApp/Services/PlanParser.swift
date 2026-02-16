@@ -135,21 +135,41 @@ class PlanParser {
         
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
-            
+
             // Skip empty lines
             guard !trimmedLine.isEmpty else { continue }
-            
+
+            // Detect end-of-plan markers (summary sections, etc.)
+            // Only trigger after we've parsed at least one week — these keywords
+            // commonly appear in the coaching overview before any WEEK headers.
+            if !weeks.isEmpty || currentWeek != nil {
+                let summaryPattern = /(?i)^\s*(plan\s+summary|training\s+summary|(?:weekly\s+)?volume\s+summary|(?:volume\s+)?progression\s+summary)/
+                if trimmedLine.firstMatch(of: summaryPattern) != nil {
+                    #if DEBUG
+                    print("📋 Hit end-of-plan marker: \(trimmedLine)")
+                    #endif
+                    break
+                }
+            }
+
             // Check for week header
             if let weekMatch = trimmedLine.firstMatch(of: weekPattern) {
+                let weekNumber = Int(weekMatch.1) ?? (weeks.count + 1)
+
+                // Skip duplicate week numbers BEFORE appending currentWeek
+                // (e.g., from summary sections that slip through)
+                if weeks.contains(where: { $0.weekNumber == weekNumber }) || currentWeek?.weekNumber == weekNumber {
+                    continue
+                }
+
                 // Flush any pending continuation lines before starting a new week
                 flushContinuationLines()
-                
+
                 // Save previous week if exists
                 if let week = currentWeek {
                     weeks.append(week)
                 }
-                
-                let weekNumber = Int(weekMatch.1) ?? (weeks.count + 1)
+
                 let theme = extractWeekTheme(from: trimmedLine)
                 currentWeek = ParsedWeek(weekNumber: weekNumber, theme: theme)
                 
@@ -472,7 +492,7 @@ class PlanParser {
         
         if lower.contains("rest") || lower.contains("off") {
             return .rest
-        } else if lower.contains("race") {
+        } else if lower.hasPrefix("race day") || lower == "race" || lower.contains("race day") {
             return .race
         } else if lower.contains("long") {
             return .longRun
@@ -557,8 +577,13 @@ class PlanParser {
     }
     
     private static func extractPace(from description: String) -> String? {
-        // Match patterns like "5:30/km", "at 5:30/km", "5:30 pace", "at 5:30"
-        // Also matches "5:30/km (easy)" format
+        // Try range pattern first: "5:30-6:00/km", "at 5:30–6:00 /km"
+        let rangePattern = /(?i)(?:at\s+)?(\d+:\d+)\s*[-–—]\s*(\d+:\d+)\s*(?:\/km)?/
+        if let match = description.firstMatch(of: rangePattern) {
+            return String(match.1) + "-" + String(match.2) + "/km"
+        }
+
+        // Single pace: "5:30/km", "at 5:30/km", "5:30 pace", "at 5:30"
         let pacePattern = /(?i)(?:at\s+)?(\d+:\d+)\s*(?:\/km)?/
         if let match = description.firstMatch(of: pacePattern) {
             return String(match.1) + "/km"

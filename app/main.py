@@ -5,6 +5,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 
 from app.routes.plans import router as plans_router
+from app.routes.auth import router as auth_router
+from app.routes.runs import router as runs_router
+from app.routes.community import router as community_router
+from app.routes.admin import router as admin_router
+from app.routes.social import router as social_router
+from sqlalchemy import text
+from app.database import init_db, async_session, engine
+from app.services import analytics
+from app.services.achievement_service import seed_achievement_definitions
+from app.services.challenge_service import auto_generate_weekly_challenges, auto_generate_monthly_challenge
 
 # Get the project root directory
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,7 +41,36 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 templates = Jinja2Templates(directory=BASE_DIR / "templates")
 
 # Include routers
+app.include_router(auth_router)
 app.include_router(plans_router)
+app.include_router(runs_router)
+app.include_router(community_router)
+app.include_router(admin_router)
+app.include_router(social_router)
+
+
+@app.on_event("startup")
+async def startup():
+    """Initialize the database and seed data on startup."""
+    await init_db()
+
+    # Migrate: add is_admin column if missing
+    async with engine.begin() as conn:
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(255)"))
+
+    async with async_session() as db:
+        await seed_achievement_definitions(db)
+        await auto_generate_weekly_challenges(db)
+        await auto_generate_monthly_challenge(db)
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    """Flush analytics and LLM observability on shutdown."""
+    from langfuse import Langfuse
+    Langfuse().flush()
+    analytics.shutdown()
 
 
 @app.get("/")

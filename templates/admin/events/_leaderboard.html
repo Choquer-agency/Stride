@@ -1,0 +1,31 @@
+{% if leaderboard %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Runner</th>
+            <th>{{ 'Time' if event and event.event_type in ('race', 'virtual_race') else 'Distance' }}</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in leaderboard %}
+        <tr>
+            <td class="rank-cell">{{ entry.rank }}</td>
+            <td>{{ entry.display_name }}</td>
+            <td>
+                {% if event and event.event_type in ('race', 'virtual_race') %}
+                    {% set secs = entry.value | int %}
+                    {{ '%d:%02d' | format(secs // 60, secs % 60) }}
+                {% else %}
+                    {{ '%.1f km' | format(entry.value) }}
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No leaderboard entries yet.</p>
+</div>
+{% endif %}

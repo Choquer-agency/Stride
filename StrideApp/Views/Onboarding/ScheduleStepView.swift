@@ -22,54 +22,32 @@ struct ScheduleStepView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("YOUR TRAINING SCHEDULE")
                         .font(.barlowCondensed(size: 28, weight: .bold))
-                    
+
                     Text("Let us know your availability and preferences")
                         .font(.inter(size: 14))
                         .foregroundStyle(.secondary)
                 }
-                
+
                 VStack(spacing: 24) {
                     // Start Date
                     FormField(label: "Training Start Date", isRequired: true) {
-                        VStack(spacing: 0) {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3)) {
-                                    showDatePicker.toggle()
-                                }
-                            }) {
-                                HStack {
-                                    Text(dateFormatter.string(from: data.startDate))
-                                        .font(.inter(size: 15))
-                                        .foregroundColor(.primary)
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "calendar")
-                                        .font(.caption)
-                                        .foregroundColor(.stridePrimary)
-                                }
-                                .padding()
-                                .background(Color(.secondarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        Button(action: {
+                            showDatePicker = true
+                        }) {
+                            HStack {
+                                Text(dateFormatter.string(from: data.startDate))
+                                    .font(.inter(size: 15))
+                                    .foregroundColor(.primary)
+
+                                Spacer()
+
+                                Image(systemName: "calendar")
+                                    .font(.caption)
+                                    .foregroundColor(.stridePrimary)
                             }
-                            
-                            if showDatePicker {
-                                DatePicker(
-                                    "",
-                                    selection: $data.startDate,
-                                    in: Date()...,
-                                    displayedComponents: .date
-                                )
-                                .datePickerStyle(.graphical)
-                                .tint(Color.stridePrimary)
-                                .labelsHidden()
-                                .padding(.top, 8)
-                                .onChange(of: data.startDate) { _, _ in
-                                    withAnimation(.spring(response: 0.3)) {
-                                        showDatePicker = false
-                                    }
-                                }
-                            }
+                            .padding()
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
                     }
                     
@@ -212,6 +190,23 @@ struct ScheduleStepView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
+        }
+        .sheet(isPresented: $showDatePicker) {
+            DatePicker(
+                "",
+                selection: $data.startDate,
+                in: Date()...,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .tint(Color.stridePrimary)
+            .labelsHidden()
+            .padding()
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .onChange(of: data.startDate) { _, _ in
+                showDatePicker = false
+            }
         }
     }
     

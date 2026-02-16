@@ -5,6 +5,7 @@ struct RunView: View {
     var onFinishRun: () -> Void
     
     @State private var showFinishConfirmation = false
+    @State private var splitDismissOffset: CGFloat = 0
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -16,10 +17,16 @@ struct RunView: View {
                         headerRow
                             .padding(.top, 30)
                             .padding(.bottom, 24)
-                        
-                        // Main Pace Display
-                        paceDisplay
-                            .padding(.bottom, 24)
+
+                        // Lane Guidance Pace Indicator
+                        PaceLaneIndicator(
+                            currentPace: viewModel.currentPace,
+                            paceZone: viewModel.paceZone,
+                            targetPaceMin: viewModel.targetPaceMinSec,
+                            targetPaceMax: viewModel.targetPaceMaxSec,
+                            isPlannedRun: viewModel.isPlannedRun
+                        )
+                        .padding(.bottom, 24)
                         
                         // Pace Graph
                         PaceGraphView(dataPoints: viewModel.paceGraphDataPoints)
@@ -37,7 +44,35 @@ struct RunView: View {
                     .padding(.horizontal, UIScreen.main.bounds.width * 0.1)
                 }
             }
-            
+            .overlay(alignment: .top) {
+                if let feedback = viewModel.splitFeedback {
+                    splitFeedbackCard(feedback)
+                        .offset(y: splitDismissOffset)
+                        .gesture(
+                            DragGesture()
+                                .onChanged { value in
+                                    if value.translation.height < 0 {
+                                        splitDismissOffset = value.translation.height
+                                    }
+                                }
+                                .onEnded { value in
+                                    if value.translation.height < -50 {
+                                        withAnimation(.easeOut(duration: 0.2)) {
+                                            viewModel.splitFeedback = nil
+                                        }
+                                    }
+                                    splitDismissOffset = 0
+                                }
+                        )
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .padding(.top, 60)
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: viewModel.splitFeedback != nil)
+            .onChange(of: viewModel.splitFeedback?.id) { _, _ in
+                splitDismissOffset = 0
+            }
+
             // Sticky Pause / End Run Buttons
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
@@ -98,45 +133,45 @@ struct RunView: View {
         HStack {
             // Timer (Left)
             VStack(alignment: .center, spacing: 4) {
-                Text(formatTime(viewModel.elapsedTime))
-                    .font(.barlowCondensed(size: 32, weight: .medium))
-                    .foregroundColor(.primary)
-                
+                if viewModel.isTimeBasedWorkout, let remaining = viewModel.remainingTimeSeconds {
+                    Text(formatTime(remaining))
+                        .font(.barlowCondensed(size: 32, weight: .medium))
+                        .foregroundColor(.primary)
+                } else {
+                    Text(formatTime(viewModel.elapsedTime))
+                        .font(.barlowCondensed(size: 32, weight: .medium))
+                        .foregroundColor(.primary)
+                }
+
                 Text("Time")
                     .font(.inter(size: 12, weight: .regular))
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
-            
+
             // Logo (Center)
             StrideLogoView(height: 32)
-            
+
             Spacer()
-            
+
             // Distance (Right)
             VStack(alignment: .center, spacing: 4) {
+                // Target distance label (planned runs with distance only)
+                if viewModel.isPlannedRun, let target = viewModel.targetDistanceKm {
+                    Text("Target: \(formatTargetDistanceLabel(target))")
+                        .font(.inter(size: 12, weight: .semibold))
+                        .foregroundColor(.stridePrimary)
+                }
+
                 Text(String(format: "%.2f", viewModel.distance))
                     .font(.barlowCondensed(size: 32, weight: .medium))
                     .foregroundColor(.primary)
-                
+
                 Text("Distance (km)")
                     .font(.inter(size: 12, weight: .regular))
                     .foregroundColor(.secondary)
             }
-        }
-    }
-    
-    // MARK: - Pace Display
-    private var paceDisplay: some View {
-        VStack(spacing: 8) {
-            Text(viewModel.currentPace)
-                .font(.barlowCondensed(size: 120, weight: .medium))
-                .foregroundColor(.primary)
-            
-            Text("Pace (/km)")
-                .font(.inter(size: 14, weight: .regular))
-                .foregroundColor(.secondary)
         }
     }
     
@@ -196,11 +231,15 @@ struct RunView: View {
                     .font(.inter(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
                     .fixedSize()
-                
+
+                // Column 4: Diff (no visible header)
+                Color.clear
+                    .frame(width: 50)
+
                 // Spacer to push Time to far right
                 Spacer()
-                
-                // Column 4: Time (right-aligned, far right)
+
+                // Column 5: Time (right-aligned, far right)
                 Text("Time")
                     .font(.inter(size: 12, weight: .medium))
                     .foregroundColor(.secondary)
@@ -210,7 +249,7 @@ struct RunView: View {
             .padding(.bottom, 12)
             
             // Splits Rows - 4 columns with specific spacing
-            ForEach(viewModel.kilometerSplits) { split in
+            ForEach(viewModel.kilometerSplits.reversed()) { split in
                 HStack(spacing: 0) {
                     // Column 1: KM (left-aligned, fixed size)
                     Text("\(split.kilometer)")
@@ -238,11 +277,17 @@ struct RunView: View {
                         .font(.barlowCondensed(size: 22, weight: .medium))
                         .foregroundColor(.primary)
                         .fixedSize()
-                    
+
+                    // Column 4: Diff from fastest
+                    Text(split.diffFromFastest.map { $0 == 0 ? "\u{2014}" : "+\($0)s" } ?? "")
+                        .font(.barlowCondensed(size: 18, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .frame(width: 50)
+
                     // Spacer to push Time to far right
                     Spacer()
-                    
-                    // Column 4: Time (right-aligned, far right, no leading zeros)
+
+                    // Column 5: Time (right-aligned, far right, no leading zeros)
                     Text(formatTimeString(split.time))
                         .font(.barlowCondensed(size: 22, weight: .medium))
                         .foregroundColor(.primary)
@@ -253,7 +298,7 @@ struct RunView: View {
                 .padding(.vertical, 12)
                 
                 // Red separator line
-                if split.kilometer < viewModel.kilometerSplits.count {
+                if split.kilometer > 1 {
                     Rectangle()
                         .fill(Color.stridePrimary.opacity(0.3))
                         .frame(height: 1)
@@ -262,7 +307,35 @@ struct RunView: View {
         }
     }
     
+    // MARK: - Split Feedback Card
+    private func splitFeedbackCard(_ feedback: SplitFeedback) -> some View {
+        let bgColor: Color = feedback.category == .faster ? .blue : Color.stridePrimary
+        let textColor: Color = .white
+
+        return HStack(spacing: 8) {
+            Text("\(feedback.pace) /km")
+                .font(.barlowCondensed(size: 22, weight: .medium))
+                .foregroundColor(textColor)
+
+            if let diff = feedback.diffSeconds {
+                Text(diff <= 0 ? "\(diff)s" : "+\(diff)s")
+                    .font(.barlowCondensed(size: 18, weight: .medium))
+                    .foregroundColor(textColor.opacity(0.85))
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 10)
+        .background(bgColor)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+    }
+
     // MARK: - Helper Functions
+
+    private func formatTargetDistanceLabel(_ km: Double) -> String {
+        km == floor(km) ? "\(Int(km))K" : String(format: "%.1fK", km)
+    }
+
     private func formatTime(_ time: TimeInterval) -> String {
         let hours = Int(time) / 3600
         let minutes = (Int(time) % 3600) / 60
@@ -330,6 +403,7 @@ struct KilometerSplit: Identifiable {
     let pace: String
     let time: String
     let isFastest: Bool
+    let diffFromFastest: Int?  // seconds slower than fastest split (0 = fastest, nil = not yet computed)
 }
 
 #Preview {

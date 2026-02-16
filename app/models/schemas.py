@@ -99,25 +99,17 @@ class CompletedWorkoutData(BaseModel):
 
 
 class PerformanceAnalysisRequest(BaseModel):
-    """Request schema for AI performance analysis."""
+    """Request schema for AI performance analysis (SSE streaming)."""
     race_type: RaceType
     race_date: date
+    start_date: date
     goal_time: Optional[str] = None
     current_weekly_mileage: int
     fitness_level: FitnessLevel
     completed_workouts: list[CompletedWorkoutData]
     weeks_into_plan: int
     total_plan_weeks: int
-
-
-class PerformanceAnalysisResponse(BaseModel):
-    """Structured response from performance analysis."""
-    overall_assessment: str = Field(..., description="Summary assessment paragraph")
-    adherence_percentage: float = Field(..., description="Percentage of planned workouts completed")
-    patterns: list[str] = Field(default_factory=list, description="Key patterns identified")
-    recommendations: list[str] = Field(default_factory=list, description="Specific recommendations")
-    suggested_edit_instruction: Optional[str] = Field(None, description="Pre-built edit instruction if plan adjustment recommended")
-    risk_level: RiskLevel = Field(default=RiskLevel.LOW)
+    current_plan_content: str = Field(..., description="Raw text of the current training plan")
 
 
 class TrainingPlanRequest(BaseModel):

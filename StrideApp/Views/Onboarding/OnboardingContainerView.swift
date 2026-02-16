@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PostHog
 
 struct OnboardingContainerView: View {
     @Environment(\.modelContext) private var modelContext
@@ -105,6 +106,11 @@ struct OnboardingContainerView: View {
             
             Button(action: {
                 dismissKeyboard()
+                let stepNames = [1: "goal", 2: "fitness", 3: "schedule", 4: "history", 5: "conflicts"]
+                PostHogSDK.shared.capture("onboarding_step_completed", properties: [
+                    "step": viewModel.currentStep,
+                    "step_name": stepNames[viewModel.currentStep] ?? "unknown",
+                ])
                 if viewModel.currentStep == 4 || viewModel.currentStep == 5 {
                     if viewModel.currentStep == 5 {
                         Task {

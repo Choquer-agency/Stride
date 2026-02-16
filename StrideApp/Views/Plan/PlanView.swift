@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PostHog
 
 struct PlanView: View {
     @Environment(\.modelContext) private var modelContext
@@ -8,6 +9,8 @@ struct PlanView: View {
     @State private var lastHapticWeek: Int = 0
     @State private var showDeleteConfirmation = false
     @State private var showEditSheet = false
+    @State private var showAnalysisSheet = false
+    @State private var prefillEditInstruction: String?
 
     let plan: TrainingPlan
     let readOnly: Bool
@@ -144,7 +147,7 @@ struct PlanView: View {
                 }
             )
         }
-        .confirmationDialog("Plan Options", isPresented: $showDeleteConfirmation, titleVisibility: .visible) {
+        .alert("Plan Options", isPresented: $showDeleteConfirmation) {
             Button("Archive Plan") {
                 archivePlan()
             }
@@ -156,7 +159,16 @@ struct PlanView: View {
             Text("Archive keeps your plan in Previous Plans. Delete removes it permanently.")
         }
         .fullScreenCover(isPresented: $showEditSheet) {
-            PlanEditInputView(plan: plan)
+            PlanEditInputView(plan: plan, initialInstructions: prefillEditInstruction)
+                .onDisappear {
+                    prefillEditInstruction = nil
+                }
+        }
+        .fullScreenCover(isPresented: $showAnalysisSheet) {
+            PerformanceAnalysisView(plan: plan) { instruction in
+                prefillEditInstruction = instruction
+                showEditSheet = true
+            }
         }
     }
     
@@ -197,10 +209,19 @@ struct PlanView: View {
                     // Three-dot menu
                     Menu {
                         Button(action: {
+                            PostHogSDK.shared.capture("plan_edit_started")
                             showEditSheet = true
                         }) {
                             Label("Edit Plan", systemImage: "pencil")
                         }
+
+                        Button(action: {
+                            PostHogSDK.shared.capture("performance_analysis_opened")
+                            showAnalysisSheet = true
+                        }) {
+                            Label("Analyze Performance", systemImage: "chart.bar.xaxis")
+                        }
+                        .disabled(plan.completedWorkouts < 3)
 
                         Button(role: .destructive, action: {
                             showDeleteConfirmation = true
@@ -348,12 +369,7 @@ struct PlanView: View {
     }
 
     private func deletePlan() {
-        // Detach all completed workouts so they survive the cascade delete
-        for week in plan.weeks {
-            for workout in week.workouts where workout.isCompleted {
-                workout.week = nil
-            }
-        }
+        // Run history lives in RunLog — safe to cascade-delete all plan/week/workout objects
         modelContext.delete(plan)
         try? modelContext.save()
     }
@@ -372,11 +388,17 @@ struct PlanView: View {
     
     private func toggleWorkoutCompletion(_ workout: Workout) {
         workout.toggleCompletion()
-        
+
+        if workout.isCompleted {
+            PostHogSDK.shared.capture("workout_marked_complete", properties: [
+                "workout_type": workout.workoutTypeRaw ?? "unknown",
+            ])
+        }
+
         // Haptic feedback
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(workout.isCompleted ? .success : .warning)
-        
+
         // Save changes
         try? modelContext.save()
     }

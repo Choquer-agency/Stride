@@ -493,6 +493,56 @@ struct WorkoutIconView: View {
     }
 }
 
+// MARK: - Profile Icon Shape
+struct ProfileIconShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width
+        let h = rect.height
+
+        // Scale factors based on 24x24 viewBox
+        let scaleX = w / 24
+        let scaleY = h / 24
+
+        // Head circle
+        let headCX = 12 * scaleX
+        let headCY = 7.5 * scaleY
+        let headR = 3.5 * min(scaleX, scaleY)
+        path.addEllipse(in: CGRect(
+            x: headCX - headR, y: headCY - headR,
+            width: headR * 2, height: headR * 2
+        ))
+
+        // Body/shoulders arc
+        path.move(to: CGPoint(x: 4 * scaleX, y: 21 * scaleY))
+        path.addCurve(
+            to: CGPoint(x: 12 * scaleX, y: 14 * scaleY),
+            control1: CGPoint(x: 4 * scaleX, y: 17 * scaleY),
+            control2: CGPoint(x: 7.5 * scaleX, y: 14 * scaleY)
+        )
+        path.addCurve(
+            to: CGPoint(x: 20 * scaleX, y: 21 * scaleY),
+            control1: CGPoint(x: 16.5 * scaleX, y: 14 * scaleY),
+            control2: CGPoint(x: 20 * scaleX, y: 17 * scaleY)
+        )
+
+        return path
+    }
+}
+
+// MARK: - Profile Icon View
+struct ProfileIconView: View {
+    var size: CGFloat = 24
+    var color: Color = .primary
+
+    var body: some View {
+        ProfileIconShape()
+            .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .aspectRatio(1, contentMode: .fit)
+            .frame(width: size, height: size)
+    }
+}
+
 // MARK: - Settings Icon Shape
 struct SettingsIconShape: Shape {
     func path(in rect: CGRect) -> Path {
@@ -843,6 +893,83 @@ struct PlanIconView: View {
     var body: some View {
         PlanIconShape()
             .stroke(color, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            .aspectRatio(1, contentMode: .fit)
+            .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Community Icon Shape (Trophy)
+struct CommunityIconShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let w = rect.width
+        let h = rect.height
+
+        // Scale factors based on 24x24 viewBox
+        let scaleX = w / 24
+        let scaleY = h / 24
+
+        // Trophy cup
+        path.move(to: CGPoint(x: 7 * scaleX, y: 2 * scaleY))
+        path.addLine(to: CGPoint(x: 17 * scaleX, y: 2 * scaleY))
+        path.addCurve(
+            to: CGPoint(x: 15 * scaleX, y: 11 * scaleY),
+            control1: CGPoint(x: 17 * scaleX, y: 5 * scaleY),
+            control2: CGPoint(x: 16.5 * scaleX, y: 9 * scaleY)
+        )
+        path.addCurve(
+            to: CGPoint(x: 12 * scaleX, y: 14 * scaleY),
+            control1: CGPoint(x: 14 * scaleX, y: 12.5 * scaleY),
+            control2: CGPoint(x: 13 * scaleX, y: 13.5 * scaleY)
+        )
+        path.addCurve(
+            to: CGPoint(x: 9 * scaleX, y: 11 * scaleY),
+            control1: CGPoint(x: 11 * scaleX, y: 13.5 * scaleY),
+            control2: CGPoint(x: 10 * scaleX, y: 12.5 * scaleY)
+        )
+        path.addCurve(
+            to: CGPoint(x: 7 * scaleX, y: 2 * scaleY),
+            control1: CGPoint(x: 7.5 * scaleX, y: 9 * scaleY),
+            control2: CGPoint(x: 7 * scaleX, y: 5 * scaleY)
+        )
+        path.closeSubpath()
+
+        // Stem
+        path.move(to: CGPoint(x: 12 * scaleX, y: 14 * scaleY))
+        path.addLine(to: CGPoint(x: 12 * scaleX, y: 18 * scaleY))
+
+        // Base
+        path.move(to: CGPoint(x: 8 * scaleX, y: 18 * scaleY))
+        path.addLine(to: CGPoint(x: 16 * scaleX, y: 18 * scaleY))
+
+        // Left handle
+        path.move(to: CGPoint(x: 7 * scaleX, y: 4 * scaleY))
+        path.addCurve(
+            to: CGPoint(x: 7 * scaleX, y: 9 * scaleY),
+            control1: CGPoint(x: 4 * scaleX, y: 4 * scaleY),
+            control2: CGPoint(x: 4 * scaleX, y: 9 * scaleY)
+        )
+
+        // Right handle
+        path.move(to: CGPoint(x: 17 * scaleX, y: 4 * scaleY))
+        path.addCurve(
+            to: CGPoint(x: 17 * scaleX, y: 9 * scaleY),
+            control1: CGPoint(x: 20 * scaleX, y: 4 * scaleY),
+            control2: CGPoint(x: 20 * scaleX, y: 9 * scaleY)
+        )
+
+        return path
+    }
+}
+
+// MARK: - Community Icon View
+struct CommunityIconView: View {
+    var size: CGFloat = 24
+    var color: Color = .primary
+
+    var body: some View {
+        CommunityIconShape()
+            .stroke(color, style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
             .aspectRatio(1, contentMode: .fit)
             .frame(width: size, height: size)
     }

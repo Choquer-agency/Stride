@@ -1,0 +1,30 @@
+{% if registrations %}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Registered</th>
+            <th>Status</th>
+            <th>Best Time</th>
+            <th>Total Distance</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for reg in registrations %}
+        <tr>
+            <td>{{ reg.name }}</td>
+            <td class="text-muted">{{ reg.email }}</td>
+            <td>{{ reg.registered_at[:10] }}</td>
+            <td><span class="badge badge-{{ 'green' if reg.status == 'completed' else 'blue' if reg.status == 'registered' else 'gray' }}">{{ reg.status }}</span></td>
+            <td>{% if reg.best_time_seconds %}{{ '%d:%02d' | format(reg.best_time_seconds // 60, reg.best_time_seconds % 60) }}{% else %}-{% endif %}</td>
+            <td>{% if reg.total_distance_km %}{{ '%.1f km' | format(reg.total_distance_km) }}{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="empty-state">
+    <p>No registrations yet.</p>
+</div>
+{% endif %}

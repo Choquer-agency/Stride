@@ -7,10 +7,12 @@ struct PlanEditInputView: View {
     @StateObject private var viewModel: PlanEditViewModel
 
     let plan: TrainingPlan
+    let initialInstructions: String?
 
-    init(plan: TrainingPlan) {
+    init(plan: TrainingPlan, initialInstructions: String? = nil) {
         self.plan = plan
-        _viewModel = StateObject(wrappedValue: PlanEditViewModel(plan: plan))
+        self.initialInstructions = initialInstructions
+        _viewModel = StateObject(wrappedValue: PlanEditViewModel(plan: plan, initialInstructions: initialInstructions))
     }
 
     var body: some View {
@@ -75,7 +77,7 @@ struct PlanEditInputView: View {
             HStack(spacing: 8) {
                 Image(systemName: "figure.run")
                     .font(.system(size: 12))
-                    .foregroundStyle(.stridePrimary)
+                    .foregroundStyle(Color.stridePrimary)
 
                 Text(plan.raceName ?? plan.raceType.displayName)
                     .font(.inter(size: 13, weight: .medium))

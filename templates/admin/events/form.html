@@ -1,0 +1,180 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ 'Edit' if event else 'Create' }} Event - Stride Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ 'Edit' if event else 'Create' }} Event</h1>
+    <a href="/admin/events" class="btn btn-outline">Back to Events</a>
+</div>
+
+<form method="POST"
+      action="{{ '/admin/events/' ~ event.id if event else '/admin/events' }}"
+      class="event-form">
+
+    <div class="form-section">
+        <h3>Basic Info</h3>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label for="title">Title *</label>
+                <input type="text" id="title" name="title" required
+                       value="{{ event.title if event else '' }}"
+                       placeholder="Spring 10K Challenge">
+            </div>
+            <div class="form-group flex-1">
+                <label for="event_type">Type *</label>
+                <select id="event_type" name="event_type" required>
+                    <option value="race" {{ 'selected' if event and event.event_type == 'race' }}>Race</option>
+                    <option value="virtual_race" {{ 'selected' if event and event.event_type == 'virtual_race' }}>Virtual Race</option>
+                    <option value="group_run" {{ 'selected' if event and event.event_type == 'group_run' }}>Group Run</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" rows="4"
+                      placeholder="Describe the event...">{{ event.description if event and event.description else '' }}</textarea>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group flex-1">
+                <label for="distance_category">Distance Category</label>
+                <select id="distance_category" name="distance_category">
+                    <option value="">None</option>
+                    <option value="5K" {{ 'selected' if event and event.distance_category == '5K' }}>5K</option>
+                    <option value="10K" {{ 'selected' if event and event.distance_category == '10K' }}>10K</option>
+                    <option value="HM" {{ 'selected' if event and event.distance_category == 'HM' }}>Half Marathon</option>
+                    <option value="FM" {{ 'selected' if event and event.distance_category == 'FM' }}>Marathon</option>
+                    <option value="50K" {{ 'selected' if event and event.distance_category == '50K' }}>50K</option>
+                </select>
+            </div>
+            <div class="form-group flex-1">
+                <label for="distance_km">Distance (km)</label>
+                <input type="number" id="distance_km" name="distance_km" step="0.1"
+                       value="{{ event.distance_km if event and event.distance_km else '0' }}">
+            </div>
+            <div class="form-group flex-1">
+                <label for="max_participants">Max Participants</label>
+                <input type="number" id="max_participants" name="max_participants"
+                       value="{{ event.max_participants if event and event.max_participants else '0' }}"
+                       placeholder="0 = unlimited">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3>Schedule</h3>
+        <div class="form-row">
+            <div class="form-group flex-1">
+                <label for="starts_at">Starts At *</label>
+                <input type="datetime-local" id="starts_at" name="starts_at" required
+                       value="{{ event.starts_at.strftime('%Y-%m-%dT%H:%M') if event else '' }}">
+            </div>
+            <div class="form-group flex-1">
+                <label for="ends_at">Ends At *</label>
+                <input type="datetime-local" id="ends_at" name="ends_at" required
+                       value="{{ event.ends_at.strftime('%Y-%m-%dT%H:%M') if event else '' }}">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group flex-1">
+                <label for="registration_opens_at">Registration Opens</label>
+                <input type="datetime-local" id="registration_opens_at" name="registration_opens_at"
+                       value="{{ event.registration_opens_at.strftime('%Y-%m-%dT%H:%M') if event and event.registration_opens_at else '' }}">
+            </div>
+            <div class="form-group flex-1">
+                <label for="registration_closes_at">Registration Closes</label>
+                <input type="datetime-local" id="registration_closes_at" name="registration_closes_at"
+                       value="{{ event.registration_closes_at.strftime('%Y-%m-%dT%H:%M') if event and event.registration_closes_at else '' }}">
+            </div>
+        </div>
+    </div>
+
+    <div class="form-section">
+        <h3>Branding</h3>
+        <div class="form-row">
+            <div class="form-group flex-2">
+                <label for="sponsor_name">Sponsor Name</label>
+                <input type="text" id="sponsor_name" name="sponsor_name"
+                       value="{{ event.sponsor_name if event and event.sponsor_name else '' }}"
+                       placeholder="Acme Corp">
+            </div>
+            <div class="form-group flex-1">
+                <label for="primary_color">Primary Color</label>
+                <input type="color" id="primary_color" name="primary_color"
+                       value="{{ event.primary_color if event and event.primary_color else '#FF2617' }}">
+            </div>
+            <div class="form-group flex-1">
+                <label for="accent_color">Accent Color</label>
+                <input type="color" id="accent_color" name="accent_color"
+                       value="{{ event.accent_color if event and event.accent_color else '#1A1A2E' }}">
+            </div>
+        </div>
+
+        {% if event %}
+        <div class="form-row">
+            <div class="form-group flex-1">
+                <label>Sponsor Logo</label>
+                <div id="logo-preview" class="image-preview">
+                    {% if event.sponsor_logo_url %}
+                    <img src="{{ event.sponsor_logo_url }}" alt="Logo" style="max-height: 80px;">
+                    {% else %}
+                    <span class="text-muted">No logo uploaded</span>
+                    {% endif %}
+                </div>
+                <form hx-post="/admin/events/{{ event.id }}/upload-logo"
+                      hx-target="#logo-preview"
+                      hx-swap="outerHTML"
+                      hx-encoding="multipart/form-data"
+                      class="upload-form">
+                    <input type="file" name="file" accept="image/*" required>
+                    <button type="submit" class="btn btn-sm">Upload Logo</button>
+                </form>
+            </div>
+            <div class="form-group flex-1">
+                <label>Banner Image</label>
+                <div id="banner-preview" class="image-preview">
+                    {% if event.banner_image_url %}
+                    <img src="{{ event.banner_image_url }}" alt="Banner" style="max-width: 100%; max-height: 200px;">
+                    {% else %}
+                    <span class="text-muted">No banner uploaded</span>
+                    {% endif %}
+                </div>
+                <form hx-post="/admin/events/{{ event.id }}/upload-banner"
+                      hx-target="#banner-preview"
+                      hx-swap="outerHTML"
+                      hx-encoding="multipart/form-data"
+                      class="upload-form">
+                    <input type="file" name="file" accept="image/*" required>
+                    <button type="submit" class="btn btn-sm">Upload Banner</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="form-section">
+        <h3>Options</h3>
+        <div class="form-row">
+            <label class="checkbox-label">
+                <input type="checkbox" name="is_featured" value="true"
+                       {{ 'checked' if event and event.is_featured }}>
+                Featured Event
+            </label>
+            {% if event %}
+            <label class="checkbox-label">
+                <input type="checkbox" name="is_active" value="true"
+                       {{ 'checked' if not event or event.is_active }}>
+                Active
+            </label>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ 'Update Event' if event else 'Create Event' }}</button>
+        <a href="/admin/events" class="btn btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}

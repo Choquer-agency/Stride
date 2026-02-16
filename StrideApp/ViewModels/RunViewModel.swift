@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 import Combine
 import os.log
 
@@ -10,7 +11,7 @@ struct RunResult {
     let durationSeconds: Double
     let avgPaceSecPerKm: Double
     let kmSplits: [KilometerSplit]
-    
+
     // Planned workout reference (nil for free runs)
     let plannedWorkoutId: UUID?
     let plannedWorkoutTitle: String?
@@ -18,7 +19,11 @@ struct RunResult {
     let targetDistanceKm: Double?
     let targetPaceDescription: String?
     let targetDurationMinutes: Int?
-    
+
+    // Data source (for leaderboard eligibility)
+    let dataSource: String  // "bluetooth_ftms" | "manual"
+    let treadmillBrand: String?
+
     var isPlannedRun: Bool { plannedWorkoutId != nil }
     
     /// Formatted average pace as M:SS /km
@@ -50,6 +55,61 @@ struct RunResult {
     }
 }
 
+// MARK: - Pace Zone (live pace vs. target comparison)
+enum PaceZone {
+    case onPace          // within target range → Green
+    case slightlySlow    // 1-20 sec/km over max → Blue
+    case tooSlow         // >20 sec/km over max → Red
+    case slightlyFast    // 1-10 sec/km under min → Green (still good)
+    case tooFast         // >10 sec/km under min → Orange
+    case noTarget        // free run or no pace data
+
+    var color: Color {
+        switch self {
+        case .onPace, .slightlyFast: return .green
+        case .slightlySlow: return .blue
+        case .tooSlow: return Color.stridePrimary
+        case .tooFast: return .orange
+        case .noTarget: return .primary
+        }
+    }
+
+    var statusText: String {
+        switch self {
+        case .onPace, .slightlyFast: return "On Pace"
+        case .slightlySlow: return "Slightly Slow"
+        case .tooSlow: return "Too Slow"
+        case .tooFast: return "Too Fast"
+        case .noTarget: return ""
+        }
+    }
+
+    /// Color for the status text label (separate from `color` used elsewhere).
+    /// Blue = too fast, grey = on pace, orange = too slow.
+    var statusColor: Color {
+        switch self {
+        case .tooFast: return .blue
+        case .onPace, .slightlyFast: return Color(.systemGray)
+        case .slightlySlow, .tooSlow: return Color.stridePrimary
+        case .noTarget: return .primary
+        }
+    }
+}
+
+// MARK: - Split Feedback (shown briefly after each km)
+struct SplitFeedback: Identifiable {
+    let id = UUID()
+    let pace: String              // e.g. "4:32"
+    let diffSeconds: Int?         // nil on first split
+    let category: Category
+
+    enum Category {
+        case faster    // green — beat the fastest
+        case neutral   // white — within 3 sec
+        case slower    // orange — 3+ sec slower
+    }
+}
+
 class RunViewModel: ObservableObject {
     // MARK: - Published Properties (matching RunView's UI bindings)
     @Published var elapsedTime: TimeInterval = 0          // seconds (validated, never regresses)
@@ -60,6 +120,7 @@ class RunViewModel: ObservableObject {
     @Published var heartRateZone: HeartRateZone = .zone2  // placeholder until Garmin phase
     @Published var kilometerSplits: [KilometerSplit] = []
     @Published var paceGraphDataPoints: [Double] = []     // normalized 0-1 for PaceGraphView
+    @Published var splitFeedback: SplitFeedback? = nil
 
     // MARK: - Planned Workout Target (optional, set when running a planned workout)
     @Published var plannedWorkoutTitle: String?
@@ -68,9 +129,25 @@ class RunViewModel: ObservableObject {
     @Published var targetPaceDescription: String?
     @Published var targetDurationMinutes: Int?
     @Published var isPlannedRun: Bool = false
-    
+
+    // MARK: - Pace Zone & Progress (live target comparison)
+    @Published var targetPaceMinSec: Double?     // faster boundary (lower sec/km)
+    @Published var targetPaceMaxSec: Double?     // slower boundary (higher sec/km)
+    @Published var paceZone: PaceZone = .noTarget
+
     // MARK: - Planned Workout Reference
     var plannedWorkoutId: UUID?
+
+    /// For time-based workouts: remaining seconds (countdown).
+    var remainingTimeSeconds: TimeInterval? {
+        guard let target = targetDurationMinutes, isPlannedRun else { return nil }
+        return max(Double(target) * 60.0 - elapsedTime, 0)
+    }
+
+    /// Whether this is a time-based workout (has duration target but no distance target).
+    var isTimeBasedWorkout: Bool {
+        isPlannedRun && targetDurationMinutes != nil && targetDistanceKm == nil
+    }
 
     // MARK: - Internal State
     private var bluetoothManager: BluetoothManager?
@@ -92,11 +169,15 @@ class RunViewModel: ObservableObject {
     /// Adaptive Y-axis: minimum range in sec/km so steady-state noise looks flat
     private let minYAxisRange: Double = 30.0
 
+    // Split feedback auto-dismiss timer
+    private var splitFeedbackTimer: Timer?
+
     // Speed samples for current km segment (used to compute split pace from speed, not elapsed time)
     private var currentKmSpeedSamples: [Double] = []      // raw speed in m/s
 
-    // Pace drift: track current km segment
-    private var currentSmoothedPace: Double = 0           // current smoothed pace (sec/km)
+    // Pace drift: 50m rolling window, only after 1+ km completed
+    private var driftSamples: [(distance: Double, time: Double)] = []
+    private let driftWindowMeters: Double = 50.0
 
     // MARK: - Fallback Timer (app-side backup)
     private var runStartTime: Date?                       // wall-clock time when first data arrived
@@ -131,12 +212,25 @@ class RunViewModel: ObservableObject {
         targetDistanceKm = workout.distanceKm
         targetPaceDescription = workout.paceDescription
         targetDurationMinutes = workout.durationMinutes
+
+        // Parse pace range for lane guidance
+        if let range = RunScoringService.parsePaceRange(workout.paceDescription) {
+            if range.min == range.max {
+                // Single pace value — apply ±15 sec/km buffer
+                targetPaceMinSec = range.min - 15
+                targetPaceMaxSec = range.max + 15
+            } else {
+                targetPaceMinSec = range.min
+                targetPaceMaxSec = range.max
+            }
+        }
     }
     
     /// Snapshot the current run state into a RunResult for the summary screen.
     func buildRunResult() -> RunResult {
         let avgPace: Double = distance > 0 ? elapsedTime / distance : 0
-        
+        let isBluetooth = bluetoothManager?.connectedDevice != nil
+
         return RunResult(
             distanceKm: distance,
             durationSeconds: elapsedTime,
@@ -147,7 +241,9 @@ class RunViewModel: ObservableObject {
             plannedWorkoutType: plannedWorkoutType,
             targetDistanceKm: targetDistanceKm,
             targetPaceDescription: targetPaceDescription,
-            targetDurationMinutes: targetDurationMinutes
+            targetDurationMinutes: targetDurationMinutes,
+            dataSource: isBluetooth ? "bluetooth_ftms" : "manual",
+            treadmillBrand: bluetoothManager?.connectedDevice?.name
         )
     }
 
@@ -165,8 +261,13 @@ class RunViewModel: ObservableObject {
         lastKmElapsedTime = 0
         lastKmDistance = 0
         currentKmSpeedSamples = []
-        currentSmoothedPace = 0
+        driftSamples = []
         paceSmoother.reset()
+
+        // Reset split feedback
+        splitFeedbackTimer?.invalidate()
+        splitFeedbackTimer = nil
+        splitFeedback = nil
 
         // Reset fallback timer
         runStartTime = nil
@@ -186,6 +287,11 @@ class RunViewModel: ObservableObject {
         targetDistanceKm = nil
         targetPaceDescription = nil
         targetDurationMinutes = nil
+
+        // Clear pace zone
+        targetPaceMinSec = nil
+        targetPaceMaxSec = nil
+        paceZone = .noTarget
     }
 
     // MARK: - Treadmill Data Handler
@@ -250,18 +356,20 @@ class RunViewModel: ObservableObject {
 
         // 3. Pace — smooth raw speed, then format
         if let rawSpeedMps = sample.speedMps, rawSpeedMps > 0 {
-            let (_, smoothedPace) = paceSmoother.addSample(speedMps: rawSpeedMps)
-            currentSmoothedPace = smoothedPace
-            currentPace = formatPace(secondsPerKm: smoothedPace)
+            let (_, pace) = paceSmoother.addSample(speedMps: rawSpeedMps)
+            currentPace = formatPace(secondsPerKm: pace)
 
             // Accumulate raw speed for per-km split pace calculation
             currentKmSpeedSamples.append(rawSpeedMps)
 
             // Feed pace graph (pass current distance in metres for distance-based windowing)
-            appendPaceGraphSample(smoothedPace, atDistanceMeters: distance * 1000.0)
+            appendPaceGraphSample(pace, atDistanceMeters: distance * 1000.0)
 
-            // 4. Pace Drift — current km pace vs. overall average pace
+            // 4. Pace Drift — current pace vs. completed-km baseline
             updatePaceDrift()
+
+            // 5. Pace Zone — compare current pace to target range
+            updatePaceZone(pace)
         } else if let rawSpeedMps = sample.speedMps, rawSpeedMps <= 0 {
             // Treadmill is stopped/paused — show --:-- for pace
             currentPace = "--:--"
@@ -281,30 +389,75 @@ class RunViewModel: ObservableObject {
         return "\(minutes):\(String(format: "%02d", seconds))"
     }
 
+    /// Format seconds/km as "M:SS /km" for display in boundary labels.
+    static func formatPaceDisplay(secondsPerKm: Double) -> String {
+        guard secondsPerKm > 0 && secondsPerKm < 3600 else { return "--:--" }
+        let minutes = Int(secondsPerKm) / 60
+        let seconds = Int(secondsPerKm) % 60
+        return "\(minutes):\(String(format: "%02d", seconds)) /km"
+    }
+
+    // MARK: - Pace Zone
+
+    private func updatePaceZone(_ smoothedPace: Double) {
+        guard let minPace = targetPaceMinSec, let maxPace = targetPaceMaxSec else {
+            paceZone = .noTarget
+            return
+        }
+
+        if smoothedPace >= minPace && smoothedPace <= maxPace {
+            paceZone = .onPace
+        } else if smoothedPace < minPace {
+            // Running faster than target (lower sec/km = faster)
+            let diff = minPace - smoothedPace
+            paceZone = diff > 10 ? .tooFast : .slightlyFast
+        } else {
+            // Running slower than target (higher sec/km = slower)
+            let diff = smoothedPace - maxPace
+            paceZone = diff > 20 ? .tooSlow : .slightlySlow
+        }
+    }
+
     // MARK: - Pace Drift
 
     private func updatePaceDrift() {
-        // Need at least some distance to compute
-        guard distance > 0, elapsedTime > 0 else {
+        // No baseline until at least 1 km is completed
+        guard lastRecordedKm >= 1 else {
             paceDrift = "--"
             return
         }
 
-        // Overall average pace (sec/km)
-        let averagePace = elapsedTime / distance  // elapsedTime is seconds, distance is km
+        let currentDistanceMeters = distance * 1000.0
 
-        // Current km segment pace
-        let currentKmDistance = (distance * 1000.0) - (Double(lastRecordedKm) * 1000.0) // meters into current km
-        guard currentKmDistance > 10 else {
-            // Not enough distance into the current km to have a meaningful pace
+        // Append sample to drift ring buffer
+        driftSamples.append((distance: currentDistanceMeters, time: elapsedTime))
+
+        // Trim samples older than the 50m window behind current distance
+        let cutoff = currentDistanceMeters - driftWindowMeters
+        if cutoff > 0 {
+            driftSamples.removeAll { $0.distance < cutoff }
+        }
+
+        // Need enough samples to span the window
+        guard let first = driftSamples.first, let last = driftSamples.last else {
             paceDrift = "--"
             return
         }
 
-        let currentKmTime = elapsedTime - lastKmElapsedTime  // seconds in current km
-        let currentKmPace = currentKmTime / (currentKmDistance / 1000.0)  // sec/km
+        let span = last.distance - first.distance
+        guard span >= driftWindowMeters else {
+            // Still bootstrapping the 50m window
+            paceDrift = "--"
+            return
+        }
 
-        let drift = currentKmPace - averagePace  // positive = slower, negative = faster
+        // Windowed pace: sec/km over the last 50m
+        let windowedPace = (last.time - first.time) / (span / 1000.0)
+
+        // Baseline: average pace of all completed kms
+        let baseline = lastKmElapsedTime / Double(lastRecordedKm)
+
+        let drift = windowedPace - baseline  // positive = slower, negative = faster
 
         if abs(drift) < 0.5 {
             paceDrift = "0.0s"
@@ -349,7 +502,8 @@ class RunViewModel: ObservableObject {
                 kilometer: km,
                 pace: paceString,
                 time: cumulativeTime,
-                isFastest: false
+                isFastest: false,
+                diffFromFastest: nil
             )
 
             kilometerSplits.append(split)
@@ -362,11 +516,16 @@ class RunViewModel: ObservableObject {
 
         lastRecordedKm = currentKm
 
+        // Show split feedback card for the most recent split
+        if let latestSplit = kilometerSplits.last {
+            showSplitFeedback(for: latestSplit)
+        }
+
         // Re-evaluate fastest split
         markFastestSplit()
     }
 
-    /// Find the fastest split and mark it with isFastest
+    /// Find the fastest split, mark it with isFastest, and compute diff-from-fastest for each split.
     private func markFastestSplit() {
         guard !kilometerSplits.isEmpty else { return }
 
@@ -381,14 +540,59 @@ class RunViewModel: ObservableObject {
             }
         }
 
-        // Rebuild splits with correct isFastest flags
+        // Rebuild splits with correct isFastest flags and diff-from-fastest
         kilometerSplits = kilometerSplits.enumerated().map { (index, split) in
-            KilometerSplit(
+            let diff: Int? = split.pace.toSeconds.map { $0 - fastestSeconds }
+            return KilometerSplit(
                 kilometer: split.kilometer,
                 pace: split.pace,
                 time: split.time,
-                isFastest: index == fastestIndex
+                isFastest: index == fastestIndex,
+                diffFromFastest: diff
             )
+        }
+    }
+
+    // MARK: - Split Feedback
+
+    private func showSplitFeedback(for split: KilometerSplit) {
+        guard let splitSeconds = split.pace.toSeconds else { return }
+
+        // Find current fastest pace (excluding the new split)
+        let priorSplits = kilometerSplits.dropLast()
+        let fastestSeconds = priorSplits.compactMap { $0.pace.toSeconds }.min()
+
+        let category: SplitFeedback.Category
+        let diffSeconds: Int?
+
+        if let fastest = fastestSeconds {
+            let diff = splitSeconds - fastest
+            diffSeconds = diff
+            if diff <= 0 {
+                category = .faster
+            } else if diff <= 3 {
+                category = .neutral
+            } else {
+                category = .slower
+            }
+        } else {
+            // First split — no comparison available
+            diffSeconds = nil
+            category = .neutral
+        }
+
+        splitFeedback = SplitFeedback(
+            pace: split.pace,
+            diffSeconds: diffSeconds,
+            category: category
+        )
+
+        // Auto-dismiss after 45 seconds (user can also swipe to dismiss)
+        splitFeedbackTimer?.invalidate()
+        splitFeedbackTimer = Timer.scheduledTimer(withTimeInterval: 45.0, repeats: false) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.splitFeedback = nil
+            }
         }
     }
 

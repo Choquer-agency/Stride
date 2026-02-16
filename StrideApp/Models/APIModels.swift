@@ -123,6 +123,56 @@ struct PlanEditRequest: Codable {
     }
 }
 
+// MARK: - Completed Workout Data (for performance analysis)
+struct CompletedWorkoutData: Codable {
+    let date: String
+    let workoutType: String
+    let plannedDistanceKm: Double?
+    let actualDistanceKm: Double?
+    let plannedPaceDescription: String?
+    let actualAvgPaceSecPerKm: Double?
+    let completionScore: Int?
+    let feedbackRating: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case date
+        case workoutType = "workout_type"
+        case plannedDistanceKm = "planned_distance_km"
+        case actualDistanceKm = "actual_distance_km"
+        case plannedPaceDescription = "planned_pace_description"
+        case actualAvgPaceSecPerKm = "actual_avg_pace_sec_per_km"
+        case completionScore = "completion_score"
+        case feedbackRating = "feedback_rating"
+    }
+}
+
+// MARK: - Performance Analysis Request
+struct PerformanceAnalysisRequest: Codable {
+    let raceType: String
+    let raceDate: String
+    let startDate: String
+    let goalTime: String?
+    let currentWeeklyMileage: Int
+    let fitnessLevel: String
+    let completedWorkouts: [CompletedWorkoutData]
+    let weeksIntoPlan: Int
+    let totalPlanWeeks: Int
+    let currentPlanContent: String
+
+    enum CodingKeys: String, CodingKey {
+        case raceType = "race_type"
+        case raceDate = "race_date"
+        case startDate = "start_date"
+        case goalTime = "goal_time"
+        case currentWeeklyMileage = "current_weekly_mileage"
+        case fitnessLevel = "fitness_level"
+        case completedWorkouts = "completed_workouts"
+        case weeksIntoPlan = "weeks_into_plan"
+        case totalPlanWeeks = "total_plan_weeks"
+        case currentPlanContent = "current_plan_content"
+    }
+}
+
 // MARK: - Stream Chunk
 struct StreamChunk: Codable {
     let content: String?

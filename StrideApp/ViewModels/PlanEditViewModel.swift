@@ -17,8 +17,11 @@ class PlanEditViewModel: ObservableObject {
     private let apiService = APIService.shared
 
     // MARK: - Initialization
-    init(plan: TrainingPlan) {
+    init(plan: TrainingPlan, initialInstructions: String? = nil) {
         self.plan = plan
+        if let instructions = initialInstructions {
+            self.editInstructions = instructions
+        }
     }
 
     // MARK: - Validation
@@ -66,6 +69,16 @@ class PlanEditViewModel: ObservableObject {
 
         PlanLogger.logParsedWeeks(parsedWeeks, startDate: plan.startDate, raceDate: plan.raceDate)
 
+        // Snapshot completed workout data before deletion, keyed by calendar date
+        let calendar = Calendar.current
+        var completionData: [DateComponents: Workout] = [:]
+        for week in plan.weeks {
+            for workout in week.workouts where workout.isCompleted {
+                let key = calendar.dateComponents([.year, .month, .day], from: workout.date)
+                completionData[key] = workout
+            }
+        }
+
         // Remove old weeks (cascade deletes workouts)
         for week in plan.weeks {
             context.delete(week)
@@ -86,6 +99,21 @@ class PlanEditViewModel: ObservableObject {
                     durationMinutes: parsedWorkout.durationMinutes,
                     paceDescription: parsedWorkout.paceDescription
                 )
+
+                // Carry forward completion data from matching old workout
+                let key = calendar.dateComponents([.year, .month, .day], from: parsedWorkout.date)
+                if let oldWorkout = completionData[key] {
+                    workout.isCompleted = oldWorkout.isCompleted
+                    workout.completedAt = oldWorkout.completedAt
+                    workout.notes = oldWorkout.notes
+                    workout.actualDistanceKm = oldWorkout.actualDistanceKm
+                    workout.actualDurationSeconds = oldWorkout.actualDurationSeconds
+                    workout.actualAvgPaceSecPerKm = oldWorkout.actualAvgPaceSecPerKm
+                    workout.completionScore = oldWorkout.completionScore
+                    workout.kmSplitsJSON = oldWorkout.kmSplitsJSON
+                    workout.feedbackRating = oldWorkout.feedbackRating
+                }
+
                 week.workouts.append(workout)
             }
 

@@ -163,39 +163,39 @@ struct DayCardView: View {
                 // Date Column
                 dateColumn
                     .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
-                
+
                 // Workout Icon
                 workoutIcon(for: workout)
                     .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
-                
-                        // Workout Details
-                        HStack(spacing: 8) {
-                            Text(workout.title)
-                                .font(.inter(size: 15, weight: .medium))
-                                .foregroundColor(workout.isCompleted ? .secondary : .primary)
-                    
+
+                // Workout Details
+                HStack(spacing: 8) {
+                    Text(workout.title)
+                        .font(.inter(size: 15, weight: .medium))
+                        .foregroundColor(workout.isCompleted ? .secondary : .primary)
+
                     if let distance = workout.distanceDisplay {
                         Text(distance)
                             .font(.inter(size: 12, weight: .regular))
                             .foregroundStyle(.secondary)
                     }
-                    
+
                     if let pace = workout.paceDescription {
                         if workout.distanceDisplay != nil {
                             Text("•")
                                 .font(.inter(size: 12))
                                 .foregroundStyle(.secondary)
                         }
-                        
+
                         Text(pace)
                             .font(.inter(size: 12, weight: .regular))
                             .foregroundStyle(.secondary)
                     }
                 }
                 .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
-                
+
                 Spacer()
-                
+
                 // Check icon or Chevron (right position)
                 if workout.isCompleted && !isCompleting {
                     CheckmarkCircleView(isCompleted: true, size: 20)
@@ -207,7 +207,7 @@ struct DayCardView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
-            .background(completionBackgroundColor(for: workout))
+            .background(workout.isCompleted && !isCompleting ? Color(hex: "F9F9F9").opacity(0.5) : Color(hex: "F9F9F9"))
             
             // Red overlay during animation
             if isCompleting {
@@ -234,13 +234,6 @@ struct DayCardView: View {
         .contentShape(Rectangle())
     }
     
-    private func completionBackgroundColor(for workout: Workout) -> Color {
-        if workout.isCompleted && !isCompleting {
-            return Color(hex: "F9F9F9").opacity(0.5)
-        } else {
-            return Color(hex: "F9F9F9")
-        }
-    }
     
     // MARK: - Multi Workout Card
     private var multiWorkoutCardContent: some View {
@@ -251,7 +244,7 @@ struct DayCardView: View {
                 dateColumn
                     .opacity(allWorkoutsCompleted && !isCompleting ? 0.5 : 1.0)
                     .padding(.top, 4)
-                
+
                 // Workouts Stack - each row is independently tappable
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(workouts.enumerated()), id: \.element.id) { index, workout in
@@ -260,13 +253,13 @@ struct DayCardView: View {
                                 // Workout Icon
                                 workoutIcon(for: workout)
                                     .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
-                                
+
                                 // Workout Details
                                 HStack(spacing: 8) {
                                     Text(workout.title)
                                         .font(.inter(size: 15, weight: .medium))
                                         .foregroundColor(workout.isCompleted ? .secondary : .primary)
-                                    
+
                                     if let distance = workout.distanceDisplay {
                                         Text(distance)
                                             .font(.inter(size: 12, weight: .regular))
@@ -276,23 +269,23 @@ struct DayCardView: View {
                                             .font(.inter(size: 12, weight: .regular))
                                             .foregroundStyle(.secondary)
                                     }
-                                    
+
                                     if let pace = workout.paceDescription {
                                         if workout.distanceDisplay != nil || workout.durationDisplay != nil {
                                             Text("•")
                                                 .font(.inter(size: 12))
                                                 .foregroundStyle(.secondary)
                                         }
-                                        
+
                                         Text(pace)
                                             .font(.inter(size: 12, weight: .regular))
                                             .foregroundStyle(.secondary)
                                     }
                                 }
                                 .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
-                                
+
                                 Spacer()
-                                
+
                                 // Per-row check icon or chevron
                                 if workout.isCompleted && !isCompleting {
                                     CheckmarkCircleView(isCompleted: true, size: 20)
@@ -317,7 +310,7 @@ struct DayCardView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(completionBackgroundColorMulti())
+            .background(allWorkoutsCompleted && !isCompleting ? Color(hex: "F9F9F9").opacity(0.5) : Color(hex: "F9F9F9"))
             
             // Red overlay during animation
             if isCompleting {
@@ -343,13 +336,6 @@ struct DayCardView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
     
-    private func completionBackgroundColorMulti() -> Color {
-        if allWorkoutsCompleted && !isCompleting {
-            return Color(hex: "F9F9F9").opacity(0.5)
-        } else {
-            return Color(hex: "F9F9F9")
-        }
-    }
     
     // MARK: - Date Column
     private var dateColumn: some View {

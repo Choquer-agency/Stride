@@ -52,45 +52,23 @@ struct GoalStepView: View {
                     
                     // Race Date
                     FormField(label: "Race Date", isRequired: true) {
-                        VStack(spacing: 0) {
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3)) {
-                                    showDatePicker.toggle()
-                                }
-                            }) {
-                                HStack {
-                                    Text(dateFormatter.string(from: data.raceDate))
-                                        .font(.inter(size: 15))
-                                        .foregroundColor(.primary)
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "calendar")
-                                        .font(.caption)
-                                        .foregroundColor(.stridePrimary)
-                                }
-                                .padding()
-                                .background(Color(.secondarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        Button(action: {
+                            showDatePicker = true
+                        }) {
+                            HStack {
+                                Text(dateFormatter.string(from: data.raceDate))
+                                    .font(.inter(size: 15))
+                                    .foregroundColor(.primary)
+
+                                Spacer()
+
+                                Image(systemName: "calendar")
+                                    .font(.caption)
+                                    .foregroundColor(.stridePrimary)
                             }
-                            
-                            if showDatePicker {
-                                DatePicker(
-                                    "",
-                                    selection: $data.raceDate,
-                                    in: Date()...,
-                                    displayedComponents: .date
-                                )
-                                .datePickerStyle(.graphical)
-                                .tint(Color.stridePrimary)
-                                .labelsHidden()
-                                .padding(.top, 8)
-                                .onChange(of: data.raceDate) { _, _ in
-                                    withAnimation(.spring(response: 0.3)) {
-                                        showDatePicker = false
-                                    }
-                                }
-                            }
+                            .padding()
+                            .background(Color(.secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
                     }
                     
@@ -119,6 +97,23 @@ struct GoalStepView: View {
             .padding(.top, 20)
         }
         .scrollDismissesKeyboard(.interactively)
+        .sheet(isPresented: $showDatePicker) {
+            DatePicker(
+                "",
+                selection: $data.raceDate,
+                in: Date()...,
+                displayedComponents: .date
+            )
+            .datePickerStyle(.graphical)
+            .tint(Color.stridePrimary)
+            .labelsHidden()
+            .padding()
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+            .onChange(of: data.raceDate) { _, _ in
+                showDatePicker = false
+            }
+        }
     }
 }
 

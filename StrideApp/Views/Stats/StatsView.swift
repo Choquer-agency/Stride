@@ -4,54 +4,52 @@ import SwiftData
 struct StatsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<TrainingPlan> { $0.isArchived == false }, sort: \TrainingPlan.createdAt, order: .reverse) private var plans: [TrainingPlan]
-    @Query(sort: \Workout.date, order: .reverse) private var allWorkouts: [Workout]
-    
+    @Query(sort: \RunLog.completedAt, order: .reverse) private var runLogs: [RunLog]
+
     @State private var selectedWeek: Week?
     @Binding var selectedTab: MainTabView.Tab
-    
+
     private var activePlan: TrainingPlan? {
         plans.first
     }
-    
+
     // Calculate weekly distance for no-plan mode
     private var noPlanWeeklyStats: WeeklyDistanceStats {
-        StatsViewModel.weeklyDistanceForCurrentCalendarWeek(workouts: allWorkouts)
+        StatsViewModel.weeklyDistanceForCurrentCalendarWeek(runLogs: runLogs)
     }
-    
-    /// Use allWorkouts.count as a SwiftUI dependency trigger.
-    /// When any workout changes (e.g. isCompleted toggled), SwiftData updates
-    /// the @Query which invalidates this view and forces stats recalculation.
-    private var workoutChangeToken: Int {
-        allWorkouts.filter { $0.isCompleted }.count
+
+    /// Use runLogs.count as a SwiftUI dependency trigger.
+    private var runLogChangeToken: Int {
+        runLogs.count
     }
     
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
                 if let plan = activePlan {
-                    let viewModel = StatsViewModel(plan: plan, additionalWorkouts: allWorkouts)
+                    let viewModel = StatsViewModel(plan: plan, runLogs: runLogs)
                     let filteredWeeks = viewModel.weeksForTimeRange(.fullPlan)
-                    
+
                     // Stride Logo at top center
                     StrideLogoView(height: 32)
                         .padding(.top, 24)
                         .padding(.bottom, 8)
-                    
-                    // Summary Cards — pass workoutChangeToken to force reactivity
+
+                    // Summary Cards
                     StatsSummarySection(viewModel: viewModel)
                         .padding(.horizontal, 16)
-                        .id(workoutChangeToken)
-                    
+                        .id(runLogChangeToken)
+
                     // Distance Bar Chart
-                    DistanceBarChartView(workouts: allWorkouts)
+                    DistanceBarChartView(runLogs: runLogs)
                         .padding(.horizontal, 16)
-                    
+
                     // Training Composition (for current week or selected week)
                     if let week = selectedWeek ?? plan.currentWeek ?? filteredWeeks.last {
                         TrainingCompositionView(week: week, viewModel: viewModel)
                             .padding(.horizontal, 16)
                     }
-                    
+
                     // Long Run Progression
                     LongRunProgressView(
                         progression: viewModel.longRunProgression,
@@ -62,11 +60,11 @@ struct StatsView: View {
                         totalWeeks: plan.sortedWeeks.count
                     )
                     .padding(.horizontal, 16)
-                    
+
                     // Daily Run Log
-                    DailyRunLogView(workouts: allWorkouts)
+                    DailyRunLogView(runLogs: runLogs)
                         .padding(.horizontal, 16)
-                    
+
                     // Milestones
                     MilestonesView(
                         longestRunEver: viewModel.longestRunEverMilestone,
@@ -85,38 +83,35 @@ struct StatsView: View {
                         StrideLogoView(height: 32)
                             .padding(.top, 24)
                             .padding(.bottom, 8)
-                        
-                        // Summary Cards (weekly distance, YTD, 4-week avg, race countdown)
+
+                        // Summary Cards
                         StatsSummarySectionNoPlan(
                             weeklyStats: noPlanWeeklyStats,
-                            yearToDate: StatsViewModel.yearToDateDistance(from: allWorkouts),
-                            fourWeekAverage: StatsViewModel.rolling4WeekAverage(from: allWorkouts),
+                            yearToDate: StatsViewModel.yearToDateDistance(from: runLogs),
+                            fourWeekAverage: StatsViewModel.rolling4WeekAverage(from: runLogs),
                             onRaceCountdownTap: {
                                 selectedTab = .plan
                             }
                         )
                         .padding(.horizontal, 16)
-                        .id(workoutChangeToken)
-                        
-                        // Distance Bar Chart (works without a plan)
-                        DistanceBarChartView(workouts: allWorkouts)
+                        .id(runLogChangeToken)
+
+                        // Distance Bar Chart
+                        DistanceBarChartView(runLogs: runLogs)
                             .padding(.horizontal, 16)
-                        
-                        // Training Composition — hidden (plan-specific)
-                        // Long Run Progression — hidden (plan-specific)
-                        
-                        // Daily Run Log (always shown)
-                        DailyRunLogView(workouts: allWorkouts)
+
+                        // Daily Run Log
+                        DailyRunLogView(runLogs: runLogs)
                             .padding(.horizontal, 16)
-                        
-                        // Milestones (always shown, computed from all workouts)
+
+                        // Milestones
                         MilestonesView(
-                            longestRunEver: StatsViewModel.longestRunEver(from: allWorkouts),
-                            highestWeeklyMileage: StatsViewModel.highestWeeklyMileage(from: allWorkouts),
-                            fastest5K: StatsViewModel.fastestConsecutiveTime(from: allWorkouts, distanceKm: 5),
-                            fastest10K: StatsViewModel.fastestConsecutiveTime(from: allWorkouts, distanceKm: 10),
-                            fastest21K: StatsViewModel.fastestConsecutiveTime(from: allWorkouts, distanceKm: 21),
-                            fastest42K: StatsViewModel.fastestConsecutiveTime(from: allWorkouts, distanceKm: 42)
+                            longestRunEver: StatsViewModel.longestRunEver(from: runLogs),
+                            highestWeeklyMileage: StatsViewModel.highestWeeklyMileage(from: runLogs),
+                            fastest5K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 5),
+                            fastest10K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 10),
+                            fastest21K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 21),
+                            fastest42K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 42)
                         )
                         .padding(.horizontal, 16)
                         .padding(.bottom, 100)
@@ -131,6 +126,6 @@ struct StatsView: View {
 #Preview {
     NavigationStack {
         StatsView(selectedTab: .constant(.stats))
-            .modelContainer(for: TrainingPlan.self, inMemory: true)
+            .modelContainer(for: [TrainingPlan.self, RunLog.self], inMemory: true)
     }
 }

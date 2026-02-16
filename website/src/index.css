@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+/* ── Custom Theme ── */
+@theme {
+  --color-stride-red: #FF2617;
+  --color-stride-dark-red: #D40B15;
+  --color-brand-black: #221212;
+  --color-bg-light: #FAFAFA;
+  --color-bg-dark: #0A0A0A;
+  --color-surface-dark: #141414;
+  --color-surface-card: #1A1A1A;
+
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-barlow: 'Barlow Condensed', sans-serif;
+}
+
+/* ── Base ── */
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    font-family: var(--font-inter);
+    background: var(--color-bg-dark);
+    color: white;
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-stride-red);
+    color: white;
+  }
+}
+
+/* ── Lenis ── */
+html.lenis, html.lenis body {
+  height: auto;
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* ── Scroll Reveal Animations ── */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-reveal].revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+[data-reveal-delay="1"] { transition-delay: 0.1s; }
+[data-reveal-delay="2"] { transition-delay: 0.2s; }
+[data-reveal-delay="3"] { transition-delay: 0.3s; }
+[data-reveal-delay="4"] { transition-delay: 0.4s; }
+[data-reveal-delay="5"] { transition-delay: 0.5s; }
+[data-reveal-delay="6"] { transition-delay: 0.6s; }
+[data-reveal-delay="7"] { transition-delay: 0.7s; }
+[data-reveal-delay="8"] { transition-delay: 0.8s; }
+
+/* ── Hero Video Overlay ── */
+.hero-video-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 10, 10, 0.2) 0%,
+    rgba(10, 10, 10, 0.4) 40%,
+    rgba(10, 10, 10, 0.8) 75%,
+    var(--color-bg-dark) 100%
+  );
+}
+
+/* ── Gradient Text ── */
+.text-gradient-red {
+  background: linear-gradient(135deg, var(--color-stride-red), #FF6B5A);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Bar animation ── */
+@keyframes barGrow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+
+.animate-bar-grow {
+  animation: barGrow 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: bottom;
+}
+
+/* ── Float animation ── */
+@keyframes gentle-float {
+  0%, 100% { transform: translateY(0) rotateY(-2deg) rotateX(1deg); }
+  50% { transform: translateY(-10px) rotateY(2deg) rotateX(-1deg); }
+}
+
+.animate-float {
+  animation: gentle-float 6s ease-in-out infinite;
+}
+
+/* ── Marquee ── */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  animation: marquee 25s linear infinite;
+}
+
+/* ── iPhone Frame ── */
+.iphone-frame {
+  position: relative;
+  width: 280px;
+  height: 572px;
+  background: #1C1C1E;
+  border-radius: 44px;
+  border: 3px solid #3A3A3C;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 40px 80px rgba(0,0,0,0.6),
+    0 0 120px rgba(255,38,23,0.06);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.iphone-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 28px;
+  background: #1C1C1E;
+  border-radius: 0 0 20px 20px;
+  z-index: 10;
+}
+
+.iphone-screen {
+  position: absolute;
+  inset: 3px;
+  border-radius: 41px;
+  overflow: hidden;
+  background: var(--color-bg-dark);
+}
+
+/* ── Screenshot placeholder ── */
+.screenshot-placeholder {
+  background: linear-gradient(135deg, var(--color-surface-dark) 0%, var(--color-surface-card) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.screenshot-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    transparent 40%,
+    rgba(255, 38, 23, 0.03) 50%,
+    transparent 60%
+  );
+}
