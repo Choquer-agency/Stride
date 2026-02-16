@@ -44,8 +44,8 @@ export default function BrandStatement() {
             <div className="translate-y-6">
               <div className="aspect-[3/4] w-full overflow-hidden">
                 <img
-                  src="/photos/runner-portrait.webp"
-                  alt="Athlete post-workout"
+                  src="/photos/group-app.webp"
+                  alt="Athletes with Stride app"
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 />
               </div>
@@ -55,8 +55,8 @@ export default function BrandStatement() {
             <div>
               <div className="aspect-[3/4] w-full overflow-hidden">
                 <img
-                  src="/photos/runner-treadmill-back.webp"
-                  alt="Runner on AirRunner"
+                  src="/photos/runner-portrait.webp"
+                  alt="Athlete post-workout"
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 />
               </div>
@@ -66,8 +66,8 @@ export default function BrandStatement() {
             <div className="-translate-y-6">
               <div className="aspect-[3/4] w-full overflow-hidden">
                 <img
-                  src="/photos/runner-airrunner-pro.webp"
-                  alt="Runner on AirRunner Pro"
+                  src="/photos/runner-sprint-dark.webp"
+                  alt="Runner sprinting"
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                 />
               </div>

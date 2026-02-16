@@ -99,13 +99,13 @@ export default function FeaturesTransition() {
         {/* Background layers */}
         <img
           ref={bg1Ref}
-          src="/photos/runner-sprint-dark.webp"
+          src="/photos/runner-phone.webp"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
         />
         <img
           ref={bg2Ref}
-          src="/photos/runner-aurora.webp"
+          src="/photos/runner-airrunner-pro.webp"
           alt=""
           className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: 0 }}
