@@ -289,6 +289,7 @@
 		833D7FEDAEE76815FC47DE09 /* km_79.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CB663062BD59E5FD1B802EA0 /* km_79.mp3 */; };
 		83570F0931123E1643719A96 /* FTMSTreadmillDataParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73DE919FA162FA57A48745F5 /* FTMSTreadmillDataParser.swift */; };
 		835EAB06F769B7EDC307DC38 /* km_46.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A6CC2C1B30A16BFCBD530785 /* km_46.mp3 */; };
+		840C729A3428CF04D381CA5F /* PreRunIntroPrefetcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ACB524A68F08244CE8E9EE5 /* PreRunIntroPrefetcher.swift */; };
 		8415E8B552E35FEBCFBBA5D4 /* km_76.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A3DC31741A6EC9A838DF5991 /* km_76.mp3 */; };
 		84161DE7C3B2A3EA56B9581C /* num_60.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 02EB988C2A54978C546C1B40 /* num_60.mp3 */; };
 		844CB5183D945D5B2FE477FB /* AutoPauseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5D0A9F86666462591C985D /* AutoPauseService.swift */; };
@@ -567,6 +568,7 @@
 		19E47F643022231E3630DAEA /* GPSRunDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GPSRunDataProvider.swift; sourceTree = "<group>"; };
 		1A2CDBB4831F19F528A4C959 /* km_28.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_28.mp3; sourceTree = "<group>"; };
 		1AC48736D420DF38D1F8E27A /* RunIntensity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunIntensity.swift; sourceTree = "<group>"; };
+		1ACB524A68F08244CE8E9EE5 /* PreRunIntroPrefetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreRunIntroPrefetcher.swift; sourceTree = "<group>"; };
 		1BE5CFD40289EB1AB8B8D36B /* mile_24.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_24.mp3; sourceTree = "<group>"; };
 		1C19A868EE5D7CF0CBA12255 /* mile_19.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_19.mp3; sourceTree = "<group>"; };
 		1D3B481CD3327E7A8E50E7C5 /* km_74.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_74.mp3; sourceTree = "<group>"; };
@@ -1614,6 +1616,7 @@
 				84648E5719B4C7A00EB20B6C /* LocationManager.swift */,
 				4508956BF608D89094780105 /* PaceSmoother.swift */,
 				0E9FC00211E41BFCA3AE0FCE /* PlanParser.swift */,
+				1ACB524A68F08244CE8E9EE5 /* PreRunIntroPrefetcher.swift */,
 				7B47BAB58C18DBB3A447461E /* RouteShareService.swift */,
 				F878A84B299521E1EFB9D92E /* RunDataProvider.swift */,
 				A7FD1B8C2E01E2199E130253 /* RunSyncService.swift */,
@@ -2254,6 +2257,7 @@
 				9B100CD117119562B7B08449 /* PlanView.swift in Sources */,
 				5CB5227B856A48363017DDCB /* PlanViewModel.swift in Sources */,
 				B0113782050D3F5CD7DCC3F2 /* PostRunCoachViewModel.swift in Sources */,
+				840C729A3428CF04D381CA5F /* PreRunIntroPrefetcher.swift in Sources */,
 				79AE671288F71B13A4BAAB9D /* ProfileSetupView.swift in Sources */,
 				3D490DC6256392CC2FA742D7 /* ProfileView.swift in Sources */,
 				5043F39D92A7E58637CAC9F2 /* ProgressIndicator.swift in Sources */,

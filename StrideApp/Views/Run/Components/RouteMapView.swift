@@ -103,8 +103,8 @@ struct RouteMapView: View {
             .ornamentOptions(OrnamentOptions(
                 scaleBar: ScaleBarViewOptions(visibility: .hidden),
                 compass: CompassViewOptions(visibility: .hidden),
-                logo: LogoViewOptions(visibility: .hidden),
-                attributionButton: AttributionButtonOptions(visibility: .hidden)
+                logo: LogoViewOptions(margins: CGPoint(x: -10000, y: -10000)),
+                attributionButton: AttributionButtonOptions(margins: CGPoint(x: -10000, y: -10000))
             ))
             .gestureOptions(GestureOptions(
                 panEnabled: false,

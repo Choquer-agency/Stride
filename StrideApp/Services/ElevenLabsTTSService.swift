@@ -122,9 +122,10 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
 
     /// Play a sequence of audio clips in order.
     /// All clips are preloaded into memory first, then played back-to-back with no gaps.
+    /// `onStart` fires the instant the first clip actually begins audible playback.
     /// `onComplete` fires on the main queue once the last clip's audio has played out
     /// (or immediately if no clips resolved).
-    func speakSequence(_ clips: [AudioClip], onComplete: (() -> Void)? = nil) {
+    func speakSequence(_ clips: [AudioClip], onStart: (() -> Void)? = nil, onComplete: (() -> Void)? = nil) {
         guard !clips.isEmpty else { onComplete?(); return }
         print("[ElevenLabs] Preloading sequence: \(clips.count) clips")
 
@@ -151,11 +152,22 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
                 } else {
                     self.sequenceCompletion = onComplete ?? self.sequenceCompletion
                 }
+                // onStart fires on the first audible play only (ignored if already speaking).
+                self.pendingOnStart = onStart ?? self.pendingOnStart
                 preloadedQueue.append(contentsOf: audioDataList)
                 playNextPreloaded()
             }
         }
     }
+
+    /// Resolve the given text to audio data and write it to the disk cache without
+    /// playing. Used to pre-warm the cache so a later speakSequence call plays instantly.
+    func prefetchText(_ text: String) async {
+        _ = await resolveTextClip(text)
+    }
+
+    /// Fires once when the next batch of audio actually begins playing.
+    private var pendingOnStart: (() -> Void)?
 
     /// Fires once the playback queue has fully drained.
     private var sequenceCompletion: (() -> Void)?
@@ -257,6 +269,7 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
         activateDucking()
 
         let data = preloadedQueue.removeFirst()
+        let wasFirstClipOfBatch = !isSpeaking
         isSpeaking = true
 
         do {
@@ -271,6 +284,12 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
                 audioPlayer?.delegate = self
                 audioPlayer?.volume = 1.0
                 audioPlayer?.play()
+            }
+
+            // Fire onStart the moment the first clip in a batch begins playing.
+            if wasFirstClipOfBatch, let start = pendingOnStart {
+                pendingOnStart = nil
+                start()
             }
 
             // Pre-prepare the NEXT player while this one plays
@@ -379,7 +398,7 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
             "text": text,
             "model_id": modelId,
             "voice_settings": [
-                "stability": 0.6,
+                "stability": 0.35,
                 "similarity_boost": 0.8,
                 "style": 0.3,
                 "use_speaker_boost": true

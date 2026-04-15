@@ -181,6 +181,8 @@ struct StrideApp: App {
                 .onChange(of: authService.authState) { _, newState in
                     if case .signedIn = newState {
                         RunSyncService.shared.syncPendingRuns()
+                        // Pre-generate today's motivational intro so Start Run is instant.
+                        PreRunIntroPrefetcher.shared.warmUpIfNeeded()
                     }
                 }
         }

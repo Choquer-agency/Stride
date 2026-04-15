@@ -31,12 +31,13 @@ struct OutdoorRunView: View {
     @State private var countdownPaused = false
     @State private var countdownScale: CGFloat = 0.5
     @State private var countdownOpacity: Double = 0
-    @State private var introPhase: IntroPhase = .waiting
+    @State private var introPhase: IntroPhase = .fetching
     @State private var hasPlayedIntro = false
 
     enum IntroPhase {
-        case waiting      // red screen up, no number yet (fetching/playing AI intro)
-        case numbers      // 3 → 2 → 1 animating
+        case fetching     // red screen, no orb — API/audio not yet ready
+        case speaking     // red screen + fire orb — Claude's voice is playing
+        case numbers      // 3 → 2 → 1 fallback animation
     }
 
     private var tts: ElevenLabsTTSService { .shared }
@@ -90,25 +91,45 @@ struct OutdoorRunView: View {
             return
         }
         hasPlayedIntro = true
-        introPhase = .waiting
+        introPhase = .fetching
 
-        // Fetch Claude's motivational intro — which ends with its own spoken
-        // countdown. When the audio finishes, the timer starts immediately. If
-        // the fetch fails, fall back to the bundled "3, 2, 1, let's go".
+        // Fast path: if today's intro was pre-generated at app launch and the
+        // ElevenLabs audio is already cached to disk, speakSequence plays it
+        // effectively instantly.
+        if let cachedText = PreRunIntroPrefetcher.shared.cachedIntroForCurrentBucket() {
+            print("[PreRunCoach] Using cached intro from prefetcher")
+            speakIntro(text: cachedText)
+            return
+        }
+
+        // Fallback: no cache → live fetch + speak.
         Task {
             let introText = await fetchPreRunIntro()
             await MainActor.run {
                 guard !countdownPaused else { return }
                 if let text = introText, !text.isEmpty {
-                    tts.speakSequence([.text(text)]) {
-                        guard !countdownPaused else { return }
-                        startRunNow()
-                    }
+                    speakIntro(text: text)
                 } else {
                     playBundledCountdown()
                 }
             }
         }
+    }
+
+    private func speakIntro(text: String) {
+        tts.speakSequence(
+            [.text(text)],
+            onStart: {
+                // Flip the orb on only once audible playback actually begins.
+                withAnimation(.easeIn(duration: 0.2)) {
+                    introPhase = .speaking
+                }
+            },
+            onComplete: {
+                guard !countdownPaused else { return }
+                startRunNow()
+            }
+        )
     }
 
     /// Final handoff: Claude's spoken countdown just landed — start the run.
@@ -222,18 +243,21 @@ struct OutdoorRunView: View {
 
                 Spacer()
 
-                if introPhase == .numbers {
+                switch introPhase {
+                case .numbers:
                     Text("\(countdownNumber)")
                         .font(.barlowCondensed(size: 280, weight: .medium))
                         .foregroundColor(.white)
                         .scaleEffect(countdownScale)
                         .opacity(countdownOpacity)
                         .transition(.opacity)
-                } else {
-                    // AI intro playing — pulsing dot trio as a "coach is talking" hint.
-                    PulsingDots()
-                        .frame(height: 40)
+                case .speaking:
+                    VoiceOrbView()
+                        .frame(width: 220, height: 220)
                         .transition(.opacity)
+                case .fetching:
+                    // No visual — just the logo + "Crush It!" up top while we wait.
+                    Color.clear.frame(height: 1)
                 }
 
                 Spacer()
@@ -551,27 +575,6 @@ struct OutdoorRunView: View {
         let minutes = (Int(time) % 3600) / 60
         let seconds = Int(time) % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-}
-
-/// Three dots that pulse in sequence — shown while the AI coach is generating/speaking the intro.
-private struct PulsingDots: View {
-    @State private var phase: Double = 0
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ForEach(0..<3) { i in
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 12, height: 12)
-                    .opacity(0.35 + 0.65 * max(0, sin(phase + Double(i) * 0.6)))
-            }
-        }
-        .onAppear {
-            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                phase = .pi * 2
-            }
-        }
     }
 }
 

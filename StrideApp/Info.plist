@@ -22,6 +22,8 @@
 	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>MBXAccessToken</key>
+	<string>pk.eyJ1IjoiY2hvcXVlciIsImEiOiJjbW5yb3d6N3QwNG50MnFxMWtsY2IyYTJ2In0.BJsGKQaYMSrJX0R78_lhVg</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -29,16 +31,16 @@
 	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Stride needs Bluetooth access to connect to your Assault Runner treadmill and log workout data.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Stride uses your location to track your outdoor runs and map your route.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Stride needs background location access to track your run while your phone is in your pocket.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_http._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Stride needs to connect to your local development server to generate personalized training plans.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Stride needs background location access to track your run while your phone is in your pocket.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Stride uses your location to track your outdoor runs and map your route.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>BarlowCondensed-Regular.ttf</string>
@@ -84,7 +86,5 @@
 	</array>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
-	<key>MBXAccessToken</key>
-	<string>pk.eyJ1IjoiY2hvcXVlciIsImEiOiJjbW5yb3d6N3QwNG50MnFxMWtsY2IyYTJ2In0.BJsGKQaYMSrJX0R78_lhVg</string>
 </dict>
 </plist>
