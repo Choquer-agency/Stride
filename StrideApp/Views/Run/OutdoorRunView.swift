@@ -93,18 +93,20 @@ struct OutdoorRunView: View {
         hasPlayedIntro = true
         introPhase = .fetching
 
-        // Fast path: if today's intro was pre-generated at app launch and the
-        // ElevenLabs audio is already cached to disk, speakSequence plays it
-        // effectively instantly.
-        if let cachedText = PreRunIntroPrefetcher.shared.cachedIntroForCurrentBucket() {
+        // Build the request that matches THIS run (planned workout vs free run).
+        let liveRequest = buildPreRunRequest()
+
+        // Fast path: cache hit only if signature, date, and time-bucket all match.
+        // Otherwise we'd play an intro that talks about a different workout.
+        if let cachedText = PreRunIntroPrefetcher.shared.cachedIntro(matching: liveRequest) {
             print("[PreRunCoach] Using cached intro from prefetcher")
             speakIntro(text: cachedText)
             return
         }
 
-        // Fallback: no cache → live fetch + speak.
+        // Fallback: cache miss → live fetch + speak.
         Task {
-            let introText = await fetchPreRunIntro()
+            let introText = await fetchPreRunIntro(request: liveRequest)
             await MainActor.run {
                 guard !countdownPaused else { return }
                 if let text = introText, !text.isEmpty {
@@ -182,16 +184,15 @@ struct OutdoorRunView: View {
         }
     }
 
-    /// Build and send the pre-run coach request. Returns nil on any failure so the
-    /// caller falls through to the bundled countdown.
+    /// Build the PreRunCoachRequest for the run the user just started.
     @MainActor
-    private func fetchPreRunIntro() async -> String? {
+    private func buildPreRunRequest() -> PreRunCoachRequest {
         let athleteName: String? = {
             if case .signedIn(let user) = AuthService.shared.authState { return user.name }
             if case .needsProfile(let user) = AuthService.shared.authState { return user.name }
             return nil
         }()
-        let request = PreRunCoachRequest(
+        return PreRunCoachRequest(
             athleteName: athleteName,
             workoutType: viewModel.plannedWorkoutType?.displayName,
             workoutTitle: viewModel.plannedWorkoutTitle,
@@ -203,6 +204,11 @@ struct OutdoorRunView: View {
             weeksToRace: nil,
             timeOfDay: Self.currentTimeOfDay()
         )
+    }
+
+    /// Live-fetch fallback when the prefetcher didn't have a matching cache hit.
+    @MainActor
+    private func fetchPreRunIntro(request: PreRunCoachRequest) async -> String? {
         do {
             let text = try await APIService.shared.preRunCoach(request: request)
             print("[PreRunCoach] AI intro received (\(text.count) chars): \(text)")

@@ -1,24 +1,28 @@
 import Foundation
+import SwiftData
 
 /// Pre-generates today's pre-run motivational intro in the background so that
 /// tapping Start Run plays instantly.
 ///
-/// Strategy: on each foreground/launch, check whether we already have a cached
-/// intro for today's date + time-of-day bucket. If not, call the API to get
-/// Claude's text, then pre-warm the ElevenLabs audio cache for that exact text.
-/// The cache is keyed generically (no workout-specific fields) so it covers the
-/// most common case — a free run started from the lobby.
+/// Strategy: on each foreground/launch, look up today's planned workout from
+/// SwiftData (if any) and prefetch an intro matching that specific workout.
+/// If there's no planned workout for today, prefetch a generic free-run intro
+/// instead. The cache is keyed by date + time-of-day + workout signature, so a
+/// mismatched request at Start Run time (e.g. user picks free run even though
+/// a planned workout was prefetched) falls through to a live fetch rather than
+/// playing the wrong intro.
 @MainActor
 final class PreRunIntroPrefetcher {
     static let shared = PreRunIntroPrefetcher()
 
-    private let cacheKey = "pre_run_intro_cache_v1"
+    private let cacheKey = "pre_run_intro_cache_v2"
     private var inFlight = false
 
     struct CachedIntro: Codable {
         let text: String
         let dateString: String       // yyyy-MM-dd in user's local tz
-        let timeOfDay: String        // matches the bucket sent to the server
+        let timeOfDay: String        // early morning / morning / afternoon / evening / night
+        let signature: String        // PreRunCoachRequest.cacheSignature
         let generatedAt: Date
     }
 
@@ -26,46 +30,91 @@ final class PreRunIntroPrefetcher {
 
     // MARK: - Public API
 
-    /// Fire-and-forget warm-up. Safe to call repeatedly — no-ops if the cache
-    /// already covers today's bucket, or if a warm-up is already in flight.
-    func warmUpIfNeeded() {
+    /// Fire-and-forget warm-up. Queries SwiftData for today's planned workout
+    /// (if any) and prefetches an intro that matches it; otherwise prefetches
+    /// a free-run intro. Safe to call repeatedly — no-ops if the cache already
+    /// covers today's target signature.
+    func warmUpIfNeeded(container: ModelContainer) {
         if inFlight { return }
-        if cachedIntroForCurrentBucket() != nil {
-            print("[PreRunPrefetch] Today's intro already cached")
-            return
-        }
         inFlight = true
         Task { [weak self] in
             guard let self else { return }
-            await self.fetchAndCache()
+            await self.fetchAndCache(container: container)
             self.inFlight = false
         }
     }
 
-    /// Returns the cached intro text if it still matches today's date + bucket,
-    /// otherwise nil. The caller is expected to fall back to a live fetch.
-    func cachedIntroForCurrentBucket() -> String? {
+    /// Returns cached intro text only if it matches today's date, current
+    /// time-of-day bucket, AND the workout signature of the provided request.
+    /// Any mismatch → nil → caller should live-fetch.
+    func cachedIntro(matching request: PreRunCoachRequest) -> String? {
         guard let cached = load() else { return nil }
-        if cached.dateString == Self.todayString() && cached.timeOfDay == Self.currentTimeOfDay() {
-            return cached.text
+        let today = Self.todayString()
+        let bucket = Self.currentTimeOfDay()
+        guard cached.dateString == today,
+              cached.timeOfDay == bucket,
+              cached.signature == request.cacheSignature else {
+            return nil
         }
-        return nil
+        return cached.text
     }
 
     // MARK: - Private
 
-    private func fetchAndCache() async {
-        let timeOfDay = Self.currentTimeOfDay()
+    private func fetchAndCache(container: ModelContainer) async {
+        let request = buildRequest(container: container)
+
+        // Skip if we already have a hit for this exact request.
+        if let cached = load(),
+           cached.dateString == Self.todayString(),
+           cached.timeOfDay == request.timeOfDay,
+           cached.signature == request.cacheSignature {
+            print("[PreRunPrefetch] Already cached for today's context (\(cached.signature))")
+            return
+        }
+
+        do {
+            let text = try await APIService.shared.preRunCoach(request: request)
+            let cached = CachedIntro(
+                text: text,
+                dateString: Self.todayString(),
+                timeOfDay: request.timeOfDay ?? "",
+                signature: request.cacheSignature,
+                generatedAt: Date()
+            )
+            save(cached)
+            print("[PreRunPrefetch] Cached intro for signature '\(request.cacheSignature)' (\(text.count) chars); pre-warming audio")
+            await ElevenLabsTTSService.shared.prefetchText(text)
+            print("[PreRunPrefetch] Audio pre-warm complete")
+        } catch {
+            print("[PreRunPrefetch] Warm-up failed: \(error)")
+        }
+    }
+
+    private func buildRequest(container: ModelContainer) -> PreRunCoachRequest {
         let athleteName: String? = {
             if case .signedIn(let user) = AuthService.shared.authState { return user.name }
             if case .needsProfile(let user) = AuthService.shared.authState { return user.name }
             return nil
         }()
+        let timeOfDay = Self.currentTimeOfDay()
 
-        // Intentionally generic — free run, no workout specifics. The goal here
-        // is to have SOMETHING cached for the common case, not to exactly match
-        // every possible workout choice.
-        let request = PreRunCoachRequest(
+        if let workout = todaysPlannedWorkout(container: container) {
+            return PreRunCoachRequest(
+                athleteName: athleteName,
+                workoutType: workout.workoutType.displayName,
+                workoutTitle: workout.title,
+                targetDistanceKm: workout.distanceKm,
+                targetDurationMinutes: workout.durationMinutes,
+                targetPace: workout.paceDescription,
+                isFreeRun: false,
+                goalRace: nil,
+                weeksToRace: nil,
+                timeOfDay: timeOfDay
+            )
+        }
+
+        return PreRunCoachRequest(
             athleteName: athleteName,
             workoutType: nil,
             workoutTitle: nil,
@@ -77,26 +126,30 @@ final class PreRunIntroPrefetcher {
             weeksToRace: nil,
             timeOfDay: timeOfDay
         )
+    }
 
-        do {
-            let text = try await APIService.shared.preRunCoach(request: request)
-            let cached = CachedIntro(
-                text: text,
-                dateString: Self.todayString(),
-                timeOfDay: timeOfDay,
-                generatedAt: Date()
-            )
-            save(cached)
-            print("[PreRunPrefetch] Cached intro text (\(text.count) chars); pre-warming audio")
-
-            // Pre-warm the ElevenLabs audio cache so the MP3 is on disk before
-            // the user taps Start Run. This is the expensive leg time-wise.
-            await ElevenLabsTTSService.shared.prefetchText(text)
-            print("[PreRunPrefetch] Audio pre-warm complete")
-        } catch {
-            print("[PreRunPrefetch] Warm-up failed: \(error)")
+    /// Fetch today's planned workout, if the user has an active plan with one
+    /// scheduled for the current date. Mirrors RunLobbyView.todaysWorkout so
+    /// the prefetch targets the same run the user is likely to tap.
+    private func todaysPlannedWorkout(container: ModelContainer) -> Workout? {
+        let context = ModelContext(container)
+        let descriptor = FetchDescriptor<TrainingPlan>(
+            predicate: #Predicate<TrainingPlan> { !$0.isArchived },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        guard let plan = try? context.fetch(descriptor).first,
+              let week = plan.currentWeek else {
+            return nil
+        }
+        return week.sortedWorkouts.first { workout in
+            workout.isToday
+            && workout.workoutType != .rest
+            && workout.workoutType != .gym
+            && workout.workoutType != .crossTraining
         }
     }
+
+    // MARK: - Persistence
 
     private func load() -> CachedIntro? {
         guard let data = UserDefaults.standard.data(forKey: cacheKey) else { return nil }

@@ -286,6 +286,26 @@ struct PreRunCoachResponse: Codable {
     let text: String
 }
 
+extension PreRunCoachRequest {
+    /// Stable identity of the workout context for cache matching. If a prefetch
+    /// was built with one signature and the real Start Run request has a
+    /// different signature, the cache should be ignored (the intro Claude wrote
+    /// wouldn't fit the actual workout).
+    var cacheSignature: String {
+        if isFreeRun {
+            return "free_run"
+        }
+        let parts: [String] = [
+            workoutType ?? "_",
+            workoutTitle ?? "_",
+            targetDistanceKm.map { String(format: "%.1f", $0) } ?? "_",
+            targetDurationMinutes.map { String($0) } ?? "_",
+            targetPace ?? "_",
+        ]
+        return parts.joined(separator: "|")
+    }
+}
+
 struct PostRunSplitData: Codable {
     let kilometer: Int
     let pace: String
