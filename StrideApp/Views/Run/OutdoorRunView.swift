@@ -119,6 +119,18 @@ struct OutdoorRunView: View {
         }
     }
 
+    /// Bucket the current local hour into a label the coach prompt understands.
+    private static func currentTimeOfDay() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 4..<9:   return "early morning"
+        case 9..<12:  return "morning"
+        case 12..<17: return "afternoon"
+        case 17..<21: return "evening"
+        default:      return "night"
+        }
+    }
+
     private func playBundledCountdown() {
         guard !countdownPaused else { return }
         introPhase = .numbers
@@ -167,7 +179,8 @@ struct OutdoorRunView: View {
             targetPace: viewModel.targetPaceDescription,
             isFreeRun: !viewModel.isPlannedRun,
             goalRace: nil,
-            weeksToRace: nil
+            weeksToRace: nil,
+            timeOfDay: Self.currentTimeOfDay()
         )
         do {
             let text = try await APIService.shared.preRunCoach(request: request)

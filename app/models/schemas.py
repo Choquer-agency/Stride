@@ -181,6 +181,9 @@ class PreRunCoachRequest(BaseModel):
     is_free_run: bool = False
     goal_race: Optional[str] = None
     weeks_to_race: Optional[int] = None
+    # Athlete's local time-of-day bucket ("early morning", "morning", "afternoon",
+    # "evening", "night") — used so the coach's greeting matches the hour.
+    time_of_day: Optional[str] = None
 
 
 class PreRunCoachResponse(BaseModel):

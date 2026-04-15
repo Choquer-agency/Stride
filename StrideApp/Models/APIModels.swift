@@ -255,6 +255,37 @@ struct PostRunCoachRequest: Codable {
     }
 }
 
+// MARK: - Pre-Run Coach
+struct PreRunCoachRequest: Codable {
+    let athleteName: String?
+    let workoutType: String?
+    let workoutTitle: String?
+    let targetDistanceKm: Double?
+    let targetDurationMinutes: Int?
+    let targetPace: String?
+    let isFreeRun: Bool
+    let goalRace: String?
+    let weeksToRace: Int?
+    let timeOfDay: String?
+
+    enum CodingKeys: String, CodingKey {
+        case athleteName = "athlete_name"
+        case workoutType = "workout_type"
+        case workoutTitle = "workout_title"
+        case targetDistanceKm = "target_distance_km"
+        case targetDurationMinutes = "target_duration_minutes"
+        case targetPace = "target_pace"
+        case isFreeRun = "is_free_run"
+        case goalRace = "goal_race"
+        case weeksToRace = "weeks_to_race"
+        case timeOfDay = "time_of_day"
+    }
+}
+
+struct PreRunCoachResponse: Codable {
+    let text: String
+}
+
 struct PostRunSplitData: Codable {
     let kilometer: Int
     let pace: String

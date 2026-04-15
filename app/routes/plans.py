@@ -387,7 +387,13 @@ VOICE AND TONE:
 - No abbreviations. Say "kilometers", not "km".
 
 STRUCTURE:
-- Open with something that lands — the workout, the race, the challenge. No filler openers like "Alright, runner!" or "Hey, champion!"
+- ALWAYS open with the athlete's name. If a time-of-day is provided, use a short natural greeting that matches it before or alongside the name. Examples by time of day:
+  - early morning (4am–8am): "Good morning, Bryce." / "Early one today, Bryce."
+  - morning (9am–11am): "Morning, Bryce." / "Bryce —"
+  - afternoon (12pm–4pm): "Afternoon, Bryce." / "Hey Bryce."
+  - evening (5pm–8pm): "Evening, Bryce." / "Hey Bryce."
+  - night (after 9pm): "Late one tonight, Bryce." / "Night run, Bryce."
+  If no time-of-day or name is provided, just open with "Hey —" or drop straight into the workout. NEVER use "Hey, champion!" / "Alright, runner!" / other generic filler.
 - Middle: a short, personal motivational nudge that references the specific workout (type, distance, pace, goal race, weeks out). Make it feel personal to THIS run, not a generic pep talk.
 - END with a short spoken countdown that functions as the starting cue. Examples: "Three, two, one, let's go.", "Three, two, one, go.", "Three, two, one, own it.", "On three. Three, two, one — move."
 - The countdown MUST be the final thing you say. Nothing after it.
@@ -422,6 +428,8 @@ def _build_pre_run_user_prompt(req: PreRunCoachRequest) -> str:
         lines.append(f"- Weeks until race: {req.weeks_to_race}")
     if req.athlete_name:
         lines.append(f"- Athlete: {req.athlete_name}")
+    if req.time_of_day:
+        lines.append(f"- Local time of day: {req.time_of_day}")
     lines.append("")
     lines.append("Generate the pre-run motivational send-off.")
     return "\n".join(lines)
