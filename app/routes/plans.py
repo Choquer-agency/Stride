@@ -423,24 +423,37 @@ def _build_pre_run_user_prompt(req: PreRunCoachRequest) -> str:
 @router.post("/pre-run-coach", response_model=PreRunCoachResponse)
 async def pre_run_coach(request: PreRunCoachRequest, current_user: User = Depends(get_current_user)) -> PreRunCoachResponse:
     """Generate a short motivational intro spoken right before the countdown."""
-    client = AnthropicClient()
+    import logging
+    import traceback
+    log = logging.getLogger(__name__)
     user_id_str = str(current_user.id)
 
-    text = await client.generate_plan(
-        PRE_RUN_COACH_SYSTEM_PROMPT,
-        _build_pre_run_user_prompt(request),
-        name="pre-run-coach",
-        user_id=user_id_str,
-        session_id=f"user:{user_id_str}:pre-run",
-        metadata={
-            "workout_type": request.workout_type,
-            "is_free_run": request.is_free_run,
-        },
-    )
+    try:
+        client = AnthropicClient()
+        text = await client.generate_plan(
+            PRE_RUN_COACH_SYSTEM_PROMPT,
+            _build_pre_run_user_prompt(request),
+            name="pre-run-coach",
+            user_id=user_id_str,
+            session_id=f"user:{user_id_str}:pre-run",
+            metadata={
+                "workout_type": request.workout_type,
+                "is_free_run": request.is_free_run,
+            },
+        )
+    except Exception as e:
+        tb = traceback.format_exc()
+        log.error("pre-run-coach failed: %s\n%s", e, tb)
+        # Echo the error class + message in the HTTPException detail so it surfaces
+        # in the iOS response body during development.
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
-    analytics.capture(user_id_str, "pre_run_coach_generated", {
-        "workout_type": request.workout_type or "free_run",
-        "is_free_run": request.is_free_run,
-    })
+    try:
+        analytics.capture(user_id_str, "pre_run_coach_generated", {
+            "workout_type": request.workout_type or "free_run",
+            "is_free_run": request.is_free_run,
+        })
+    except Exception:
+        log.exception("analytics capture failed (non-fatal)")
 
     return PreRunCoachResponse(text=text.strip())

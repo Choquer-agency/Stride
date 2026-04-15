@@ -281,6 +281,41 @@ class APIService: ObservableObject {
         }
     }
 
+    // MARK: - Pre-Run AI Coach
+
+    /// Fetch a short motivational intro to play before the countdown.
+    /// Short timeout so a slow/dead backend never blocks the run from starting —
+    /// the caller should fall back to the bundled countdown on any throw.
+    func preRunCoach(request: PreRunCoachRequest, timeout: TimeInterval = 6.0) async throws -> String {
+        let url = URL(string: "\(baseURL)/api/pre-run-coach")!
+
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.timeoutInterval = timeout
+        addAuthHeader(to: &urlRequest)
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let token = AuthService.shared.currentToken
+        print("[PreRunCoach] JWT in keychain: \(token == nil ? "MISSING" : "present (len=\(token!.count))")")
+
+        let (data, response) = try await URLSession.shared.data(for: urlRequest)
+        guard let http = response as? HTTPURLResponse else {
+            throw APIServiceError.invalidResponse
+        }
+        if http.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? "<no body>"
+            print("[PreRunCoach] \(http.statusCode) from server. Body: \(body)")
+        }
+        // Intentionally do NOT call checkForUnauthorized here — the pre-run intro is
+        // non-critical and a transient 401 shouldn't sign the user out of the app.
+        guard http.statusCode == 200 else {
+            throw APIServiceError.httpError(http.statusCode)
+        }
+        let decoded = try JSONDecoder().decode(PreRunCoachResponse.self, from: data)
+        return decoded.text
+    }
+
     // MARK: - Post-Run AI Coach
 
     func postRunCoach(
