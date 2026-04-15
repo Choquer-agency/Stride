@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -96,6 +96,7 @@
 		27A2993136E89A3D4E92CE73 /* mile_2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F5B145042ABA3A42D409F89B /* mile_2.mp3 */; };
 		27D5D17FECC7A4216C8D1900 /* RunLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5259F44CA5A91B7EFC771C /* RunLog.swift */; };
 		2800FE960DF28BD3D4133224 /* km_91.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = AD942939DAFC99B77C3397B5 /* km_91.mp3 */; };
+		293C2CBF4424974937A3E39F /* VoiceOrbView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5376C031EDE6305EFC3721D4 /* VoiceOrbView.swift */; };
 		2AFB8E2624E9F5FE43B0B616 /* num_16.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1E98A7C274817B6898CD727F /* num_16.mp3 */; };
 		2BAFA7084EA9141C7945FF36 /* steps_per_minute.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B0469A0692B0B98FF14343AE /* steps_per_minute.mp3 */; };
 		2BC40783CC42CD5DEFC6FD22 /* km_82.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9FB5C15C56A946CC4CB6D914 /* km_82.mp3 */; };
@@ -680,6 +681,7 @@
 		4FE61E896FB77539FE4893D7 /* km_33.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_33.mp3; sourceTree = "<group>"; };
 		4FEE33A1F161464EFEA1D5F9 /* type_tempo.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = type_tempo.mp3; sourceTree = "<group>"; };
 		525ABB368AA81D80E58E15BD /* ShoesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoesViewModel.swift; sourceTree = "<group>"; };
+		5376C031EDE6305EFC3721D4 /* VoiceOrbView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceOrbView.swift; sourceTree = "<group>"; };
 		53A072F7B736E495CD901918 /* one_hour.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = one_hour.mp3; sourceTree = "<group>"; };
 		53D45739DC9D72B2A5B6F1EB /* TeamsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamsView.swift; sourceTree = "<group>"; };
 		53DA8DC5D138828DBCBEDBD0 /* PlanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanViewModel.swift; sourceTree = "<group>"; };
@@ -739,7 +741,7 @@
 		6BE49A77B58B681E14630C60 /* impressive_consistency.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = impressive_consistency.mp3; sourceTree = "<group>"; };
 		6C05C2774981D46A6D9320FC /* pace_on_target.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = pace_on_target.mp3; sourceTree = "<group>"; };
 		6C80CD798B1EF9E5F2C5AB4F /* ScheduleStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleStepView.swift; sourceTree = "<group>"; };
-		6CD7CC89563B45008C986776 /* StrideApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StrideApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CD7CC89563B45008C986776 /* StrideApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StrideApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CFAF9F1AE6E529B9AAAA0DE /* num_44.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_44.mp3; sourceTree = "<group>"; };
 		6E9644DD668253D121C871B0 /* km_11.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_11.mp3; sourceTree = "<group>"; };
 		6E96A89F2B83176041D96748 /* run_ended.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = run_ended.mp3; sourceTree = "<group>"; };
@@ -1630,6 +1632,7 @@
 				9143ED5EA6040FF7FB916AD4 /* ImagePicker.swift */,
 				E05839BE194623D5E51B51F0 /* ProgressIndicator.swift */,
 				C3FF22135B7559683C3C518A /* StrideIcons.swift */,
+				5376C031EDE6305EFC3721D4 /* VoiceOrbView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -1754,6 +1757,11 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					74F633CDAAFEAEED3B8E59B2 = {
+						DevelopmentTeam = VAC2837QGB;
+					};
+				};
 			};
 			buildConfigurationList = 7D3AC60858231BDA81EEF1B4 /* Build configuration list for PBXProject "StrideApp" */;
 			compatibilityVersion = "Xcode 14.0";
@@ -1769,6 +1777,7 @@
 				32F67DA20269339903E07B04 /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */,
 				AC54FF4B207C9AA8045E9910 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -2295,6 +2304,7 @@
 				CDC8E667389F1E36BDB88AFC /* VoiceCoachService.swift in Sources */,
 				6C884F38FF1E43BE88F52BD8 /* VoiceCoachSettings.swift in Sources */,
 				348A1091EBA0D751B9D98C87 /* VoiceCoachSettingsSection.swift in Sources */,
+				293C2CBF4424974937A3E39F /* VoiceOrbView.swift in Sources */,
 				8B17FBE21F2390DE2F387629 /* Week.swift in Sources */,
 				6152AFFFB51E3B2CAE346D20 /* WeekAccordionView.swift in Sources */,
 				4857884318492D4BB6AFC900 /* Workout.swift in Sources */,
@@ -2325,7 +2335,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.stride.app;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.stride-v.2.app";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -2470,7 +2480,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.stride.app;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.stride-v.2.app";
 				SDKROOT = iphoneos;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;

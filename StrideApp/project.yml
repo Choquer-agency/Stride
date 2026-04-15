@@ -41,7 +41,8 @@ targets:
       base:
         INFOPLIST_FILE: Info.plist
         CODE_SIGN_ENTITLEMENTS: StrideApp.entitlements
-        PRODUCT_BUNDLE_IDENTIFIER: com.stride.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.stride-v.2.app
+        DEVELOPMENT_TEAM: VAC2837QGB
         MARKETING_VERSION: "1.0"
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"

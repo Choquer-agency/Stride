@@ -25,7 +25,7 @@ class Settings(BaseSettings):
 
     # Apple Sign In — must match the iOS app's bundle identifier. Apple embeds
     # this as the `aud` claim in identity tokens and we verify it on the server.
-    apple_bundle_id: str = "com.stride.app"
+    apple_bundle_id: str = "com.stride-v.2.app"
 
     # LangFuse (LLM observability)
     langfuse_public_key: str = ""
