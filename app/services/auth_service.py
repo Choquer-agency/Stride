@@ -126,17 +126,18 @@ async def verify_apple_token(identity_token: str) -> dict:
         )
 
     try:
+        settings = get_settings()
         payload = jwt.decode(
             identity_token,
             matching_key,
             algorithms=["RS256"],
-            audience="com.stride-v.2.app",
+            audience=settings.apple_bundle_id,
             issuer="https://appleid.apple.com",
         )
-    except JWTError:
+    except JWTError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Apple identity token",
+            detail=f"Invalid Apple identity token: {e}",
         )
 
     return {

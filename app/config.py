@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     # Google OAuth
     google_client_id: str = ""
 
+    # Apple Sign In — must match the iOS app's bundle identifier. Apple embeds
+    # this as the `aud` claim in identity tokens and we verify it on the server.
+    apple_bundle_id: str = "com.stride.app"
+
     # LangFuse (LLM observability)
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

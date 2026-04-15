@@ -257,6 +257,11 @@ class AuthService: ObservableObject {
         }
 
         if httpResponse.statusCode == 401 {
+            // Surface the actual server reason (e.g. "Invalid Apple identity token")
+            // rather than defaulting to the email-login wording.
+            if let apiError = try? JSONDecoder().decode(APIErrorDetail.self, from: data) {
+                throw AuthError.serverError(apiError.detail)
+            }
             throw AuthError.unauthorized
         }
 
