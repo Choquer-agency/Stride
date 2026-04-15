@@ -7,6 +7,7 @@ struct StrideApp: App {
     @StateObject private var bluetoothManager = BluetoothManager()
     @StateObject private var locationManager = LocationManager()
     @StateObject private var authService = AuthService.shared
+    @Environment(\.scenePhase) private var scenePhase
     let modelContainer: ModelContainer
     
     init() {
@@ -177,11 +178,24 @@ struct StrideApp: App {
                 .preferredColorScheme(.light)
                 .onAppear {
                     RunSyncService.shared.configure(with: modelContainer)
+                    // If we're already signed in when the app re-appears (backgrounded
+                    // → foregrounded), fire the prefetch here. onChange only catches
+                    // state *transitions*, so a warm relaunch could otherwise miss it.
+                    if case .signedIn = authService.authState {
+                        PreRunIntroPrefetcher.shared.warmUpIfNeeded(container: modelContainer)
+                    }
                 }
                 .onChange(of: authService.authState) { _, newState in
                     if case .signedIn = newState {
                         RunSyncService.shared.syncPendingRuns()
-                        // Pre-generate today's motivational intro so Start Run is instant.
+                        PreRunIntroPrefetcher.shared.warmUpIfNeeded(container: modelContainer)
+                    }
+                }
+                .onChange(of: scenePhase) { _, newPhase in
+                    // Running in the background invalidates nothing, but when the user
+                    // brings the app back up we want today's intro pre-warmed for the
+                    // current time-of-day bucket (which may have changed since launch).
+                    if newPhase == .active, case .signedIn = authService.authState {
                         PreRunIntroPrefetcher.shared.warmUpIfNeeded(container: modelContainer)
                     }
                 }

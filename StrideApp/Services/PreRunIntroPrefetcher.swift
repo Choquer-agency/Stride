@@ -31,11 +31,20 @@ final class PreRunIntroPrefetcher {
     // MARK: - Public API
 
     /// Fire-and-forget warm-up. Queries SwiftData for today's planned workout
-    /// (if any) and prefetches an intro that matches it; otherwise prefetches
-    /// a free-run intro. Safe to call repeatedly — no-ops if the cache already
-    /// covers today's target signature.
+    /// and prefetches an intro for it. If the user has NO planned workout
+    /// scheduled today, this no-ops — for free runs we can't prefetch since
+    /// the distance/duration is chosen interactively in the run lobby, so the
+    /// user will wait for the live fetch the moment they hit Start.
     func warmUpIfNeeded(container: ModelContainer) {
-        if inFlight { return }
+        if inFlight {
+            print("[PreRunPrefetch] Skipped — warm-up already in flight")
+            return
+        }
+        guard let workout = todaysPlannedWorkout(container: container) else {
+            print("[PreRunPrefetch] Skipped — no planned workout scheduled for today")
+            return
+        }
+        print("[PreRunPrefetch] Warming up for today's workout: \(workout.title) (\(workout.workoutType.displayName))")
         inFlight = true
         Task { [weak self] in
             guard let self else { return }
@@ -62,7 +71,10 @@ final class PreRunIntroPrefetcher {
     // MARK: - Private
 
     private func fetchAndCache(container: ModelContainer) async {
-        let request = buildRequest(container: container)
+        guard let request = buildRequest(container: container) else {
+            print("[PreRunPrefetch] Planned workout disappeared between guard and build — aborting warm-up")
+            return
+        }
 
         // Skip if we already have a hit for this exact request.
         if let cached = load(),
@@ -91,40 +103,24 @@ final class PreRunIntroPrefetcher {
         }
     }
 
-    private func buildRequest(container: ModelContainer) -> PreRunCoachRequest {
+    private func buildRequest(container: ModelContainer) -> PreRunCoachRequest? {
+        guard let workout = todaysPlannedWorkout(container: container) else { return nil }
         let athleteName: String? = {
             if case .signedIn(let user) = AuthService.shared.authState { return user.name }
             if case .needsProfile(let user) = AuthService.shared.authState { return user.name }
             return nil
         }()
-        let timeOfDay = Self.currentTimeOfDay()
-
-        if let workout = todaysPlannedWorkout(container: container) {
-            return PreRunCoachRequest(
-                athleteName: athleteName,
-                workoutType: workout.workoutType.displayName,
-                workoutTitle: workout.title,
-                targetDistanceKm: workout.distanceKm,
-                targetDurationMinutes: workout.durationMinutes,
-                targetPace: workout.paceDescription,
-                isFreeRun: false,
-                goalRace: nil,
-                weeksToRace: nil,
-                timeOfDay: timeOfDay
-            )
-        }
-
         return PreRunCoachRequest(
             athleteName: athleteName,
-            workoutType: nil,
-            workoutTitle: nil,
-            targetDistanceKm: nil,
-            targetDurationMinutes: nil,
-            targetPace: nil,
-            isFreeRun: true,
+            workoutType: workout.workoutType.displayName,
+            workoutTitle: workout.title,
+            targetDistanceKm: workout.distanceKm,
+            targetDurationMinutes: workout.durationMinutes,
+            targetPace: workout.paceDescription,
+            isFreeRun: false,
             goalRace: nil,
             weeksToRace: nil,
-            timeOfDay: timeOfDay
+            timeOfDay: Self.currentTimeOfDay()
         )
     }
 
