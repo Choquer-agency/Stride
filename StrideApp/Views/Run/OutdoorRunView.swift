@@ -31,6 +31,13 @@ struct OutdoorRunView: View {
     @State private var countdownPaused = false
     @State private var countdownScale: CGFloat = 0.5
     @State private var countdownOpacity: Double = 0
+    @State private var introPhase: IntroPhase = .waiting
+    @State private var hasPlayedIntro = false
+
+    enum IntroPhase {
+        case waiting      // red screen up, no number yet (fetching/playing AI intro)
+        case numbers      // 3 → 2 → 1 animating
+    }
 
     private var tts: ElevenLabsTTSService { .shared }
 
@@ -76,6 +83,46 @@ struct OutdoorRunView: View {
 
     private func startCountdown() {
         guard !countdownPaused else { return }
+
+        // On resume (pause → unpause), skip the AI intro and use the bundled countdown.
+        if hasPlayedIntro {
+            playBundledCountdown()
+            return
+        }
+        hasPlayedIntro = true
+        introPhase = .waiting
+
+        // Fetch Claude's motivational intro — which ends with its own spoken
+        // countdown. When the audio finishes, the timer starts immediately. If
+        // the fetch fails, fall back to the bundled "3, 2, 1, let's go".
+        Task {
+            let introText = await fetchPreRunIntro()
+            await MainActor.run {
+                guard !countdownPaused else { return }
+                if let text = introText, !text.isEmpty {
+                    tts.speakSequence([.text(text)]) {
+                        guard !countdownPaused else { return }
+                        startRunNow()
+                    }
+                } else {
+                    playBundledCountdown()
+                }
+            }
+        }
+    }
+
+    /// Final handoff: Claude's spoken countdown just landed — start the run.
+    private func startRunNow() {
+        onStartRun()
+        withAnimation {
+            showCountdown = false
+        }
+    }
+
+    private func playBundledCountdown() {
+        guard !countdownPaused else { return }
+        introPhase = .numbers
+        countdownNumber = 3
         animateCountdownNumber()
 
         // Play the full bundled countdown audio (3...2...1...let's go)
@@ -94,11 +141,41 @@ struct OutdoorRunView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
             guard !self.countdownPaused else { return }
-            // Countdown done — attach provider and start the run
+            // "Let's go" just landed — start the run.
             self.onStartRun()
             withAnimation {
                 self.showCountdown = false
             }
+        }
+    }
+
+    /// Build and send the pre-run coach request. Returns nil on any failure so the
+    /// caller falls through to the bundled countdown.
+    @MainActor
+    private func fetchPreRunIntro() async -> String? {
+        let athleteName: String? = {
+            if case .signedIn(let user) = AuthService.shared.authState { return user.name }
+            if case .needsProfile(let user) = AuthService.shared.authState { return user.name }
+            return nil
+        }()
+        let request = PreRunCoachRequest(
+            athleteName: athleteName,
+            workoutType: viewModel.plannedWorkoutType?.displayName,
+            workoutTitle: viewModel.plannedWorkoutTitle,
+            targetDistanceKm: viewModel.targetDistanceKm,
+            targetDurationMinutes: viewModel.targetDurationMinutes,
+            targetPace: viewModel.targetPaceDescription,
+            isFreeRun: !viewModel.isPlannedRun,
+            goalRace: nil,
+            weeksToRace: nil
+        )
+        do {
+            let text = try await APIService.shared.preRunCoach(request: request)
+            print("[PreRunCoach] AI intro received (\(text.count) chars): \(text)")
+            return text
+        } catch {
+            print("[PreRunCoach] Falling back to bundled countdown — intro fetch failed: \(error)")
+            return nil
         }
     }
 
@@ -132,17 +209,27 @@ struct OutdoorRunView: View {
 
                 Spacer()
 
-                Text("\(countdownNumber)")
-                    .font(.barlowCondensed(size: 280, weight: .medium))
-                    .foregroundColor(.white)
-                    .scaleEffect(countdownScale)
-                    .opacity(countdownOpacity)
+                if introPhase == .numbers {
+                    Text("\(countdownNumber)")
+                        .font(.barlowCondensed(size: 280, weight: .medium))
+                        .foregroundColor(.white)
+                        .scaleEffect(countdownScale)
+                        .opacity(countdownOpacity)
+                        .transition(.opacity)
+                } else {
+                    // AI intro playing — pulsing dot trio as a "coach is talking" hint.
+                    PulsingDots()
+                        .frame(height: 40)
+                        .transition(.opacity)
+                }
 
                 Spacer()
 
                 Button {
                     countdownPaused.toggle()
-                    if !countdownPaused {
+                    if countdownPaused {
+                        tts.stopSpeaking()
+                    } else {
                         startCountdown()
                     }
                 } label: {
@@ -191,8 +278,8 @@ struct OutdoorRunView: View {
         .ornamentOptions(OrnamentOptions(
             scaleBar: ScaleBarViewOptions(visibility: .hidden),
             compass: CompassViewOptions(position: .topRight, margins: CGPoint(x: 16, y: 40)),
-            logo: LogoViewOptions(visibility: .hidden),
-            attributionButton: AttributionButtonOptions(visibility: .hidden)
+            logo: LogoViewOptions(margins: CGPoint(x: -10000, y: -10000)),
+            attributionButton: AttributionButtonOptions(margins: CGPoint(x: -10000, y: -10000))
         ))
         .ignoresSafeArea()
     }
@@ -451,6 +538,27 @@ struct OutdoorRunView: View {
         let minutes = (Int(time) % 3600) / 60
         let seconds = Int(time) % 60
         return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+}
+
+/// Three dots that pulse in sequence — shown while the AI coach is generating/speaking the intro.
+private struct PulsingDots: View {
+    @State private var phase: Double = 0
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ForEach(0..<3) { i in
+                Circle()
+                    .fill(Color.white)
+                    .frame(width: 12, height: 12)
+                    .opacity(0.35 + 0.65 * max(0, sin(phase + Double(i) * 0.6)))
+            }
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                phase = .pi * 2
+            }
+        }
     }
 }
 
