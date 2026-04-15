@@ -117,6 +117,76 @@ class PerformanceAnalysisRequest(BaseModel):
     current_plan_content: str = Field(..., description="Raw text of the current training plan")
 
 
+class KmSplitData(BaseModel):
+    """Data for a single kilometer split."""
+    kilometer: int
+    pace: str
+    time: str
+    is_fastest: bool = False
+
+
+class PostRunCoachRequest(BaseModel):
+    """Request schema for AI post-run coaching summary (SSE streaming → ElevenLabs TTS)."""
+    # Run data
+    run_date: str
+    run_type: str = "easy run"
+    total_distance_km: float
+    total_time: str
+    avg_pace: str
+    km_splits: list[KmSplitData] = []
+    pace_consistency_pct: Optional[float] = None
+    negative_split: bool = False
+    avg_hr: Optional[int] = None
+    max_hr: Optional[int] = None
+    avg_cadence: Optional[int] = None
+    elevation_gain: Optional[float] = None
+
+    # Records and milestones
+    pr_flag: bool = False
+    pr_detail: Optional[str] = None
+    weekly_distance_km: Optional[float] = None
+    weekly_goal_km: Optional[float] = None
+    streak_days: Optional[int] = None
+    monthly_distance_km: Optional[float] = None
+
+    # Comparison
+    last_similar_run_pace: Optional[str] = None
+    last_similar_run_date: Optional[str] = None
+    trend: Optional[str] = None
+
+    # Tomorrow's workout
+    tomorrow_type: Optional[str] = None
+    tomorrow_distance_km: Optional[float] = None
+    tomorrow_target_pace: Optional[str] = None
+    tomorrow_notes: Optional[str] = None
+
+    # Athlete context
+    athlete_name: str = "runner"
+    habits_to_reinforce: Optional[str] = None
+    training_block: Optional[str] = None
+    goal_race: Optional[str] = None
+
+    # What prerecorded alerts were already played mid-run
+    prerecorded_alerts_delivered: Optional[str] = None
+
+
+class PreRunCoachRequest(BaseModel):
+    """Request schema for the AI pre-run motivational intro spoken before the countdown."""
+    athlete_name: Optional[str] = None
+    workout_type: Optional[str] = None       # e.g. "tempo run", "intervals", "long run", "free run"
+    workout_title: Optional[str] = None      # e.g. "Tempo 8K" (if planned)
+    target_distance_km: Optional[float] = None
+    target_duration_minutes: Optional[int] = None
+    target_pace: Optional[str] = None        # e.g. "5:00/km"
+    is_free_run: bool = False
+    goal_race: Optional[str] = None
+    weeks_to_race: Optional[int] = None
+
+
+class PreRunCoachResponse(BaseModel):
+    text: str
+
+
 class TrainingPlanRequest(BaseModel):
     """Request schema for training plan generation."""
     

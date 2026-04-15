@@ -133,27 +133,35 @@ class PlanParser {
             lastWorkoutIndex = nil
         }
         
+        // Track when we're inside a summary section (e.g. "Volume Summary").
+        // Instead of breaking out of the loop entirely, we skip non-week-header
+        // lines so that any subsequent WEEK headers are still parsed.
+        var inSummarySection = false
+
         for line in lines {
             let trimmedLine = line.trimmingCharacters(in: .whitespaces)
 
             // Skip empty lines
             guard !trimmedLine.isEmpty else { continue }
 
-            // Detect end-of-plan markers (summary sections, etc.)
+            // Detect summary sections (e.g. "Volume Summary", "Plan Summary").
             // Only trigger after we've parsed at least one week — these keywords
             // commonly appear in the coaching overview before any WEEK headers.
             if !weeks.isEmpty || currentWeek != nil {
                 let summaryPattern = /(?i)^\s*(plan\s+summary|training\s+summary|(?:weekly\s+)?volume\s+summary|(?:volume\s+)?progression\s+summary)/
                 if trimmedLine.firstMatch(of: summaryPattern) != nil {
                     #if DEBUG
-                    print("📋 Hit end-of-plan marker: \(trimmedLine)")
+                    print("📋 Entering summary section (skipping until next WEEK header): \(trimmedLine)")
                     #endif
-                    break
+                    inSummarySection = true
+                    continue
                 }
             }
 
             // Check for week header
             if let weekMatch = trimmedLine.firstMatch(of: weekPattern) {
+                // A new week header exits any summary section
+                inSummarySection = false
                 let weekNumber = Int(weekMatch.1) ?? (weeks.count + 1)
 
                 // Skip duplicate week numbers BEFORE appending currentWeek
@@ -185,7 +193,12 @@ class PlanParser {
                     to: mondayOfStartWeek
                 ) ?? mondayOfStartWeek
                 
-            } else if let dayMatch = trimmedLine.firstMatch(of: dayPattern) {
+            }
+
+            // Skip non-week-header lines while inside a summary section
+            if inSummarySection { continue }
+
+            if let dayMatch = trimmedLine.firstMatch(of: dayPattern) {
                 // Flush continuation lines from the previous workout before starting a new one
                 flushContinuationLines()
                 

@@ -9,6 +9,9 @@ struct RunSummaryView: View {
     @State private var feedbackRating: Int? = nil
     @State private var feedbackNotes: String = ""
     @State private var selectedShoe: Shoe?
+    @State private var showShareSheet = false
+    @State private var shareImage: UIImage?
+    @StateObject private var coachVM = PostRunCoachViewModel()
     
     var body: some View {
         ScrollView {
@@ -36,7 +39,29 @@ struct RunSummaryView: View {
                     // Primary Stats
                     primaryStats
                         .padding(.bottom, 28)
-                    
+
+                    // Route Map (outdoor GPS runs only)
+                    if let routeJSON = result.routeJSON {
+                        RouteMapView(
+                            routeJSON: routeJSON,
+                            paceData: result.kmSplits.map {
+                                CodableKilometerSplit(kilometer: $0.kilometer, pace: $0.pace, time: $0.time, isFastest: $0.isFastest)
+                            },
+                            showPaceColors: true
+                        )
+                        .padding(.bottom, 16)
+
+                        // Elevation Profile
+                        if result.elevationGainMeters != nil || result.elevationLossMeters != nil {
+                            ElevationProfileView(
+                                routeJSON: routeJSON,
+                                elevationGain: result.elevationGainMeters,
+                                elevationLoss: result.elevationLossMeters
+                            )
+                            .padding(.bottom, 20)
+                        }
+                    }
+
                     // Planned vs Actual (planned runs only)
                     if result.isPlannedRun {
                         plannedVsActualCard
@@ -49,6 +74,10 @@ struct RunSummaryView: View {
                             .padding(.bottom, 20)
                     }
                     
+                    // AI Coach Summary
+                    aiCoachSection
+                        .padding(.bottom, 20)
+
                     // How Did It Feel?
                     feedbackSection
                         .padding(.bottom, 20)
@@ -65,21 +94,52 @@ struct RunSummaryView: View {
                         Spacer().frame(height: 8)
                     }
 
-                    // Save Workout Button
-                    Button {
-                        onSave(feedbackRating, feedbackNotes, selectedShoe?.id, selectedShoe?.name)
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "checkmark.circle")
-                                .font(.system(size: 16, weight: .semibold))
-                            Text("Save Workout")
-                                .font(.inter(size: 16, weight: .semibold))
+                    // Share + Save Buttons
+                    HStack(spacing: 12) {
+                        // Share Route (outdoor runs only)
+                        if result.isOutdoorRun {
+                            Button {
+                                Task {
+                                    shareImage = await RouteShareService.generateShareImage(result: result)
+                                    if shareImage != nil {
+                                        showShareSheet = true
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "square.and.arrow.up")
+                                        .font(.system(size: 14, weight: .semibold))
+                                    Text("Share")
+                                        .font(.inter(size: 16, weight: .semibold))
+                                }
+                                .foregroundColor(Color.stridePrimary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .background(Color(.secondarySystemBackground))
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(Color.stridePrimary.opacity(0.3), lineWidth: 1.5)
+                                )
+                            }
                         }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 18)
-                        .background(Color.stridePrimary)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+                        // Save Workout
+                        Button {
+                            onSave(feedbackRating, feedbackNotes, selectedShoe?.id, selectedShoe?.name)
+                        } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark.circle")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Save Workout")
+                                    .font(.inter(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(Color.stridePrimary)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
                     }
                     .padding(.bottom, 60)
                 }
@@ -90,6 +150,13 @@ struct RunSummaryView: View {
         .background(Color(.systemBackground))
         .onAppear {
             selectedShoe = shoes.first(where: \.isDefault)
+            // Auto-generate AI coaching summary
+            coachVM.generateCoaching(result: result)
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let image = shareImage {
+                ShareSheet(activityItems: [image])
+            }
         }
     }
     
@@ -352,6 +419,73 @@ struct RunSummaryView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
     
+    // MARK: - AI Coach Section
+
+    private var aiCoachSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "waveform")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.stridePrimary)
+                Text("AI Coach")
+                    .font(.inter(size: 15, weight: .semibold))
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                if coachVM.isPlaying {
+                    Button {
+                        coachVM.stopPlayback()
+                    } label: {
+                        Image(systemName: "stop.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.stridePrimary)
+                    }
+                }
+            }
+
+            if coachVM.isGenerating {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .tint(.stridePrimary)
+                    Text(coachVM.coachText.isEmpty ? "Your coach is reviewing your run..." : "")
+                        .font(.inter(size: 13, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            if !coachVM.coachText.isEmpty {
+                Text(coachVM.coachText)
+                    .font(.inter(size: 14, weight: .regular))
+                    .foregroundColor(.primary)
+                    .lineSpacing(4)
+
+                if coachVM.isPlaying {
+                    HStack(spacing: 6) {
+                        ForEach(0..<3, id: \.self) { i in
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.stridePrimary)
+                                .frame(width: 3, height: CGFloat.random(in: 8...16))
+                        }
+                        Text("Playing...")
+                            .font(.inter(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 4)
+                }
+            }
+
+            if let error = coachVM.error {
+                Text(error)
+                    .font(.inter(size: 12, weight: .regular))
+                    .foregroundColor(.red)
+            }
+        }
+        .padding(16)
+        .background(Color(hex: "F9F9F9"))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
     // MARK: - Feedback Section
     
     private var feedbackSection: some View {
@@ -419,13 +553,24 @@ struct RunSummaryView: View {
     }
     
     // MARK: - Notes Section
-    
+
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Notes")
                 .font(.inter(size: 15, weight: .semibold))
                 .foregroundColor(.primary)
-            
+
+            // Pause summary (non-editable)
+            if let pauseInfo = result.pauseSummary {
+                Text(pauseInfo)
+                    .font(.inter(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(hex: "F9F9F9"))
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+
             TextField("Any notes about this run...", text: $feedbackNotes, axis: .vertical)
                 .font(.inter(size: 14, weight: .regular))
                 .lineLimit(3...6)
@@ -550,7 +695,12 @@ struct RunSummaryView: View {
             targetPaceDescription: "5:30/km",
             targetDurationMinutes: 55,
             dataSource: "bluetooth_ftms",
-            treadmillBrand: "Assault Runner"
+            treadmillBrand: "Assault Runner",
+            routeJSON: nil,
+            elevationGainMeters: nil,
+            elevationLossMeters: nil,
+            totalPauseDurationSeconds: 0,
+            completedPauseDurations: []
         ),
         score: 85,
         shoes: [],

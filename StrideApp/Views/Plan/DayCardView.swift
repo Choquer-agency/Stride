@@ -170,7 +170,7 @@ struct DayCardView: View {
 
                 // Workout Details
                 HStack(spacing: 8) {
-                    Text(workout.title)
+                    Text(workout.workoutType == .gym || workout.workoutType == .crossTraining ? "Gym" : workout.title)
                         .font(.inter(size: 15, weight: .medium))
                         .foregroundColor(workout.isCompleted ? .secondary : .primary)
 
@@ -256,7 +256,7 @@ struct DayCardView: View {
 
                                 // Workout Details
                                 HStack(spacing: 8) {
-                                    Text(workout.title)
+                                    Text(workout.workoutType == .gym || workout.workoutType == .crossTraining ? "Gym" : workout.title)
                                         .font(.inter(size: 15, weight: .medium))
                                         .foregroundColor(workout.isCompleted ? .secondary : .primary)
 

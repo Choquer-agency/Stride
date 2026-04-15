@@ -5,6 +5,7 @@ import PostHog
 @main
 struct StrideApp: App {
     @StateObject private var bluetoothManager = BluetoothManager()
+    @StateObject private var locationManager = LocationManager()
     @StateObject private var authService = AuthService.shared
     let modelContainer: ModelContainer
     
@@ -43,6 +44,9 @@ struct StrideApp: App {
 
             // One-time migration: copy existing completed Workouts → RunLog entries
             migrateWorkoutsToRunLog(container: modelContainer)
+
+            // One-time migration: re-parse plans to recover weeks lost by old parser bug
+            reparsePlansIfNeeded(container: modelContainer)
         } catch {
             fatalError("Could not initialize ModelContainer: \(error)")
         }
@@ -98,10 +102,77 @@ struct StrideApp: App {
         }
     }
     
+    private func reparsePlansIfNeeded(container: ModelContainer) {
+        guard !UserDefaults.standard.bool(forKey: "hasRunPlanReparseMigrationV1") else { return }
+
+        let context = ModelContext(container)
+
+        do {
+            let descriptor = FetchDescriptor<TrainingPlan>()
+            let plans = try context.fetch(descriptor)
+
+            var totalAdded = 0
+
+            for plan in plans {
+                guard let rawContent = plan.rawPlanContent, !rawContent.isEmpty else { continue }
+
+                let parsedWeeks = PlanParser.parse(content: rawContent, startDate: plan.startDate, raceDate: plan.raceDate)
+
+                // Build set of existing week numbers
+                let existingWeekNumbers = Set(plan.weeks.map { $0.weekNumber })
+
+                // Find missing weeks
+                let missingWeeks = parsedWeeks.filter { !existingWeekNumbers.contains($0.weekNumber) }
+                guard !missingWeeks.isEmpty else { continue }
+
+                for parsedWeek in missingWeeks {
+                    let week = Week(weekNumber: parsedWeek.weekNumber, theme: parsedWeek.theme)
+
+                    for parsedWorkout in parsedWeek.workouts {
+                        let workout = Workout(
+                            date: parsedWorkout.date,
+                            workoutType: parsedWorkout.workoutType,
+                            title: parsedWorkout.title,
+                            details: parsedWorkout.details,
+                            distanceKm: parsedWorkout.distanceKm,
+                            durationMinutes: parsedWorkout.durationMinutes,
+                            paceDescription: parsedWorkout.paceDescription
+                        )
+                        week.workouts.append(workout)
+                    }
+
+                    plan.weeks.append(week)
+                }
+
+                totalAdded += missingWeeks.count
+
+                #if DEBUG
+                print("Re-parsed plan '\(plan.raceName ?? plan.displayDistance)': added \(missingWeeks.count) missing weeks (now \(plan.weeks.count) total)")
+                #endif
+            }
+
+            try context.save()
+            UserDefaults.standard.set(true, forKey: "hasRunPlanReparseMigrationV1")
+
+            #if DEBUG
+            if totalAdded > 0 {
+                print("Plan reparse migration complete: added \(totalAdded) missing weeks across all plans")
+            } else {
+                print("Plan reparse migration: no missing weeks found")
+            }
+            #endif
+        } catch {
+            #if DEBUG
+            print("Plan reparse migration failed: \(error)")
+            #endif
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(bluetoothManager)
+                .environmentObject(locationManager)
                 .environmentObject(authService)
                 .preferredColorScheme(.light)
                 .onAppear {

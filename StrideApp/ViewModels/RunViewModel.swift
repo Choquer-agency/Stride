@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import CoreLocation
 import Combine
 import os.log
 
@@ -21,10 +22,39 @@ struct RunResult {
     let targetDurationMinutes: Int?
 
     // Data source (for leaderboard eligibility)
-    let dataSource: String  // "bluetooth_ftms" | "manual"
+    let dataSource: String  // "bluetooth_ftms" | "gps" | "manual"
     let treadmillBrand: String?
 
+    // GPS route data (nil for treadmill runs)
+    let routeJSON: String?
+    let elevationGainMeters: Double?
+    let elevationLossMeters: Double?
+
+    // Pause tracking
+    let totalPauseDurationSeconds: Double
+    let completedPauseDurations: [Double]
+
     var isPlannedRun: Bool { plannedWorkoutId != nil }
+    var isOutdoorRun: Bool { dataSource == "gps" }
+
+    /// Summary of pause events for notes, nil if no pauses
+    var pauseSummary: String? {
+        guard !completedPauseDurations.isEmpty else { return nil }
+        let total = completedPauseDurations.reduce(0, +)
+        let lines = completedPauseDurations.enumerated().map { i, dur in
+            "Pause \(i + 1): \(formatPauseDuration(dur))"
+        }
+        return "Paused \(completedPauseDurations.count) time\(completedPauseDurations.count == 1 ? "" : "s") (total: \(formatPauseDuration(total)))\n" + lines.joined(separator: "\n")
+    }
+
+    private func formatPauseDuration(_ seconds: Double) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        if mins > 0 {
+            return "\(mins)m \(secs)s"
+        }
+        return "\(secs)s"
+    }
     
     /// Formatted average pace as M:SS /km
     var avgPaceDisplay: String {
@@ -149,9 +179,19 @@ class RunViewModel: ObservableObject {
         isPlannedRun && targetDurationMinutes != nil && targetDistanceKm == nil
     }
 
+    // MARK: - GPS / Route State
+    @Published var routeCoordinates: [CLLocationCoordinate2D] = []
+    @Published var isPaused: Bool = false
+    @Published var currentAltitude: Double?
+    @Published var currentPauseDuration: TimeInterval = 0
+    /// Completed pause durations (only pauses followed by resume, not end)
+    private(set) var completedPauseDurations: [TimeInterval] = []
+
     // MARK: - Internal State
-    private var bluetoothManager: BluetoothManager?
+    private var dataProvider: RunDataProvider?
     private let paceSmoother = PaceSmoother()
+    private let autoPauseService = AutoPauseService()
+    private let voiceCoach = VoiceCoachService()
 
     // Kilometer split tracking
     private var lastRecordedKm: Int = 0
@@ -179,6 +219,12 @@ class RunViewModel: ObservableObject {
     private var driftSamples: [(distance: Double, time: Double)] = []
     private let driftWindowMeters: Double = 50.0
 
+    // MARK: - Display Timer (ticks every second for GPS runs)
+    private var displayTimer: Timer?
+    private var displayTimerStart: Date?
+    private var displayTimerPausedDuration: TimeInterval = 0
+    private var displayTimerPauseStart: Date?
+
     // MARK: - Fallback Timer (app-side backup)
     private var runStartTime: Date?                       // wall-clock time when first data arrived
     private var appElapsedTime: TimeInterval = 0          // app-computed elapsed time as fallback
@@ -195,12 +241,55 @@ class RunViewModel: ObservableObject {
 
     // MARK: - Setup
 
-    /// Call this once to wire up the BluetoothManager callback.
-    func attach(bluetoothManager: BluetoothManager) {
-        self.bluetoothManager = bluetoothManager
-        bluetoothManager.onTreadmillData = { [weak self] sample in
-            self?.handleTreadmillData(sample)
+    /// Call this once to wire up a data provider (Bluetooth or GPS).
+    func attach(provider: RunDataProvider) {
+        self.dataProvider = provider
+
+        // Wire auto-pause for GPS outdoor runs
+        if provider.dataSourceType == "gps" {
+            autoPauseService.isEnabled = true
+            autoPauseService.onAutoPause = { [weak self] in
+                DispatchQueue.main.async { self?.pauseRun() }
+            }
+            autoPauseService.onAutoResume = { [weak self] in
+                DispatchQueue.main.async { self?.resumeRun() }
+            }
+        } else {
+            autoPauseService.isEnabled = false
         }
+
+        provider.onRunSample = { [weak self] sample in
+            self?.handleRunSample(sample)
+        }
+        provider.start()
+
+        // GPS runs need an independent display timer (GPS updates only come when you move)
+        if provider.dataSourceType == "gps" {
+            startDisplayTimer()
+        }
+    }
+
+    private func startDisplayTimer() {
+        displayTimerStart = Date()
+        displayTimerPausedDuration = 0
+        displayTimerPauseStart = nil
+        displayTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.tickDisplayTimer()
+            }
+        }
+    }
+
+    private func tickDisplayTimer() {
+        guard let start = displayTimerStart else { return }
+        if isPaused {
+            // Update current pause duration
+            if let pauseStart = displayTimerPauseStart {
+                currentPauseDuration = Date().timeIntervalSince(pauseStart)
+            }
+            return
+        }
+        elapsedTime = Date().timeIntervalSince(start) - displayTimerPausedDuration
     }
 
     /// Load a planned workout's targets into the view model.
@@ -229,7 +318,24 @@ class RunViewModel: ObservableObject {
     /// Snapshot the current run state into a RunResult for the summary screen.
     func buildRunResult() -> RunResult {
         let avgPace: Double = distance > 0 ? elapsedTime / distance : 0
-        let isBluetooth = bluetoothManager?.connectedDevice != nil
+
+        // Extract route/elevation from GPS provider if applicable
+        let routeJSON: String?
+        let elevGain: Double?
+        let elevLoss: Double?
+        if let gpsProvider = dataProvider as? GPSRunDataProvider {
+            routeJSON = gpsProvider.encodeRouteJSON()
+            elevGain = gpsProvider.elevationGain > 0 ? gpsProvider.elevationGain : nil
+            elevLoss = gpsProvider.elevationLoss > 0 ? gpsProvider.elevationLoss : nil
+        } else if let simProvider = dataProvider as? SimulatedGPSRunDataProvider {
+            routeJSON = simProvider.encodeRouteJSON()
+            elevGain = simProvider.elevationGain > 0 ? simProvider.elevationGain : nil
+            elevLoss = simProvider.elevationLoss > 0 ? simProvider.elevationLoss : nil
+        } else {
+            routeJSON = nil
+            elevGain = nil
+            elevLoss = nil
+        }
 
         return RunResult(
             distanceKm: distance,
@@ -242,13 +348,22 @@ class RunViewModel: ObservableObject {
             targetDistanceKm: targetDistanceKm,
             targetPaceDescription: targetPaceDescription,
             targetDurationMinutes: targetDurationMinutes,
-            dataSource: isBluetooth ? "bluetooth_ftms" : "manual",
-            treadmillBrand: bluetoothManager?.connectedDevice?.name
+            dataSource: dataProvider?.dataSourceType ?? "manual",
+            treadmillBrand: dataProvider?.deviceName,
+            routeJSON: routeJSON,
+            elevationGainMeters: elevGain,
+            elevationLossMeters: elevLoss,
+            totalPauseDurationSeconds: displayTimerPausedDuration,
+            completedPauseDurations: completedPauseDurations
         )
     }
 
     /// Reset all state for a new run.
     func reset() {
+        // Stop any active provider
+        dataProvider?.stop()
+        dataProvider = nil
+
         elapsedTime = 0
         distance = 0.0
         currentPace = "--:--"
@@ -292,52 +407,100 @@ class RunViewModel: ObservableObject {
         targetPaceMinSec = nil
         targetPaceMaxSec = nil
         paceZone = .noTarget
+
+        // Clear GPS state
+        routeCoordinates = []
+        isPaused = false
+        completedPauseDurations = []
+        currentAltitude = nil
+        autoPauseService.reset()
+        voiceCoach.reset()
+
+        // Stop display timer
+        displayTimer?.invalidate()
+        displayTimer = nil
+        displayTimerStart = nil
+        displayTimerPausedDuration = 0
+        displayTimerPauseStart = nil
     }
 
-    // MARK: - Treadmill Data Handler
+    // MARK: - Stop Run (called when finishing, before summary screen)
 
-    private func handleTreadmillData(_ sample: ParsedTreadmillSample) {
+    /// Stops the data provider, timer, and voice coach without clearing state.
+    /// Call this after buildRunResult() so the summary screen still has data.
+    func stopRun() {
+        dataProvider?.stop()
+        displayTimer?.invalidate()
+        displayTimer = nil
+        voiceCoach.reset()
+        autoPauseService.reset()
+    }
+
+    // MARK: - Pause / Resume
+
+    func pauseRun() {
+        dataProvider?.pause()
+        isPaused = true
+        displayTimerPauseStart = Date()
+        voiceCoach.announcePaused()
+    }
+
+    func resumeRun() {
+        dataProvider?.resume()
+        if let pauseStart = displayTimerPauseStart {
+            let pauseDuration = Date().timeIntervalSince(pauseStart)
+            displayTimerPausedDuration += pauseDuration
+            completedPauseDurations.append(pauseDuration)
+        }
+        displayTimerPauseStart = nil
+        currentPauseDuration = 0
+        isPaused = false
+        voiceCoach.announceResumed()
+    }
+
+    // MARK: - Unified Data Handler
+
+    private func handleRunSample(_ sample: RunSample) {
         // Start the app-side fallback timer on the very first data packet
         if runStartTime == nil {
             runStartTime = Date()
         }
 
-        // Update app-side elapsed time on every packet (independent of treadmill)
+        // Update app-side elapsed time on every packet (independent of provider)
         appElapsedTime = Date().timeIntervalSince(runStartTime!)
 
-        // 1. Elapsed Time — validated: never allow regression
-        if let treadmillTime = sample.elapsedTime {
-            let newTime = TimeInterval(treadmillTime)
+        // 1. Elapsed Time — GPS runs use the display timer; treadmill uses provider time
+        let isGPSRun = displayTimer != nil
+        if !isGPSRun {
+            // Treadmill: validate provider-reported time (never allow regression)
+            if let sampleTime = sample.elapsedTime {
+                let newTime = sampleTime
 
-            if newTime >= elapsedTime {
-                // Normal case: time moved forward (or stayed the same)
+                if newTime >= elapsedTime {
+                    let jump = newTime - lastTreadmillTime
+                    if lastTreadmillTime > 0 && jump > maxReasonableTimeJump {
+                        timeAnomalyCount += 1
+                        runLog.warning(
+                            "Time jump anomaly #\(self.timeAnomalyCount): \(self.lastTreadmillTime)s -> \(newTime)s (jump: \(jump)s)"
+                        )
+                    }
 
-                // Check for unreasonable forward jump
-                let jump = newTime - lastTreadmillTime
-                if lastTreadmillTime > 0 && jump > maxReasonableTimeJump {
+                    elapsedTime = newTime
+                    lastTreadmillTime = newTime
+                    usingFallbackTimer = false
+                } else {
                     timeAnomalyCount += 1
-                    runLog.warning(
-                        "Time jump anomaly #\(self.timeAnomalyCount): \(self.lastTreadmillTime)s -> \(newTime)s (jump: \(jump)s)"
+                    runLog.error(
+                        "Time regression anomaly #\(self.timeAnomalyCount): provider sent \(newTime)s but current is \(self.elapsedTime)s. Using fallback timer."
                     )
+                    usingFallbackTimer = true
+                    elapsedTime = appElapsedTime
                 }
-
-                elapsedTime = newTime
-                lastTreadmillTime = newTime
-                usingFallbackTimer = false
-            } else {
-                // REGRESSION DETECTED: treadmill sent a lower time than we already have.
-                // Discard the bad value and switch to app-side fallback timer.
-                timeAnomalyCount += 1
-                runLog.error(
-                    "Time regression anomaly #\(self.timeAnomalyCount): treadmill sent \(newTime)s but current is \(self.elapsedTime)s. Using fallback timer."
-                )
-                usingFallbackTimer = true
+            } else if usingFallbackTimer {
                 elapsedTime = appElapsedTime
             }
-        } else if usingFallbackTimer {
-            // No treadmill time in this packet and we're in fallback mode — use app timer
-            elapsedTime = appElapsedTime
         }
+        // GPS: elapsedTime is updated by tickDisplayTimer() every second
 
         // 2. Distance — validated: never allow regression (meters -> km)
         if let distanceMeters = sample.totalDistanceMeters {
@@ -345,16 +508,29 @@ class RunViewModel: ObservableObject {
             if newDistanceKm >= distance {
                 distance = newDistanceKm
             } else {
-                // REGRESSION DETECTED: treadmill sent a lower distance
+                // REGRESSION DETECTED: provider sent a lower distance
                 distanceAnomalyCount += 1
                 runLog.error(
-                    "Distance regression anomaly #\(self.distanceAnomalyCount): treadmill sent \(distanceMeters)m but current is \(self.distance * 1000.0)m. Ignoring."
+                    "Distance regression anomaly #\(self.distanceAnomalyCount): provider sent \(distanceMeters)m but current is \(self.distance * 1000.0)m. Ignoring."
                 )
                 // Keep the existing (higher) distance value
             }
         }
 
-        // 3. Pace — smooth raw speed, then format
+        // 3. GPS route coordinates (for live map drawing)
+        if let coordinate = sample.coordinate {
+            routeCoordinates.append(coordinate)
+        }
+        if let altitude = sample.altitudeMeters {
+            currentAltitude = altitude
+        }
+
+        // 3b. Auto-pause detection (outdoor GPS runs only)
+        if let speed = sample.speedMps {
+            autoPauseService.processSample(speedMps: speed)
+        }
+
+        // 4. Pace — smooth raw speed, then format
         if let rawSpeedMps = sample.speedMps, rawSpeedMps > 0 {
             let (_, pace) = paceSmoother.addSample(speedMps: rawSpeedMps)
             currentPace = formatPace(secondsPerKm: pace)
@@ -365,19 +541,27 @@ class RunViewModel: ObservableObject {
             // Feed pace graph (pass current distance in metres for distance-based windowing)
             appendPaceGraphSample(pace, atDistanceMeters: distance * 1000.0)
 
-            // 4. Pace Drift — current pace vs. completed-km baseline
+            // 5. Pace Drift — current pace vs. completed-km baseline
             updatePaceDrift()
 
-            // 5. Pace Zone — compare current pace to target range
+            // 6. Pace Zone — compare current pace to target range
             updatePaceZone(pace)
         } else if let rawSpeedMps = sample.speedMps, rawSpeedMps <= 0 {
-            // Treadmill is stopped/paused — show --:-- for pace
+            // Stopped/paused — show --:-- for pace
             currentPace = "--:--"
             paceDrift = "--"
         }
 
-        // 5. Kilometer Split Detection
+        // 7. Kilometer Split Detection
         checkForKilometerSplit()
+
+        // 8. Voice: progress milestones (halfway, "X km to go", time checkpoints)
+        voiceCoach.checkProgressMilestones(
+            currentDistanceKm: distance,
+            elapsedTime: elapsedTime,
+            targetDistanceKm: targetDistanceKm,
+            targetDurationMinutes: targetDurationMinutes
+        )
     }
 
     // MARK: - Pace Formatting
@@ -405,6 +589,8 @@ class RunViewModel: ObservableObject {
             return
         }
 
+        let oldZone = paceZone
+
         if smoothedPace >= minPace && smoothedPace <= maxPace {
             paceZone = .onPace
         } else if smoothedPace < minPace {
@@ -415,6 +601,11 @@ class RunViewModel: ObservableObject {
             // Running slower than target (higher sec/km = slower)
             let diff = smoothedPace - maxPace
             paceZone = diff > 20 ? .tooSlow : .slightlySlow
+        }
+
+        // Voice: announce pace zone changes
+        if paceZone != oldZone {
+            voiceCoach.announcePaceZoneChange(from: oldZone, to: paceZone)
         }
     }
 
@@ -519,6 +710,18 @@ class RunViewModel: ObservableObject {
         // Show split feedback card for the most recent split
         if let latestSplit = kilometerSplits.last {
             showSplitFeedback(for: latestSplit)
+
+            // Voice: announce the completed km split
+            // KM 1: pace + total time. KM 2+: pace + average pace + total time.
+            if let paceSeconds = latestSplit.pace.toSeconds {
+                let avgPace = distance > 0 ? elapsedTime / distance : 0
+                voiceCoach.announceKmSplit(
+                    kilometer: latestSplit.kilometer,
+                    paceSecPerKm: Double(paceSeconds),
+                    totalElapsedTime: elapsedTime,
+                    avgPaceSecPerKm: latestSplit.kilometer >= 2 ? avgPace : nil
+                )
+            }
         }
 
         // Re-evaluate fastest split

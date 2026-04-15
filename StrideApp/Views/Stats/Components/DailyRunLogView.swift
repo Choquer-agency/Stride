@@ -54,13 +54,26 @@ private struct RunLogRow: View {
         runLog.distanceDisplay
     }
 
+    private var modeIcon: String {
+        switch runLog.dataSource {
+        case "gps": return "location.fill"
+        case "bluetooth_ftms": return "figure.run"
+        default: return "pencil"
+        }
+    }
+
     var body: some View {
         HStack(spacing: 0) {
-            // Date
-            Text(runLog.formattedDate)
-                .font(.inter(size: 13, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 52, alignment: .leading)
+            // Mode icon + Date
+            HStack(spacing: 4) {
+                Image(systemName: modeIcon)
+                    .font(.system(size: 10))
+                    .foregroundStyle(runLog.dataSource == "gps" ? Color.stridePrimary : .secondary)
+                Text(runLog.formattedDate)
+                    .font(.inter(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .frame(width: 72, alignment: .leading)
 
             Spacer()
 

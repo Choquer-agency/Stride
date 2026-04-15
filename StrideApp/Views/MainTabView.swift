@@ -187,12 +187,14 @@ struct TabBarButton<Icon: View>: View {
 // MARK: - Run Tab Container
 struct RunTabContainer: View {
     @EnvironmentObject private var bluetoothManager: BluetoothManager
+    @EnvironmentObject private var locationManager: LocationManager
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Workout.date) private var allWorkouts: [Workout]
     @Query(filter: #Predicate<Shoe> { $0.isRetired == false }, sort: \Shoe.name) private var shoes: [Shoe]
     @StateObject private var viewModel = RunViewModel()
     @State private var runState: RunState = .lobby
-    
+    @State private var isOutdoorMode: Bool = false
+
     @Binding var hideTabBar: Bool
     @Binding var selectedTab: MainTabView.Tab
 
@@ -202,40 +204,58 @@ struct RunTabContainer: View {
         case summary(RunResult, Int?)  // result + optional score
     }
 
+    @ViewBuilder
     var body: some View {
-        Group {
-            switch runState {
+        switch runState {
             case .lobby:
                 RunLobbyView(
-                    onStartPlannedWorkout: { workout in
+                    onStartPlannedWorkout: { workout, outdoor in
+                        isOutdoorMode = outdoor
                         viewModel.reset()
                         viewModel.loadPlannedWorkout(workout)
-                        viewModel.attach(bluetoothManager: bluetoothManager)
-                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": true])
+                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": true, "mode": outdoor ? "outdoor" : "treadmill"])
                         withAnimation {
                             runState = .active
                             hideTabBar = true
                         }
                     },
-                    onStartFreeRun: {
+                    onStartFreeRun: { outdoor, targetDistanceKm, targetDurationMinutes in
+                        isOutdoorMode = outdoor
                         viewModel.reset()
-                        viewModel.attach(bluetoothManager: bluetoothManager)
-                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": false])
+                        // Set free run targets so voice coach can announce progress milestones
+                        viewModel.targetDistanceKm = targetDistanceKm
+                        viewModel.targetDurationMinutes = targetDurationMinutes
+                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": false, "mode": outdoor ? "outdoor" : "treadmill"])
                         withAnimation {
                             runState = .active
                             hideTabBar = true
                         }
                     }
                 )
-                
+
             case .active:
-                RunView(viewModel: viewModel, onFinishRun: {
-                    let result = viewModel.buildRunResult()
-                    let score = RunScoringService.calculateScore(result: result)
-                    withAnimation {
-                        runState = .summary(result, score)
-                    }
-                })
+                if isOutdoorMode {
+                    OutdoorRunView(viewModel: viewModel, onStartRun: {
+                        let provider = makeProvider(outdoor: true)
+                        viewModel.attach(provider: provider)
+                    }, onFinishRun: {
+                        let result = viewModel.buildRunResult()
+                        viewModel.stopRun()
+                        let score = RunScoringService.calculateScore(result: result)
+                        withAnimation {
+                            runState = .summary(result, score)
+                        }
+                    })
+                } else {
+                    RunView(viewModel: viewModel, onFinishRun: {
+                        let result = viewModel.buildRunResult()
+                        viewModel.stopRun()
+                        let score = RunScoringService.calculateScore(result: result)
+                        withAnimation {
+                            runState = .summary(result, score)
+                        }
+                    })
+                }
                 
             case .summary(let result, let score):
                 RunSummaryView(result: result, score: score, shoes: Array(shoes), onSave: { feedbackRating, notes, shoeId, shoeName in
@@ -252,12 +272,21 @@ struct RunTabContainer: View {
                         selectedTab = .stats
                     }
                 })
-            }
         }
     }
-    
+
+    // MARK: - Provider Factory
+
+    private func makeProvider(outdoor: Bool) -> RunDataProvider {
+        if outdoor {
+            return GPSRunDataProvider(locationManager: locationManager)
+        } else {
+            return BluetoothRunDataProvider(bluetoothManager: bluetoothManager)
+        }
+    }
+
     // MARK: - Persistence
-    
+
     private func saveRun(result: RunResult, score: Int?, feedbackRating: Int?, notes: String, shoeId: UUID? = nil, shoeName: String? = nil) {
         // Encode km splits to JSON
         let splitsJSON: String? = {
@@ -290,6 +319,9 @@ struct RunTabContainer: View {
             notes: notesValue,
             dataSource: result.dataSource,
             treadmillBrand: result.treadmillBrand,
+            routeJSON: result.routeJSON,
+            elevationGainMeters: result.elevationGainMeters,
+            elevationLossMeters: result.elevationLossMeters,
             shoeId: shoeId,
             shoeName: shoeName,
             plannedWorkoutId: result.plannedWorkoutId,

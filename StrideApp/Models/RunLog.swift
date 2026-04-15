@@ -18,8 +18,13 @@ final class RunLog {
 
     // Sync & verification
     var syncedToServer: Bool = false
-    var dataSource: String = "manual"  // "bluetooth_ftms" | "manual"
+    var dataSource: String = "manual"  // "bluetooth_ftms" | "gps" | "manual"
     var treadmillBrand: String?
+
+    // GPS route data (nil for treadmill/manual runs)
+    var routeJSON: String?
+    var elevationGainMeters: Double?
+    var elevationLossMeters: Double?
 
     // Shoe context (denormalized — survives shoe deletion)
     var shoeId: UUID?
@@ -107,6 +112,9 @@ final class RunLog {
         notes: String? = nil,
         dataSource: String = "manual",
         treadmillBrand: String? = nil,
+        routeJSON: String? = nil,
+        elevationGainMeters: Double? = nil,
+        elevationLossMeters: Double? = nil,
         shoeId: UUID? = nil,
         shoeName: String? = nil,
         plannedWorkoutId: UUID? = nil,
@@ -129,6 +137,9 @@ final class RunLog {
         self.notes = notes
         self.dataSource = dataSource
         self.treadmillBrand = treadmillBrand
+        self.routeJSON = routeJSON
+        self.elevationGainMeters = elevationGainMeters
+        self.elevationLossMeters = elevationLossMeters
         self.shoeId = shoeId
         self.shoeName = shoeName
         self.plannedWorkoutId = plannedWorkoutId

@@ -183,6 +183,90 @@ struct PerformanceAnalysisRequest: Codable {
     }
 }
 
+// MARK: - Post-Run Coach Request
+struct PostRunCoachRequest: Codable {
+    let runDate: String
+    let runType: String
+    let totalDistanceKm: Double
+    let totalTime: String
+    let avgPace: String
+    let kmSplits: [PostRunSplitData]
+    let paceConsistencyPct: Double?
+    let negativeSplit: Bool
+    let avgHr: Int?
+    let maxHr: Int?
+    let avgCadence: Int?
+    let elevationGain: Double?
+
+    let prFlag: Bool
+    let prDetail: String?
+    let weeklyDistanceKm: Double?
+    let weeklyGoalKm: Double?
+    let streakDays: Int?
+    let monthlyDistanceKm: Double?
+
+    let lastSimilarRunPace: String?
+    let lastSimilarRunDate: String?
+    let trend: String?
+
+    let tomorrowType: String?
+    let tomorrowDistanceKm: Double?
+    let tomorrowTargetPace: String?
+    let tomorrowNotes: String?
+
+    let athleteName: String
+    let habitsToReinforce: String?
+    let trainingBlock: String?
+    let goalRace: String?
+
+    let prerecordedAlertsDelivered: String?
+
+    enum CodingKeys: String, CodingKey {
+        case runDate = "run_date"
+        case runType = "run_type"
+        case totalDistanceKm = "total_distance_km"
+        case totalTime = "total_time"
+        case avgPace = "avg_pace"
+        case kmSplits = "km_splits"
+        case paceConsistencyPct = "pace_consistency_pct"
+        case negativeSplit = "negative_split"
+        case avgHr = "avg_hr"
+        case maxHr = "max_hr"
+        case avgCadence = "avg_cadence"
+        case elevationGain = "elevation_gain"
+        case prFlag = "pr_flag"
+        case prDetail = "pr_detail"
+        case weeklyDistanceKm = "weekly_distance_km"
+        case weeklyGoalKm = "weekly_goal_km"
+        case streakDays = "streak_days"
+        case monthlyDistanceKm = "monthly_distance_km"
+        case lastSimilarRunPace = "last_similar_run_pace"
+        case lastSimilarRunDate = "last_similar_run_date"
+        case trend
+        case tomorrowType = "tomorrow_type"
+        case tomorrowDistanceKm = "tomorrow_distance_km"
+        case tomorrowTargetPace = "tomorrow_target_pace"
+        case tomorrowNotes = "tomorrow_notes"
+        case athleteName = "athlete_name"
+        case habitsToReinforce = "habits_to_reinforce"
+        case trainingBlock = "training_block"
+        case goalRace = "goal_race"
+        case prerecordedAlertsDelivered = "prerecorded_alerts_delivered"
+    }
+}
+
+struct PostRunSplitData: Codable {
+    let kilometer: Int
+    let pace: String
+    let time: String
+    let isFastest: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case kilometer, pace, time
+        case isFastest = "is_fastest"
+    }
+}
+
 // MARK: - Stream Chunk
 struct StreamChunk: Codable {
     let content: String?

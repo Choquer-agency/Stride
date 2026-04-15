@@ -4,15 +4,8 @@ import SwiftUI
 
 @MainActor
 class ShoesViewModel: ObservableObject {
-    @Published var shoes: [Shoe] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-
-    func loadShoes(context: ModelContext) {
-        let predicate = #Predicate<Shoe> { $0.isRetired == false }
-        let descriptor = FetchDescriptor<Shoe>(predicate: predicate, sortBy: [SortDescriptor(\Shoe.name)])
-        shoes = (try? context.fetch(descriptor)) ?? []
-    }
 
     func syncFromServer(context: ModelContext) {
         guard AuthService.shared.currentToken != nil else { return }
@@ -25,14 +18,9 @@ class ShoesViewModel: ObservableObject {
                 let dateFormatter = ISO8601DateFormatter()
                 dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
-                // Build set of remote IDs
-                var remoteIds = Set<UUID>()
-
                 for remote in remoteShoes {
                     guard let uuid = UUID(uuidString: remote.id) else { continue }
-                    remoteIds.insert(uuid)
 
-                    // Upsert
                     let predicate = #Predicate<Shoe> { $0.id == uuid }
                     let descriptor = FetchDescriptor<Shoe>(predicate: predicate)
                     let existing = try? context.fetch(descriptor)
@@ -58,7 +46,6 @@ class ShoesViewModel: ObservableObject {
                 }
 
                 try context.save()
-                loadShoes(context: context)
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -72,29 +59,31 @@ class ShoesViewModel: ObservableObject {
                 guard let uuid = UUID(uuidString: response.id) else { return }
 
                 if isDefault {
-                    for shoe in shoes where shoe.isDefault {
-                        shoe.isDefault = false
-                    }
+                    // Clear other defaults locally
+                    let allPredicate = #Predicate<Shoe> { $0.isDefault == true }
+                    let allDesc = FetchDescriptor<Shoe>(predicate: allPredicate)
+                    let defaults = (try? context.fetch(allDesc)) ?? []
+                    for s in defaults { s.isDefault = false }
                 }
 
+                // Create shoe with photoData immediately so @Query shows it with photo
                 let shoe = Shoe(
                     id: uuid,
                     name: response.name,
+                    photoData: photoData,
                     isDefault: response.isDefault,
                     totalDistanceKm: response.totalDistanceKm,
                     isRetired: response.isRetired
                 )
                 context.insert(shoe)
+                try context.save()
 
-                // Upload photo if provided
+                // Upload photo to server in background
                 if let photoData {
                     let photoResponse = try await APIService.shared.uploadShoePhoto(id: response.id, imageData: photoData)
                     shoe.photoURL = photoResponse.photoUrl
-                    shoe.photoData = photoData
+                    try context.save()
                 }
-
-                try context.save()
-                loadShoes(context: context)
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -102,34 +91,37 @@ class ShoesViewModel: ObservableObject {
     }
 
     func updateShoe(shoe: Shoe, name: String, isDefault: Bool, photoData: Data?, context: ModelContext) {
+        // Apply local changes immediately so @Query reflects them
+        shoe.name = name
+        if let photoData {
+            shoe.photoData = photoData
+        }
+        if isDefault && !shoe.isDefault {
+            let allPredicate = #Predicate<Shoe> { $0.isDefault == true }
+            let allDesc = FetchDescriptor<Shoe>(predicate: allPredicate)
+            let defaults = (try? context.fetch(allDesc)) ?? []
+            for s in defaults { s.isDefault = false }
+        }
+        shoe.isDefault = isDefault
+        try? context.save()
+
+        // Sync to server in background
         Task {
             do {
                 let nameChanged = shoe.name != name ? name : nil
                 let defaultChanged = shoe.isDefault != isDefault ? isDefault : nil
 
-                let response = try await APIService.shared.updateShoe(
+                _ = try await APIService.shared.updateShoe(
                     id: shoe.id.uuidString,
                     name: nameChanged,
                     isDefault: defaultChanged
                 )
 
-                if isDefault {
-                    for s in shoes where s.id != shoe.id && s.isDefault {
-                        s.isDefault = false
-                    }
-                }
-
-                shoe.name = response.name
-                shoe.isDefault = response.isDefault
-
                 if let photoData {
                     let photoResponse = try await APIService.shared.uploadShoePhoto(id: shoe.id.uuidString, imageData: photoData)
                     shoe.photoURL = photoResponse.photoUrl
-                    shoe.photoData = photoData
+                    try context.save()
                 }
-
-                try context.save()
-                loadShoes(context: context)
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -137,12 +129,12 @@ class ShoesViewModel: ObservableObject {
     }
 
     func deleteShoe(shoe: Shoe, context: ModelContext) {
+        context.delete(shoe)
+        try? context.save()
+
         Task {
             do {
                 try await APIService.shared.deleteShoe(id: shoe.id.uuidString)
-                context.delete(shoe)
-                try context.save()
-                loadShoes(context: context)
             } catch {
                 errorMessage = error.localizedDescription
             }
@@ -150,14 +142,16 @@ class ShoesViewModel: ObservableObject {
     }
 
     func setDefault(shoe: Shoe, context: ModelContext) {
+        let allPredicate = #Predicate<Shoe> { $0.isDefault == true }
+        let allDesc = FetchDescriptor<Shoe>(predicate: allPredicate)
+        let defaults = (try? context.fetch(allDesc)) ?? []
+        for s in defaults { s.isDefault = false }
+        shoe.isDefault = true
+        try? context.save()
+
         Task {
             do {
                 _ = try await APIService.shared.updateShoe(id: shoe.id.uuidString, isDefault: true)
-                for s in shoes {
-                    s.isDefault = (s.id == shoe.id)
-                }
-                try context.save()
-                loadShoes(context: context)
             } catch {
                 errorMessage = error.localizedDescription
             }

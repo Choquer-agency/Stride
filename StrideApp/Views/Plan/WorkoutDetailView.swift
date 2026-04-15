@@ -25,10 +25,38 @@ struct WorkoutDetailView: View {
         return min(total, maxHeight)
     }
     
+    private var isGymWorkout: Bool {
+        workout.workoutType == .gym || workout.workoutType == .crossTraining
+    }
+
+    // Parse gym workout title into individual exercises and set/rep info
+    private var gymExercises: [String] {
+        let source = workout.title
+        let items = source
+            .components(separatedBy: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return items
+    }
+
+    // Separate exercises from set/rep instructions (e.g. "3 sets of 10")
+    private var gymExerciseNames: [String] {
+        gymExercises.filter { item in
+            item.range(of: #"\d+\s*sets"#, options: .regularExpression) == nil
+        }
+    }
+
+    private var gymSetRepInfo: String? {
+        let setReps = gymExercises.filter { item in
+            item.range(of: #"\d+\s*sets"#, options: .regularExpression) != nil
+        }
+        return setReps.first
+    }
+
     // Parse workout details into individual steps
     private var workoutSteps: [String] {
         guard let details = workout.details, !details.isEmpty else { return [] }
-        
+
         // Split by common separators: periods, "then", or newlines
         let separators = CharacterSet(charactersIn: ".\n")
         let steps = details
@@ -38,7 +66,7 @@ struct WorkoutDetailView: View {
                 // Remove empty steps and separator-only lines (underscores, dashes, etc.)
                 !step.isEmpty && !step.allSatisfy { "—–-_=~─━".contains($0) }
             }
-        
+
         return steps
     }
     
@@ -80,7 +108,9 @@ struct WorkoutDetailView: View {
                                 .frame(width: 16, height: 16)
                         }
 
-                        Text(workout.isCompleted ? "\(workout.title) Completed" : workout.workoutType.displayName)
+                        Text(workout.isCompleted
+                             ? (isGymWorkout ? "Gym Completed" : "\(workout.title) Completed")
+                             : (isGymWorkout ? "Gym" : workout.workoutType.displayName))
                             .font(.inter(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
                     }
@@ -126,44 +156,72 @@ struct WorkoutDetailView: View {
                     }
                     
                     // Workout Details Card
-                    if !workoutSteps.isEmpty || (workout.details != nil && !workout.details!.isEmpty) {
-                        VStack(spacing: 12) {
-                            // Header with treadmill icon - centered
-                            HStack(spacing: 8) {
-                                if workout.workoutType.isRunRelated {
-                                    TreadmillIconView(size: 20, color: .primary)
-                                } else {
+                    if isGymWorkout {
+                        // Gym: show exercises parsed from title
+                        if !gymExerciseNames.isEmpty {
+                            VStack(alignment: .leading, spacing: 12) {
+                                // Header
+                                HStack(spacing: 8) {
                                     Image(systemName: workout.workoutType.icon)
                                         .font(.system(size: 18))
                                         .foregroundColor(.primary)
+
+                                    Text("Exercises")
+                                        .font(.interSemibold(15))
+                                        .foregroundStyle(.primary)
                                 }
-                                
+
+                                // Exercise list
+                                VStack(alignment: .leading, spacing: 6) {
+                                    ForEach(Array(gymExerciseNames.enumerated()), id: \.offset) { _, exercise in
+                                        Text(exercise)
+                                            .font(.inter(size: 14, weight: .semibold))
+                                            .foregroundStyle(.primary)
+                                    }
+                                }
+
+                                // Set/rep info
+                                if let setRep = gymSetRepInfo {
+                                    Text(setRep)
+                                        .font(.inter(size: 13, weight: .regular))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(16)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+                            .padding(.horizontal, 16)
+                        }
+                    } else if !workoutSteps.isEmpty || (workout.details != nil && !workout.details!.isEmpty) {
+                        // Running: show workout steps with bold action keywords
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Header
+                            HStack(spacing: 8) {
+                                TreadmillIconView(size: 20, color: .primary)
+
                                 Text("Workout Details")
                                     .font(.interSemibold(15))
                                     .foregroundStyle(.primary)
                             }
-                            
-                            // Workout steps as line items - centered
+
+                            // Workout steps with bold first phrase
                             if workoutSteps.count > 1 {
-                                VStack(spacing: 8) {
-                                    ForEach(Array(workoutSteps.enumerated()), id: \.offset) { index, step in
-                                        Text(step)
-                                            .font(.inter(size: 14, weight: .regular))
-                                            .foregroundStyle(.secondary)
-                                            .lineSpacing(2)
-                                            .multilineTextAlignment(.center)
+                                VStack(alignment: .leading, spacing: 8) {
+                                    ForEach(Array(workoutSteps.enumerated()), id: \.offset) { _, step in
+                                        formattedRunStep(step)
                                     }
                                 }
                             } else if let details = workout.details {
-                                // Single line or no clear separation
                                 Text(details)
                                     .font(.inter(size: 14, weight: .regular))
                                     .foregroundStyle(.secondary)
                                     .lineSpacing(3)
-                                    .multilineTextAlignment(.center)
+                                    .multilineTextAlignment(.leading)
                             }
                         }
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(16)
                         .background(Color.white)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -363,6 +421,30 @@ struct WorkoutDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
             .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - Formatted Run Step
+
+    @ViewBuilder
+    private func formattedRunStep(_ step: String) -> some View {
+        // Bold the action keyword at the start (e.g., "Warm up", "Run", "Cool down")
+        // Split on first occurrence of "for", "at", or a digit to separate action from details
+        if let range = step.range(of: #"^(.+?)\s+(for |at |@|\d)"#, options: .regularExpression) {
+            let actionEnd = step[range].dropLast(1) // remove the matched separator char
+            let action = String(actionEnd).trimmingCharacters(in: .whitespaces)
+            let rest = String(step[actionEnd.endIndex...]).trimmingCharacters(in: .whitespaces)
+            (Text(action + " ").font(.inter(size: 14, weight: .semibold)).foregroundColor(.primary)
+             + Text(rest).font(.inter(size: 14, weight: .regular)).foregroundColor(.secondary))
+                .lineSpacing(2)
+                .multilineTextAlignment(.leading)
+        } else {
+            // No clear split point — bold the whole step
+            Text(step)
+                .font(.inter(size: 14, weight: .semibold))
+                .foregroundStyle(.primary)
+                .lineSpacing(2)
+                .multilineTextAlignment(.leading)
         }
     }
 

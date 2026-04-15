@@ -138,6 +138,27 @@ struct SettingsSectionsView: View {
             Text("Gear")
         }
 
+        // Voice Coaching Section
+        VoiceCoachSettingsSection()
+
+        // Voice Usage Tracking
+        Section {
+            NavigationLink {
+                TTSUsageView()
+            } label: {
+                HStack {
+                    Label("Voice Usage", systemImage: "chart.bar.doc.horizontal")
+                        .foregroundStyle(Color.primary, Color.stridePrimary)
+                    Spacer()
+                    Text("\(TTSUsageLog.shared.todayUsage()) chars today")
+                        .font(.inter(size: 12, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
+            }
+        } header: {
+            Text("Voice Analytics")
+        }
+
         // Account Section
         Section {
             NavigationLink {

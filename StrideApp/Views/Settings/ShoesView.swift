@@ -3,13 +3,14 @@ import SwiftData
 
 struct ShoesView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(filter: #Predicate<Shoe> { $0.isRetired == false }, sort: \Shoe.name) private var shoes: [Shoe]
     @StateObject private var viewModel = ShoesViewModel()
     @State private var showAddSheet = false
     @State private var editingShoe: Shoe?
 
     var body: some View {
         List {
-            if viewModel.shoes.isEmpty && !viewModel.isLoading {
+            if shoes.isEmpty && !viewModel.isLoading {
                 Section {
                     VStack(spacing: 12) {
                         Image(systemName: "shoe.2")
@@ -28,7 +29,7 @@ struct ShoesView: View {
                 }
             }
 
-            ForEach(viewModel.shoes, id: \.id) { shoe in
+            ForEach(shoes) { shoe in
                 Button {
                     editingShoe = shoe
                 } label: {
@@ -62,7 +63,6 @@ struct ShoesView: View {
             AddEditShoeView(viewModel: viewModel, shoe: shoe)
         }
         .onAppear {
-            viewModel.loadShoes(context: modelContext)
             viewModel.syncFromServer(context: modelContext)
         }
     }
@@ -70,20 +70,7 @@ struct ShoesView: View {
     private func shoeRow(_ shoe: Shoe) -> some View {
         HStack(spacing: 12) {
             // Photo thumbnail
-            Group {
-                if let photoData = shoe.photoData, let uiImage = UIImage(data: photoData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Image(systemName: "shoe.2")
-                        .font(.system(size: 18))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .frame(width: 40, height: 40)
-            .clipShape(Circle())
-            .background(Circle().fill(Color(.systemGray6)))
+            ShoePhotoView(shoe: shoe, size: 40)
 
             // Name + mileage
             VStack(alignment: .leading, spacing: 2) {
@@ -113,6 +100,54 @@ struct ShoesView: View {
                 .foregroundColor(Color(.tertiaryLabel))
         }
         .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Shoe Photo View (loads from photoData or URL)
+
+struct ShoePhotoView: View {
+    let shoe: Shoe
+    let size: CGFloat
+
+    @State private var loadedImage: UIImage?
+
+    var body: some View {
+        Group {
+            if let photoData = shoe.photoData, let img = UIImage(data: photoData) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+            } else if let loadedImage {
+                Image(uiImage: loadedImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Image(systemName: "shoe.2")
+                    .font(.system(size: size * 0.45))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .frame(width: size, height: size)
+        .background(Circle().fill(Color(.systemGray6)))
+        .clipShape(Circle())
+        .onAppear { loadFromURL() }
+    }
+
+    private func loadFromURL() {
+        guard shoe.photoData == nil,
+              let urlString = shoe.photoURL,
+              let url = URL(string: urlString) else { return }
+
+        Task {
+            do {
+                let (data, _) = try await URLSession.shared.data(from: url)
+                if let img = UIImage(data: data) {
+                    loadedImage = img
+                    // Cache locally
+                    shoe.photoData = data
+                }
+            } catch {}
+        }
     }
 }
 
