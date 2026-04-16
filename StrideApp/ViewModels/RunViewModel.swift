@@ -588,7 +588,7 @@ class RunViewModel: ObservableObject {
     private var candidateZone: PaceZone = .noTarget
     private var candidateZoneSince: TimeInterval = 0
     /// How long the runner must stay in a new zone before we announce it.
-    private let sustainedZoneDuration: TimeInterval = 15.0
+    private let sustainedZoneDuration: TimeInterval = 30.0
 
     private func updatePaceZone(_ smoothedPace: Double) {
         guard let minPace = targetPaceMinSec, let maxPace = targetPaceMaxSec else {
@@ -618,7 +618,11 @@ class RunViewModel: ObservableObject {
         if sustained && candidateZone != paceZone {
             let oldZone = paceZone
             paceZone = candidateZone
-            voiceCoach.announcePaceZoneChange(from: oldZone, to: paceZone)
+
+            // Compute how far off target so the voice alert can say specific seconds.
+            let targetMid = ((minPace + maxPace) / 2.0)
+            let diffSeconds = Int(round(smoothedPace - targetMid))
+            voiceCoach.announcePaceZoneChange(from: oldZone, to: paceZone, diffSeconds: diffSeconds)
         }
     }
 

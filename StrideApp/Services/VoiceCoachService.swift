@@ -127,8 +127,9 @@ final class VoiceCoachService {
         tts.speakSequence(clips)
     }
 
-    /// Announce a pace zone change (debounced to max once per 30 seconds).
-    func announcePaceZoneChange(from oldZone: PaceZone, to newZone: PaceZone) {
+    /// Announce a pace zone change with the specific number of seconds off target.
+    /// `diffSeconds` is positive when slow (pace > target), negative when fast.
+    func announcePaceZoneChange(from oldZone: PaceZone, to newZone: PaceZone, diffSeconds: Int = 0) {
         guard settings.isEnabled, settings.announcePaceZone else { return }
         guard newZone != .noTarget else { return }
 
@@ -139,23 +140,31 @@ final class VoiceCoachService {
         lastPaceZoneAnnouncement = now
         lastAnnouncedPaceZone = newZone
 
-        let clip: (name: String, fallback: String)?
+        let absDiff = abs(diffSeconds)
+        let secWord = absDiff == 1 ? "second" : "seconds"
+
+        let text: String?
         switch newZone {
-        case .tooSlow:      clip = ("pace_too_slow", "You're falling behind target pace. Pick it up.")
-        case .slightlySlow: clip = ("pace_slightly_slow", "Slightly behind pace. Try to push a bit.")
-        case .tooFast:      clip = ("pace_too_fast", "Running too fast. Slow down to conserve energy.")
-        case .slightlyFast: clip = nil
+        case .tooSlow:
+            text = "You're \(absDiff) \(secWord) behind target pace. Pick it up."
+        case .slightlySlow:
+            text = "\(absDiff) \(secWord) behind pace."
+        case .tooFast:
+            text = "Running \(absDiff) \(secWord) ahead of target. Dial it back."
+        case .slightlyFast:
+            text = "\(absDiff) \(secWord) ahead of pace."
         case .onPace:
-            if oldZone == .tooSlow || oldZone == .slightlySlow || oldZone == .tooFast {
-                clip = ("pace_back_on", "Back on pace. Nice.")
+            if oldZone == .tooSlow || oldZone == .slightlySlow || oldZone == .tooFast || oldZone == .slightlyFast {
+                text = "Back on pace."
             } else {
-                clip = nil
+                text = nil
             }
-        case .noTarget:     clip = nil
+        case .noTarget:
+            text = nil
         }
 
-        if let c = clip {
-            tts.speakSequence([.bundled(c.name, fallbackText: c.fallback)])
+        if let t = text {
+            tts.speakSequence([.text(t)])
         }
     }
 

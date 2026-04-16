@@ -7,7 +7,7 @@ class PaceSmoother {
     }
 
     /// How far back (in seconds) to look when computing the rolling average.
-    private let windowDuration: TimeInterval = 30.0
+    private let windowDuration: TimeInterval = 60.0
 
     private var samples: [SpeedSample] = []
     private let minSpeedThreshold: Double = 0.3  // m/s (~55 min/km)
