@@ -136,22 +136,59 @@ struct RouteMapView: View {
         var id: Int { index }
     }
 
+    /// Bucket width in meters for smoothing speed before coloring.
+    private let smoothingWindowMeters: Double = 100.0
+
     private func speedColoredSegments() -> [SpeedSegment] {
-        let points = routePoints.filter { $0.speed > 0.3 }  // drop stationary noise
+        let points = routePoints.filter { $0.speed > 0.3 }
         guard points.count >= 2 else { return [] }
 
-        // Bucket by speed percentile (p10..p90) so extremes don't skew the gradient.
-        let sortedSpeeds = points.map(\.speed).sorted()
-        let lo = sortedSpeeds[sortedSpeeds.count / 10]
-        let hi = sortedSpeeds[min(sortedSpeeds.count - 1, sortedSpeeds.count * 9 / 10)]
+        // Compute cumulative distance for each point (cheap Haversine between
+        // consecutive points). This lets us group into fixed-distance buckets
+        // instead of coloring per-point.
+        var cumulativeDistance: [Double] = [0]
+        for i in 1..<points.count {
+            let prev = points[i - 1]
+            let curr = points[i]
+            let d = Self.haversineDist(
+                lat1: prev.latitude, lon1: prev.longitude,
+                lat2: curr.latitude, lon2: curr.longitude
+            )
+            cumulativeDistance.append(cumulativeDistance.last! + d)
+        }
+
+        // Group points into 100m windows and average speed within each window.
+        struct WindowBucket {
+            var speedSum: Double = 0
+            var count: Int = 0
+            var avgSpeed: Double { count > 0 ? speedSum / Double(count) : 0 }
+        }
+        let totalDist = cumulativeDistance.last!
+        let bucketCount = max(1, Int(ceil(totalDist / smoothingWindowMeters)))
+        var buckets: [WindowBucket] = Array(repeating: WindowBucket(), count: bucketCount)
+
+        for (i, pt) in points.enumerated() {
+            let bucketIdx = min(Int(cumulativeDistance[i] / smoothingWindowMeters), bucketCount - 1)
+            buckets[bucketIdx].speedSum += pt.speed
+            buckets[bucketIdx].count += 1
+        }
+
+        // Determine color range from bucket-averaged speeds (p10..p90).
+        let avgSpeeds = buckets.filter { $0.count > 0 }.map(\.avgSpeed).sorted()
+        guard !avgSpeeds.isEmpty else { return [] }
+        let lo = avgSpeeds[avgSpeeds.count / 10]
+        let hi = avgSpeeds[min(avgSpeeds.count - 1, avgSpeeds.count * 9 / 10)]
         let range = max(hi - lo, 0.01)
 
-        // Color for each point, then coalesce consecutive same-color points into one polyline.
-        let colors: [UIColor] = points.map { point in
-            let t = min(max((point.speed - lo) / range, 0), 1)
+        // Color each point based on its bucket's averaged speed.
+        let colors: [UIColor] = points.enumerated().map { i, _ in
+            let bucketIdx = min(Int(cumulativeDistance[i] / smoothingWindowMeters), bucketCount - 1)
+            let avgSpd = buckets[bucketIdx].avgSpeed
+            let t = min(max((avgSpd - lo) / range, 0), 1)
             return color(forSpeedT: t)
         }
 
+        // Coalesce consecutive same-color points into polyline segments.
         var segments: [SpeedSegment] = []
         var currentCoords: [CLLocationCoordinate2D] = []
         var currentColor: UIColor = colors[0]
@@ -160,7 +197,7 @@ struct RouteMapView: View {
             let coord = CLLocationCoordinate2D(latitude: point.latitude, longitude: point.longitude)
             if colors[i] != currentColor, currentCoords.count >= 2 {
                 segments.append(SpeedSegment(index: segments.count, coords: currentCoords, uiColor: currentColor))
-                currentCoords = [currentCoords.last!]  // stitch to the next segment
+                currentCoords = [currentCoords.last!]
                 currentColor = colors[i]
             }
             currentCoords.append(coord)
@@ -169,6 +206,16 @@ struct RouteMapView: View {
             segments.append(SpeedSegment(index: segments.count, coords: currentCoords, uiColor: currentColor))
         }
         return segments
+    }
+
+    private static func haversineDist(lat1: Double, lon1: Double, lat2: Double, lon2: Double) -> Double {
+        let R = 6_371_000.0
+        let dLat = (lat2 - lat1) * .pi / 180
+        let dLon = (lon2 - lon1) * .pi / 180
+        let a = sin(dLat / 2) * sin(dLat / 2) +
+            cos(lat1 * .pi / 180) * cos(lat2 * .pi / 180) *
+            sin(dLon / 2) * sin(dLon / 2)
+        return R * 2 * atan2(sqrt(a), sqrt(1 - a))
     }
 
     /// Interpolate blue → green → yellow → red as t goes 0 → 1.

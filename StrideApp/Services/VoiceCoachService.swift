@@ -12,7 +12,7 @@ final class VoiceCoachService {
 
     // Debounce: prevent rapid-fire pace zone alerts
     private var lastPaceZoneAnnouncement: Date = .distantPast
-    private let paceZoneDebounceInterval: TimeInterval = 30.0
+    private let paceZoneDebounceInterval: TimeInterval = 90.0
     private var lastAnnouncedPaceZone: PaceZone?
 
     // Halfway tracking
@@ -288,10 +288,7 @@ final class VoiceCoachService {
         }
 
         // ── General time checkpoints (any run) ──
-        if !hasAnnounced30Min && elapsedTime >= 1800 && elapsedTime < 1830 {
-            hasAnnounced30Min = true
-            tts.speakSequence([.bundled("thirty_minutes", fallbackText: "Thirty minutes down.")])
-        }
+        // 30-minute checkpoint removed — user found it distracting.
         if !hasAnnounced60Min && elapsedTime >= 3600 && elapsedTime < 3630 {
             hasAnnounced60Min = true
             tts.speakSequence([.bundled("one_hour", fallbackText: "One hour in. Keep it rolling.")])

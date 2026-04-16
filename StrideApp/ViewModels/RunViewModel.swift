@@ -532,7 +532,7 @@ class RunViewModel: ObservableObject {
 
         // 4. Pace — smooth raw speed, then format
         if let rawSpeedMps = sample.speedMps, rawSpeedMps > 0 {
-            let (_, pace) = paceSmoother.addSample(speedMps: rawSpeedMps)
+            let (_, pace) = paceSmoother.addSample(speedMps: rawSpeedMps, elapsedTime: elapsedTime)
             currentPace = formatPace(secondsPerKm: pace)
 
             // Accumulate raw speed for per-km split pace calculation
@@ -583,28 +583,41 @@ class RunViewModel: ObservableObject {
 
     // MARK: - Pace Zone
 
+    /// The zone we're currently evaluating (may differ from the announced `paceZone`
+    /// because we require sustained residency before announcing).
+    private var candidateZone: PaceZone = .noTarget
+    private var candidateZoneSince: TimeInterval = 0
+    /// How long the runner must stay in a new zone before we announce it.
+    private let sustainedZoneDuration: TimeInterval = 15.0
+
     private func updatePaceZone(_ smoothedPace: Double) {
         guard let minPace = targetPaceMinSec, let maxPace = targetPaceMaxSec else {
             paceZone = .noTarget
             return
         }
 
-        let oldZone = paceZone
-
+        let newZone: PaceZone
         if smoothedPace >= minPace && smoothedPace <= maxPace {
-            paceZone = .onPace
+            newZone = .onPace
         } else if smoothedPace < minPace {
-            // Running faster than target (lower sec/km = faster)
             let diff = minPace - smoothedPace
-            paceZone = diff > 10 ? .tooFast : .slightlyFast
+            newZone = diff > 10 ? .tooFast : .slightlyFast
         } else {
-            // Running slower than target (higher sec/km = slower)
             let diff = smoothedPace - maxPace
-            paceZone = diff > 20 ? .tooSlow : .slightlySlow
+            newZone = diff > 20 ? .tooSlow : .slightlySlow
         }
 
-        // Voice: announce pace zone changes
-        if paceZone != oldZone {
+        // Track how long we've been in the candidate zone.
+        if newZone != candidateZone {
+            candidateZone = newZone
+            candidateZoneSince = elapsedTime
+        }
+
+        // Only transition + announce after sustained residency.
+        let sustained = elapsedTime - candidateZoneSince >= sustainedZoneDuration
+        if sustained && candidateZone != paceZone {
+            let oldZone = paceZone
+            paceZone = candidateZone
             voiceCoach.announcePaceZoneChange(from: oldZone, to: paceZone)
         }
     }
