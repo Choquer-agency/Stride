@@ -14,7 +14,7 @@ struct AuthView: View {
                     Spacer()
 
                     // Logo — two-tone (red mark, black wordmark)
-                    StrideLogoView(height: geometry.size.width * 53.0 / 402.0, twoTone: true)
+                    StrideLogoView(height: geometry.size.width * 53.0 / 402.0)
 
                     Spacer().frame(height: 32)
 

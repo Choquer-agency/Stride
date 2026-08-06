@@ -3,16 +3,15 @@ import SwiftUI
 // MARK: - Stride Logo View
 struct StrideLogoView: View {
     var height: CGFloat = 32
-    var color: Color = .stridePrimary
-    /// When true, renders the SVG's own colors (red mark + black wordmark)
-    /// instead of tinting the whole logo with `color`.
-    var twoTone: Bool = false
+    /// Default (nil) renders the brand two-tone logo — red mark, black wordmark.
+    /// Pass a color (e.g. .white over the run map) to tint the whole logo instead.
+    var color: Color? = nil
 
     var body: some View {
         Image("StrideLogo")
             .resizable()
-            .renderingMode(twoTone ? .original : .template)
-            .foregroundColor(twoTone ? nil : color)
+            .renderingMode(color == nil ? .original : .template)
+            .foregroundColor(color)
             .aspectRatio(690.0 / 156.0, contentMode: .fit)
             .frame(height: height)
     }

@@ -361,7 +361,7 @@ struct OutdoorRunView: View {
                 .frame(height: 140)
                 .ignoresSafeArea(edges: .top)
                 .overlay(alignment: .top) {
-                    StrideLogoView(height: 35, color: .stridePrimary)
+                    StrideLogoView(height: 35)
                         .padding(.top, 55)
                 }
 
