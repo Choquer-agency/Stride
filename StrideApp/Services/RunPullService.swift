@@ -82,8 +82,11 @@ final class RunPullService {
     /// (or adjacent — timezone tolerance) calendar day and check it off.
     private func reconcileCompletions(context: ModelContext, calendar: Calendar) {
         let cutoff = calendar.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        // A planned run is one carrying either a local workout link OR a planned
+        // title (server-pulled runs have the title but no local workout UUID —
+        // isFreeRun alone wrongly excludes them).
         let logs = ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
-            .filter { $0.completedAt >= cutoff && !$0.isFreeRun }
+            .filter { $0.completedAt >= cutoff && ($0.plannedWorkoutTitle != nil || !$0.isFreeRun) }
 
         let planDescriptor = FetchDescriptor<TrainingPlan>(
             predicate: #Predicate<TrainingPlan> { !$0.isArchived },
@@ -97,6 +100,7 @@ final class RunPullService {
             let match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
                                          in: workouts, calendar: calendar)
             guard let workout = match else { continue }
+            log.plannedWorkoutId = workout.id   // back-link so this log stops reading as a free run
             workout.isCompleted = true
             workout.completedAt = log.completedAt
             workout.actualDistanceKm = log.distanceKm
