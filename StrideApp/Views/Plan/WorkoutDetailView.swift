@@ -14,6 +14,7 @@ struct WorkoutDetailView: View {
     let onComplete: () -> Void
     
     @State private var contentHeight: CGFloat = 0
+    @State private var showGymPlayer = false
     
     // Height of the drag indicator + close button area
     private let chromeHeight: CGFloat = 6
@@ -316,8 +317,12 @@ struct WorkoutDetailView: View {
                     // Bottom Action Button (only for non-completed workouts)
                     if workout.workoutType != .rest && !workout.isCompleted {
                         Button(action: {
-                            onComplete()
-                            dismiss()
+                            if isGymWorkout && gymSource.contains(";") {
+                                showGymPlayer = true
+                            } else {
+                                onComplete()
+                                dismiss()
+                            }
                         }) {
                             Text("Start Workout")
                                 .font(.interSemibold(16))
@@ -342,6 +347,18 @@ struct WorkoutDetailView: View {
         .background(Color(.systemGroupedBackground))
         .onPreferenceChange(ContentHeightKey.self) { height in
             contentHeight = height
+        }
+        .fullScreenCover(isPresented: $showGymPlayer) {
+            GymWorkoutPlayerView(workout: workout) { summary in
+                // Mark complete locally + log the session (with adjustments) server-side
+                onComplete()
+                Task {
+                    _ = try? await APIService.shared.logQuickStrengthSession(
+                        date: Date(), perceivedEffort: nil, notes: summary
+                    )
+                }
+                dismiss()
+            }
         }
         .presentationDetents([.height(sheetHeight)])
         .presentationDragIndicator(.hidden)
@@ -565,6 +582,15 @@ struct WorkoutDetailView: View {
                             .font(.inter(size: 14, weight: .semibold))
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
+                        if let role = gymItemRole(index: index, item: item) {
+                            Text(role)
+                                .font(.inter(size: 10, weight: .bold))
+                                .kerning(0.5)
+                                .foregroundStyle(Color.stridePrimary)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Color.stridePrimary.opacity(0.1)))
+                        }
                         Spacer(minLength: 12)
                         if let scheme = item.scheme {
                             Text(scheme)
@@ -587,6 +613,14 @@ struct WorkoutDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
         .padding(.horizontal, 16)
+    }
+
+    /// "WARM-UP" / "FINISHER" role pill for SkiErg bookend items.
+    private func gymItemRole(index: Int, item: GymItem) -> String? {
+        guard item.name.lowercased().contains("skierg") else { return nil }
+        if index == 0 { return "WARM-UP" }
+        if index == gymItems.count - 1 { return "FINISHER" }
+        return nil
     }
 
     // MARK: - Run Detail Card

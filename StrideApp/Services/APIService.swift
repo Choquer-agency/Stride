@@ -1785,7 +1785,7 @@ class APIService: ObservableObject {
         return try JSONDecoder().decode(E.self, from: data).items
     }
 
-    func logQuickStrengthSession(date: Date? = nil, perceivedEffort: Int? = nil) async throws -> StrengthSessionDTO {
+    func logQuickStrengthSession(date: Date? = nil, perceivedEffort: Int? = nil, notes: String? = nil) async throws -> StrengthSessionDTO {
         let url = URL(string: "\(baseURL)/api/strength/log-quick")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1798,6 +1798,7 @@ class APIService: ObservableObject {
             payload["date"] = f.string(from: d)
         }
         if let e = perceivedEffort { payload["perceived_effort"] = e }
+        if let n = notes, !n.isEmpty { payload["notes"] = n }
         request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let (data, response) = try await URLSession.shared.data(for: request)

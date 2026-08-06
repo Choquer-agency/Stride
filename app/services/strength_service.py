@@ -78,6 +78,7 @@ async def log_quick_session(
     date,
     planned_workout_id: Optional[UUID] = None,
     perceived_effort: Optional[int] = None,
+    notes: Optional[str] = None,
 ) -> StrengthSession:
     row = StrengthSession(
         user_id=user.id,
@@ -85,6 +86,7 @@ async def log_quick_session(
         planned_workout_id=planned_workout_id,
         quick_logged=True,
         perceived_effort=perceived_effort,
+        notes=notes,
     )
     db.add(row)
     await db.flush()

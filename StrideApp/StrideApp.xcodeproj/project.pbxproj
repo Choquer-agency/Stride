@@ -380,6 +380,7 @@
 		9CC699FAC8129A65109F338D /* mile_31.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CE5380B7B92312607372B974 /* mile_31.mp3 */; };
 		9D150224225CD30413662045 /* ConnectGarminView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B719F0EBDBED2CE4E43BF3D /* ConnectGarminView.swift */; };
 		9D1D5F86AF5AEF8E5CA74C9F /* km_67.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EEC3BE9D5777D4C52E0D2AC8 /* km_67.mp3 */; };
+		9D3E3C05361B686198FD0EF2 /* GymSessionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5371B11FAA1D16806E4E9A5 /* GymSessionModel.swift */; };
 		9D8D822273D4DE36C884E45A /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B001169C60BE650E0BF3CA /* ShareSheet.swift */; };
 		9DE7637F4FBC5ADDF24EA413 /* num_4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 48465CAA74552E5E36F9433B /* num_4.mp3 */; };
 		9DE85C0A2112F3D016FB73E2 /* UserSearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D0DEC51B0534231401D01BD /* UserSearchViewModel.swift */; };
@@ -415,6 +416,7 @@
 		ADFB916F96C38C0D3BFFC919 /* km_21.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4B28D038C6716D4CEB8FFB4F /* km_21.mp3 */; };
 		AE44736D7DABCB650549954D /* ChallengeCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D336DB268AB7E974C5FD0C35 /* ChallengeCardView.swift */; };
 		AEB13DD8D49607B94E08F69C /* mile_68.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FCC5371F0A301065DFCEE829 /* mile_68.mp3 */; };
+		AEDBFB73419ED0A08E611721 /* GymWorkoutPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9819223C986F6DA1725410AD /* GymWorkoutPlayerView.swift */; };
 		AF0B059F059DAA44CB60CBD9 /* TTSUsageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FECED2381A3BB88BC73D1471 /* TTSUsageView.swift */; };
 		AF22A90C47A408AC4703C52D /* mile_15.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5F2F3CCBE203EF05459031EC /* mile_15.mp3 */; };
 		AFE351CC4BC8F2FCE5728E85 /* num_10.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 96FB6920F564600AC6B167A5 /* num_10.mp3 */; };
@@ -944,6 +946,7 @@
 		96AA3EE915CD86DF345D8664 /* AchievementBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementBadgeView.swift; sourceTree = "<group>"; };
 		96D16082297CA07A5B8871D1 /* IntegrationsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationsSection.swift; sourceTree = "<group>"; };
 		96FB6920F564600AC6B167A5 /* num_10.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_10.mp3; sourceTree = "<group>"; };
+		9819223C986F6DA1725410AD /* GymWorkoutPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymWorkoutPlayerView.swift; sourceTree = "<group>"; };
 		982E756F854FB0CCEF179C78 /* mile_32.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_32.mp3; sourceTree = "<group>"; };
 		983D4AE6768803065FFE7CAC /* fitness_improving.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = fitness_improving.mp3; sourceTree = "<group>"; };
 		98CB867A362ED0F503CEB937 /* mile_8.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_8.mp3; sourceTree = "<group>"; };
@@ -1135,6 +1138,7 @@
 		F2F7AB65375A38BBB45FCD33 /* CoachChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachChatViewModel.swift; sourceTree = "<group>"; };
 		F3A06B4E62A364CCB237CC49 /* NutritionLogHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionLogHubView.swift; sourceTree = "<group>"; };
 		F51C04366B55BBA16DFEC68E /* RouteMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteMapView.swift; sourceTree = "<group>"; };
+		F5371B11FAA1D16806E4E9A5 /* GymSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymSessionModel.swift; sourceTree = "<group>"; };
 		F568C1AD0B3BF19624902296 /* TrainingIntensityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingIntensityView.swift; sourceTree = "<group>"; };
 		F5B145042ABA3A42D409F89B /* mile_2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_2.mp3; sourceTree = "<group>"; };
 		F61EBF889EE98DF873BAD46A /* RacePrepChecklistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RacePrepChecklistView.swift; sourceTree = "<group>"; };
@@ -1342,6 +1346,7 @@
 				F8E4BCDEFA06A4D5F539A699 /* ActiveFocusesCardView.swift */,
 				8EA637877569DA048D1ED045 /* CheckinInviteCardView.swift */,
 				FFFD5F0DCAB21632E5C504DF /* DayCardView.swift */,
+				9819223C986F6DA1725410AD /* GymWorkoutPlayerView.swift */,
 				308899767DAB5C60E329DB3C /* PerformanceAnalysisView.swift */,
 				0C25489C5A6A46FC32E2F60B /* PlanEditInputView.swift */,
 				E12C4563B3A9C86BC74AEF33 /* PlanView.swift */,
@@ -1808,6 +1813,7 @@
 				B1CEE38FAF1FA741B32B42A6 /* ElevenLabsTTSService.swift */,
 				73DE919FA162FA57A48745F5 /* FTMSTreadmillDataParser.swift */,
 				19E47F643022231E3630DAEA /* GPSRunDataProvider.swift */,
+				F5371B11FAA1D16806E4E9A5 /* GymSessionModel.swift */,
 				E3B670DBC022D2C88882D9CF /* KeychainService.swift */,
 				84648E5719B4C7A00EB20B6C /* LocationManager.swift */,
 				AD92622443C74D7E5159BF01 /* MidRunCoachingService.swift */,
@@ -2468,6 +2474,8 @@
 				85C6FF6FAB1204A0E52412EA /* GPSRunDataProvider.swift in Sources */,
 				BD3D2A6921E538C54450391A /* GarminViewModel.swift in Sources */,
 				41294782B7493218CDDA0585 /* GoalStepView.swift in Sources */,
+				9D3E3C05361B686198FD0EF2 /* GymSessionModel.swift in Sources */,
+				AEDBFB73419ED0A08E611721 /* GymWorkoutPlayerView.swift in Sources */,
 				B096B07A71F0C6E24CA456C6 /* HistoryStepView.swift in Sources */,
 				13A3FF8616915FABF905CEEF /* HydrationLog.swift in Sources */,
 				5F36E3F15372BFF46F0E5124 /* IconBadge.swift in Sources */,

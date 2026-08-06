@@ -65,6 +65,7 @@ class QuickLogRequest(BaseModel):
     date: Optional[date_t] = None
     planned_workout_id: Optional[UUID] = None
     perceived_effort: Optional[int] = Field(default=None, ge=1, le=10)
+    notes: Optional[str] = Field(default=None, max_length=2000)
 
 
 class SessionResponse(BaseModel):
@@ -85,6 +86,7 @@ async def log_quick(
         date=today,
         planned_workout_id=body.planned_workout_id,
         perceived_effort=body.perceived_effort,
+        notes=body.notes,
     )
     return SessionResponse(id=row.id, date=row.date, quick_logged=row.quick_logged)
 
