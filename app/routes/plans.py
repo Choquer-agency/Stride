@@ -103,6 +103,7 @@ async def generate_training_plan(request: TrainingPlanRequest, current_user: Use
                 custom_distance_km=request.custom_distance_km,
                 start_date=request.start_date,
                 fitness_level=request.fitness_level.value,
+                athlete_profile=request.model_dump(mode="json"),
             )
             yield f"data: {json.dumps({'done': True})}\n\n"
         except ClaudeRefusalError:
@@ -176,6 +177,7 @@ async def edit_training_plan(request: PlanEditRequest, current_user: User = Depe
                 custom_distance_km=request.custom_distance_km,
                 start_date=request.start_date,
                 change_note=request.edit_instructions[:2000],
+                athlete_profile=request.model_dump(mode="json", exclude={"current_plan_content"}),
             )
             yield f"data: {json.dumps({'done': True})}\n\n"
         except ClaudeRefusalError:

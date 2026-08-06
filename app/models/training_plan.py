@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Boolean, Column, Date, DateTime, Float, ForeignKey, Index, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from app.database import Base
 
@@ -52,6 +52,10 @@ class TrainingPlanRecord(Base):
 
     # The full raw plan text — the same content PlanParser consumes on iOS
     raw_plan_content = Column(Text, nullable=False)
+
+    # The complete onboarding/request payload that produced this plan — every
+    # answer the athlete gave (mileage, injuries, free-text history, schedule).
+    athlete_profile = Column(JSONB, nullable=True)
 
     # For edits: what changed (edit instructions or server-side note)
     change_note = Column(Text, nullable=True)

@@ -158,6 +158,7 @@ async def startup():
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS checkin_day_of_week INTEGER"))
         # Widen rep-range display column (seed data has values up to 17 chars)
         await conn.execute(text("ALTER TABLE strength_exercises ALTER COLUMN default_rep_range TYPE VARCHAR(32)"))
+        await conn.execute(text("ALTER TABLE training_plans ADD COLUMN IF NOT EXISTS athlete_profile JSONB"))
 
         # v2 Phase 4: enforce one morning wellness check-in per user per date
         # (additional pre_run / post_run / manual entries on the same date are allowed).

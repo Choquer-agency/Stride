@@ -47,6 +47,7 @@ async def save_plan(
     fitness_level: Optional[str] = None,
     client_plan_id: Optional[UUID] = None,
     change_note: Optional[str] = None,
+    athlete_profile: Optional[dict] = None,
 ) -> TrainingPlanRecord:
     """Insert a new active plan row, deactivating any prior active plan."""
     await db.execute(
@@ -67,6 +68,7 @@ async def save_plan(
         fitness_level=fitness_level,
         client_plan_id=client_plan_id,
         change_note=change_note,
+        athlete_profile=athlete_profile,
     )
     db.add(record)
     await db.flush()
