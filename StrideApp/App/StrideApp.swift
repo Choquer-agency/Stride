@@ -65,8 +65,78 @@ struct StrideApp: App {
 
             // One-time migration: re-parse plans to recover weeks lost by old parser bug
             reparsePlansIfNeeded(container: modelContainer)
+            rebuildPlansForTitleFixIfNeeded(container: modelContainer)
         } catch {
             fatalError("Could not initialize ModelContainer: \(error)")
+        }
+    }
+
+    /// One-time V2 re-parse: earlier builds mis-extracted workout titles from
+    /// em-dash day lines (title became the whole raw sentence). Rebuild every
+    /// active plan's weeks from rawPlanContent with the fixed parser,
+    /// preserving completed-workout data by calendar date.
+    private func rebuildPlansForTitleFixIfNeeded(container: ModelContainer) {
+        guard !UserDefaults.standard.bool(forKey: "hasRunPlanReparseMigrationV2") else { return }
+
+        let context = ModelContext(container)
+        do {
+            let descriptor = FetchDescriptor<TrainingPlan>(
+                predicate: #Predicate<TrainingPlan> { !$0.isArchived }
+            )
+            let plans = try context.fetch(descriptor)
+            let calendar = Calendar.current
+
+            for plan in plans {
+                guard let rawContent = plan.rawPlanContent, !rawContent.isEmpty else { continue }
+                let parsedWeeks = PlanParser.parse(content: rawContent, startDate: plan.startDate, raceDate: plan.raceDate)
+                guard !parsedWeeks.isEmpty else { continue }
+
+                var completionData: [DateComponents: Workout] = [:]
+                for week in plan.weeks {
+                    for workout in week.workouts where workout.isCompleted {
+                        completionData[calendar.dateComponents([.year, .month, .day], from: workout.date)] = workout
+                    }
+                }
+
+                for week in plan.weeks { context.delete(week) }
+                plan.weeks.removeAll()
+
+                for parsedWeek in parsedWeeks {
+                    let week = Week(weekNumber: parsedWeek.weekNumber, theme: parsedWeek.theme)
+                    for parsedWorkout in parsedWeek.workouts {
+                        let workout = Workout(
+                            date: parsedWorkout.date,
+                            workoutType: parsedWorkout.workoutType,
+                            title: parsedWorkout.title,
+                            details: parsedWorkout.details,
+                            distanceKm: parsedWorkout.distanceKm,
+                            durationMinutes: parsedWorkout.durationMinutes,
+                            paceDescription: parsedWorkout.paceDescription
+                        )
+                        let key = calendar.dateComponents([.year, .month, .day], from: parsedWorkout.date)
+                        if let old = completionData[key] {
+                            workout.isCompleted = old.isCompleted
+                            workout.completedAt = old.completedAt
+                            workout.notes = old.notes
+                            workout.actualDistanceKm = old.actualDistanceKm
+                            workout.actualDurationSeconds = old.actualDurationSeconds
+                            workout.actualAvgPaceSecPerKm = old.actualAvgPaceSecPerKm
+                            workout.completionScore = old.completionScore
+                            workout.kmSplitsJSON = old.kmSplitsJSON
+                            workout.feedbackRating = old.feedbackRating
+                        }
+                        week.workouts.append(workout)
+                    }
+                    plan.weeks.append(week)
+                }
+            }
+
+            try context.save()
+            UserDefaults.standard.set(true, forKey: "hasRunPlanReparseMigrationV2")
+        } catch {
+            #if DEBUG
+            print("Plan title-fix reparse migration failed: \(error)")
+            #endif
         }
     }
 

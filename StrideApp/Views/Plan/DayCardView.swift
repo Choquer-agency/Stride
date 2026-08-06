@@ -168,31 +168,9 @@ struct DayCardView: View {
                 workoutIcon(for: workout)
                     .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
 
-                // Workout Details
-                HStack(spacing: 8) {
-                    Text(workout.workoutType == .gym || workout.workoutType == .crossTraining ? "Gym" : workout.title)
-                        .font(.inter(size: 15, weight: .medium))
-                        .foregroundColor(workout.isCompleted ? .secondary : .primary)
-
-                    if let distance = workout.distanceDisplay {
-                        Text(distance)
-                            .font(.inter(size: 12, weight: .regular))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let pace = workout.paceDescription {
-                        if workout.distanceDisplay != nil {
-                            Text("•")
-                                .font(.inter(size: 12))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        Text(pace)
-                            .font(.inter(size: 12, weight: .regular))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
+                // Workout Details — title over a single metadata line
+                workoutLabel(for: workout)
+                    .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
 
                 Spacer()
 
@@ -254,35 +232,9 @@ struct DayCardView: View {
                                 workoutIcon(for: workout)
                                     .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
 
-                                // Workout Details
-                                HStack(spacing: 8) {
-                                    Text(workout.workoutType == .gym || workout.workoutType == .crossTraining ? "Gym" : workout.title)
-                                        .font(.inter(size: 15, weight: .medium))
-                                        .foregroundColor(workout.isCompleted ? .secondary : .primary)
-
-                                    if let distance = workout.distanceDisplay {
-                                        Text(distance)
-                                            .font(.inter(size: 12, weight: .regular))
-                                            .foregroundStyle(.secondary)
-                                    } else if let duration = workout.durationDisplay {
-                                        Text(duration)
-                                            .font(.inter(size: 12, weight: .regular))
-                                            .foregroundStyle(.secondary)
-                                    }
-
-                                    if let pace = workout.paceDescription {
-                                        if workout.distanceDisplay != nil || workout.durationDisplay != nil {
-                                            Text("•")
-                                                .font(.inter(size: 12))
-                                                .foregroundStyle(.secondary)
-                                        }
-
-                                        Text(pace)
-                                            .font(.inter(size: 12, weight: .regular))
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
+                                // Workout Details — title over a single metadata line
+                                workoutLabel(for: workout)
+                                    .opacity(workout.isCompleted && !isCompleting ? 0.5 : 1.0)
 
                                 Spacer()
 
@@ -337,6 +289,39 @@ struct DayCardView: View {
     }
     
     
+    // MARK: - Workout Label (title + one metadata line)
+    @ViewBuilder
+    private func workoutLabel(for workout: Workout) -> some View {
+        let isGymLike = workout.workoutType == .gym || workout.workoutType == .crossTraining
+        VStack(alignment: .leading, spacing: 2) {
+            Text(isGymLike ? "Gym" : workout.title)
+                .font(.inter(size: 15, weight: .semibold))
+                .foregroundColor(workout.isCompleted ? .secondary : .primary)
+                .lineLimit(1)
+
+            if let metadata = metadataLine(for: workout, isGymLike: isGymLike) {
+                Text(metadata)
+                    .font(.inter(size: 12.5, weight: .regular))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+
+    private func metadataLine(for workout: Workout, isGymLike: Bool) -> String? {
+        if isGymLike {
+            // Gym cards carry the focus in the title (e.g. "Core endurance, hip stability")
+            if let duration = workout.durationDisplay { return duration }
+            let focus = workout.title
+            return (focus.isEmpty || focus.lowercased() == "gym") ? nil : focus
+        }
+        var parts: [String] = []
+        if let distance = workout.distanceDisplay { parts.append(distance) }
+        else if let duration = workout.durationDisplay { parts.append(duration) }
+        if let pace = workout.paceDescription { parts.append(pace) }
+        return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
+    }
+
     // MARK: - Date Column
     private var dateColumn: some View {
         VStack(spacing: 0) {

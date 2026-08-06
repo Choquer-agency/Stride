@@ -488,17 +488,26 @@ class PlanParser {
     
     private static func extractTitle(from description: String, type: WorkoutType) -> String {
         // Try to extract a meaningful title from the description
-        // Common formats: "Easy Run – 8 km", "Threshold – Build lactate tolerance", "Rest"
-        
-        // First, try splitting on en-dash or regular dash with spaces
-        let dashPattern = /^([^–\-]+?)\s*[–\-]/
+        // Common formats: "Easy Run – 8 km", "Threshold – Build lactate tolerance",
+        // "Long Run with MP Block — Total: 26 km", "Rest"
+
+        // Split on en-dash, em-dash, or hyphen (the coach writes em-dashes)
+        let dashPattern = /^([^–—\-]+?)\s*[–—\-]/
         if let match = description.firstMatch(of: dashPattern) {
             let title = String(match.1).trimmingCharacters(in: .whitespaces)
             if !title.isEmpty && title.count < 50 {
                 return title
             }
         }
-        
+
+        // No dash: take text before the first colon ("Fartlek: 8 km ...")
+        if let colonIdx = description.firstIndex(of: ":") {
+            let candidate = String(description[..<colonIdx]).trimmingCharacters(in: .whitespaces)
+            if !candidate.isEmpty && candidate.count < 50 && !candidate.contains(where: \.isNumber) {
+                return candidate
+            }
+        }
+
         // Otherwise, use the workout type's display name
         return type.displayName
     }

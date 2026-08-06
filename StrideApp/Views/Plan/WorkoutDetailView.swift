@@ -53,21 +53,133 @@ struct WorkoutDetailView: View {
         return setReps.first
     }
 
-    // Parse workout details into individual steps
-    private var workoutSteps: [String] {
-        guard let details = workout.details, !details.isEmpty else { return [] }
+    // MARK: - Structured detail parsing
+    //
+    // The coach writes one summary line (title — total/pace/RPE, already shown
+    // in the big stats) followed by structure lines (Warm-up/Main/Cool-down,
+    // "A, then B, then C" chains), fueling guidance, and coaching prose.
+    // Each fact renders once: structure as rows, fuel as its own strip, prose
+    // as the coach's note — never re-printing the headline stats.
 
-        // Split by common separators: periods, "then", or newlines
-        let separators = CharacterSet(charactersIn: ".\n")
-        let steps = details
-            .components(separatedBy: separators)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { step in
-                // Remove empty steps and separator-only lines (underscores, dashes, etc.)
-                !step.isEmpty && !step.allSatisfy { "—–-_=~─━".contains($0) }
+    private struct DetailSegment: Identifiable {
+        let id = UUID()
+        let label: String?      // "Warm-up" etc.; nil for numbered chain segments
+        let text: String
+    }
+
+    private struct ParsedDetail {
+        var segments: [DetailSegment] = []
+        var fuel: String?
+        var noteSentences: [String] = []
+        var rpe: String?
+
+        var note: String? {
+            noteSentences.isEmpty ? nil : noteSentences.joined(separator: " ")
+        }
+        var isEmpty: Bool { segments.isEmpty && fuel == nil && noteSentences.isEmpty }
+    }
+
+    private var parsedDetail: ParsedDetail {
+        var result = ParsedDetail()
+        guard let details = workout.details, !details.isEmpty else { return result }
+
+        let labelPattern = #"^(Warm-up|Warm up|Main set|Main|Cool-down|Cool down|Structure|Fuel during|Fueling|Fuel|Notes?|Run|Strides)\s*[:：]\s*(.+)$"#
+
+        for rawLine in details.components(separatedBy: "\n") {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty, !line.allSatisfy({ "—–-_=~─━".contains($0) }) else { continue }
+
+            if let match = line.range(of: labelPattern, options: .regularExpression) {
+                let full = String(line[match])
+                let colonIdx = full.firstIndex(where: { $0 == ":" || $0 == "：" })!
+                let label = String(full[..<colonIdx]).trimmingCharacters(in: .whitespaces)
+                let value = String(full[full.index(after: colonIdx)...]).trimmingCharacters(in: .whitespaces)
+                ingest(label: label, value: value, into: &result)
+            } else {
+                ingestProse(line, into: &result)
             }
+        }
+        return result
+    }
 
-        return steps
+    private func ingest(label: String, value: String, into result: inout ParsedDetail) {
+        switch label.lowercased() {
+        case "fuel during", "fueling", "fuel":
+            result.fuel = value
+        case "note", "notes":
+            result.noteSentences.append(value)
+        case "structure":
+            appendChain(value, into: &result)
+        default:
+            result.segments.append(DetailSegment(label: label, text: stripRPE(value, into: &result)))
+        }
+    }
+
+    /// Prose (usually the summary day-line): drop the "Title —" prefix and the
+    /// "Total: …" clause (duplicated by the big stats), keep structure chains
+    /// and coaching sentences.
+    private func ingestProse(_ line: String, into result: inout ParsedDetail) {
+        var text = line
+        // Strip leading "Title —" (any dash flavor)
+        if let dashRange = text.range(of: #"^[^–—\-:]{1,60}[–—\-]\s*"#, options: .regularExpression),
+           text[dashRange].contains(where: { "–—-".contains($0) }) {
+            text = String(text[dashRange.upperBound...])
+        }
+        for rawSentence in text.components(separatedBy: ". ") {
+            var sentence = rawSentence.trimmingCharacters(in: .whitespaces)
+            if sentence.hasSuffix(".") { sentence = String(sentence.dropLast()) }
+            guard !sentence.isEmpty else { continue }
+
+            let lower = sentence.lowercased()
+            if lower.hasPrefix("total:") || lower.hasPrefix("total ") {
+                _ = stripRPE(sentence, into: &result)   // keep the RPE, drop the duplicate stats
+                // "Total: 7 km …, with 4 × 20 sec strides …" — the tail is real instruction
+                if let withRange = sentence.range(of: ", with ", options: .caseInsensitive) {
+                    let extra = String(sentence[withRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+                    if !extra.isEmpty {
+                        result.noteSentences.append("With " + extra + ".")
+                    }
+                }
+            } else if lower.hasPrefix("fuel during:") || lower.hasPrefix("fueling:") {
+                if let colonIdx = sentence.firstIndex(of: ":") {
+                    result.fuel = String(sentence[sentence.index(after: colonIdx)...]).trimmingCharacters(in: .whitespaces)
+                }
+            } else if sentence.contains(", then ") {
+                appendChain(sentence, into: &result)
+            } else {
+                result.noteSentences.append(stripRPE(sentence, into: &result) + ".")
+            }
+        }
+    }
+
+    private func appendChain(_ text: String, into result: inout ParsedDetail) {
+        let parts = text.components(separatedBy: ", then ")
+        for part in parts {
+            var cleaned = part.trimmingCharacters(in: .whitespaces)
+            if cleaned.lowercased().hasPrefix("then ") { cleaned = String(cleaned.dropFirst(5)) }
+            if cleaned.hasSuffix(".") { cleaned = String(cleaned.dropLast()) }
+            guard !cleaned.isEmpty else { continue }
+            result.segments.append(DetailSegment(label: nil, text: cleaned.prefix(1).uppercased() + cleaned.dropFirst()))
+        }
+    }
+
+    /// Pull "(RPE n)" / "RPE n–m" out of a string into the headline stat.
+    private func stripRPE(_ text: String, into result: inout ParsedDetail) -> String {
+        var cleaned = text
+        if let range = cleaned.range(of: #"\(?RPE\s*([\d–\-]+)\)?"#, options: .regularExpression) {
+            if result.rpe == nil {
+                let matched = String(cleaned[range])
+                result.rpe = matched
+                    .replacingOccurrences(of: "(", with: "")
+                    .replacingOccurrences(of: ")", with: "")
+                    .replacingOccurrences(of: "RPE", with: "")
+                    .trimmingCharacters(in: .whitespaces)
+            }
+            cleaned.removeSubrange(range)
+        }
+        return cleaned
+            .replacingOccurrences(of: "  ", with: " ")
+            .trimmingCharacters(in: CharacterSet(charactersIn: " ,"))
     }
     
     var body: some View {
@@ -116,44 +228,32 @@ struct WorkoutDetailView: View {
                     }
                     
                     // Main Stats - Distance & Pace (or Duration for gym/non-run workouts)
-                    HStack(alignment: .top, spacing: 40) {
+                    HStack(alignment: .top, spacing: 32) {
                         // Distance
                         if let distanceKm = workout.distanceKm {
-                            VStack(spacing: 4) {
-                                Text(distanceKm == floor(distanceKm) ? "\(Int(distanceKm)) km" : String(format: "%.1f km", distanceKm))
-                                    .font(.barlowCondensed(size: 56, weight: .medium))
-                                    .foregroundStyle(.primary)
-                                
-                                Text("Distance")
-                                    .font(.inter(size: 14, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                            }
+                            statBlock(
+                                value: distanceKm == floor(distanceKm) ? "\(Int(distanceKm))" : String(format: "%.1f", distanceKm),
+                                label: "km"
+                            )
                         } else if let duration = workout.durationDisplay {
                             // Show duration prominently when no distance (gym, cross-training)
-                            VStack(spacing: 4) {
-                                Text(duration)
-                                    .font(.barlowCondensed(size: 56, weight: .medium))
-                                    .foregroundStyle(.primary)
-                                
-                                Text("Duration")
-                                    .font(.inter(size: 14, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                            }
+                            statBlock(value: duration, label: "Duration")
                         }
-                        
-                        // Pace
+
+                        // Pace — value without the unit; unit lives in the label
                         if let pace = workout.paceDescription {
-                            VStack(spacing: 4) {
-                                Text(pace)
-                                    .font(.barlowCondensed(size: 56, weight: .medium))
-                                    .foregroundStyle(.primary)
-                                
-                                Text("Pace")
-                                    .font(.inter(size: 14, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                            }
+                            statBlock(
+                                value: pace.replacingOccurrences(of: "/km", with: "").trimmingCharacters(in: .whitespaces),
+                                label: "min/km"
+                            )
+                        }
+
+                        // Effort — parsed from the coach's (RPE n) annotation
+                        if !isGymWorkout, let rpe = parsedDetail.rpe {
+                            statBlock(value: rpe, label: "RPE")
                         }
                     }
+                    .padding(.horizontal, 16)
                     
                     // Workout Details Card
                     if isGymWorkout {
@@ -194,39 +294,8 @@ struct WorkoutDetailView: View {
                             .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
                             .padding(.horizontal, 16)
                         }
-                    } else if !workoutSteps.isEmpty || (workout.details != nil && !workout.details!.isEmpty) {
-                        // Running: show workout steps with bold action keywords
-                        VStack(alignment: .leading, spacing: 12) {
-                            // Header
-                            HStack(spacing: 8) {
-                                TreadmillIconView(size: 20, color: .primary)
-
-                                Text("Workout Details")
-                                    .font(.interSemibold(15))
-                                    .foregroundStyle(.primary)
-                            }
-
-                            // Workout steps with bold first phrase
-                            if workoutSteps.count > 1 {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    ForEach(Array(workoutSteps.enumerated()), id: \.offset) { _, step in
-                                        formattedRunStep(step)
-                                    }
-                                }
-                            } else if let details = workout.details {
-                                Text(details)
-                                    .font(.inter(size: 14, weight: .regular))
-                                    .foregroundStyle(.secondary)
-                                    .lineSpacing(3)
-                                    .multilineTextAlignment(.leading)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(16)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
-                        .padding(.horizontal, 16)
+                    } else if !parsedDetail.isEmpty {
+                        runDetailCard(parsedDetail)
                     }
                     
                     // Workout Results Card (for completed workouts with actual data)
@@ -424,28 +493,101 @@ struct WorkoutDetailView: View {
         }
     }
 
-    // MARK: - Formatted Run Step
+    // MARK: - Stat Block
 
-    @ViewBuilder
-    private func formattedRunStep(_ step: String) -> some View {
-        // Bold the action keyword at the start (e.g., "Warm up", "Run", "Cool down")
-        // Split on first occurrence of "for", "at", or a digit to separate action from details
-        if let range = step.range(of: #"^(.+?)\s+(for |at |@|\d)"#, options: .regularExpression) {
-            let actionEnd = step[range].dropLast(1) // remove the matched separator char
-            let action = String(actionEnd).trimmingCharacters(in: .whitespaces)
-            let rest = String(step[actionEnd.endIndex...]).trimmingCharacters(in: .whitespaces)
-            (Text(action + " ").font(.inter(size: 14, weight: .semibold)).foregroundColor(.primary)
-             + Text(rest).font(.inter(size: 14, weight: .regular)).foregroundColor(.secondary))
-                .lineSpacing(2)
-                .multilineTextAlignment(.leading)
-        } else {
-            // No clear split point — bold the whole step
-            Text(step)
-                .font(.inter(size: 14, weight: .semibold))
+    private func statBlock(value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.barlowCondensed(size: 52, weight: .medium))
                 .foregroundStyle(.primary)
-                .lineSpacing(2)
-                .multilineTextAlignment(.leading)
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+
+            Text(label)
+                .font(.inter(size: 13, weight: .regular))
+                .foregroundStyle(.secondary)
         }
+    }
+
+    // MARK: - Run Detail Card
+
+    private func runDetailCard(_ detail: ParsedDetail) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Session structure — every row formatted identically
+            if !detail.segments.isEmpty {
+                HStack(spacing: 8) {
+                    TreadmillIconView(size: 20, color: .primary)
+                    Text("Session")
+                        .font(.interSemibold(15))
+                        .foregroundStyle(.primary)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(Array(detail.segments.enumerated()), id: \.element.id) { index, segment in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            if let label = segment.label {
+                                Circle()
+                                    .fill(workout.typeColor)
+                                    .frame(width: 6, height: 6)
+                                    .offset(y: -2)
+                                (Text(label + "  ").font(.inter(size: 14, weight: .semibold)).foregroundColor(.primary)
+                                 + Text(segment.text).font(.inter(size: 14, weight: .regular)).foregroundColor(.secondary))
+                                    .lineSpacing(2)
+                            } else {
+                                Text("\(index + 1)")
+                                    .font(.barlowCondensed(size: 13, weight: .semibold))
+                                    .foregroundStyle(workout.typeColor)
+                                    .frame(width: 16, height: 16)
+                                    .background(Circle().fill(workout.typeColor.opacity(0.15)))
+                                Text(segment.text)
+                                    .font(.inter(size: 14, weight: .regular))
+                                    .foregroundStyle(.primary)
+                                    .lineSpacing(2)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fueling strip
+            if let fuel = detail.fuel {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color.orange)
+                    (Text("Fuel  ").font(.inter(size: 13, weight: .semibold)).foregroundColor(.primary)
+                     + Text(fuel).font(.inter(size: 13, weight: .regular)).foregroundColor(.secondary))
+                        .lineSpacing(2)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            // Coach's note
+            if let note = detail.note {
+                if !detail.segments.isEmpty || detail.fuel != nil {
+                    Divider()
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: "quote.opening")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Color.stridePrimary)
+                    Text(note)
+                        .font(.inter(size: 14, weight: .regular))
+                        .foregroundStyle(.secondary)
+                        .lineSpacing(3)
+                        .multilineTextAlignment(.leading)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Result Helpers
