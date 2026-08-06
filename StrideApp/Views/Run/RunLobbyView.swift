@@ -76,6 +76,20 @@ struct RunLobbyView: View {
         }
     }
 
+    /// Today's planned run when it's already done — drives the "in the books" state.
+    private var completedTodaysWorkout: Workout? {
+        guard let plan = plans.first,
+              let currentWeek = plan.currentWeek else { return nil }
+        return currentWeek.sortedWorkouts.first { workout in
+            workout.isToday
+            && workout.isCompleted
+            && workout.workoutType != .rest
+            && workout.workoutType != .gym
+            && workout.workoutType != .crossTraining
+            && workout.workoutType != .mobility
+        }
+    }
+
     private var canStart: Bool {
         if runMode == .treadmill {
             return isConnected
@@ -105,12 +119,18 @@ struct RunLobbyView: View {
                         .padding(.top, 22)
                 }
 
+                // Today's session already done — celebrate instead of re-offering it
+                if todaysWorkout == nil, let done = completedTodaysWorkout {
+                    completedTodayCard(done)
+                        .padding(.top, 20)
+                }
+
                 if selectedTab == .todaysWorkout {
                     todaysWorkoutContent
                         .padding(.top, 20)
                 } else {
                     freeRunContent
-                        .padding(.top, 24)
+                        .padding(.top, completedTodaysWorkout != nil ? 16 : 24)
                 }
 
                 Spacer()
@@ -228,6 +248,53 @@ struct RunLobbyView: View {
     }
 
     // MARK: - Today's Workout Content
+
+    // MARK: - Completed Today Card
+
+    private func completedTodayCard(_ workout: Workout) -> some View {
+        VStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.15))
+                    .frame(width: 52, height: 52)
+                Image(systemName: "checkmark")
+                    .font(.system(size: 24, weight: .bold))
+                    .foregroundStyle(.green)
+            }
+
+            Text("Today's session is in the books")
+                .font(.inter(size: 18, weight: .semibold))
+
+            Text(completedSummary(for: workout))
+                .font(.inter(size: 14, weight: .medium))
+                .foregroundStyle(.secondary)
+
+            Text("Rest up for tomorrow — or log a bonus free run below.")
+                .font(.inter(size: 12.5, weight: .regular))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+        .padding(.horizontal, 16)
+        .background(Color.green.opacity(0.06))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.green.opacity(0.25), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private func completedSummary(for workout: Workout) -> String {
+        var parts: [String] = [workout.title]
+        if let km = workout.actualDistanceKm ?? workout.distanceKm {
+            parts.append(km == floor(km) ? "\(Int(km)) km" : String(format: "%.1f km", km))
+        }
+        if let pace = workout.actualPaceDisplay {
+            parts.append(pace)
+        }
+        return parts.joined(separator: "  ·  ")
+    }
 
     private var todaysWorkoutContent: some View {
         VStack(spacing: 18) {

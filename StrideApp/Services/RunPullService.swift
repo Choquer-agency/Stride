@@ -70,8 +70,70 @@ final class RunPullService {
             changed = true
         }
 
+        // Self-heal: any local run history without its planned-workout checkmark
+        // (covers timezone edge cases and runs pulled before this pass existed).
+        reconcileCompletions(context: context, calendar: calendar)
+
         if changed { try? context.save() }
         UserDefaults.standard.set(Array(applied), forKey: appliedKey)
+    }
+
+    /// Match every recent RunLog to an uncompleted planned workout on the same
+    /// (or adjacent — timezone tolerance) calendar day and check it off.
+    private func reconcileCompletions(context: ModelContext, calendar: Calendar) {
+        let cutoff = calendar.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        let logs = ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
+            .filter { $0.completedAt >= cutoff && !$0.isFreeRun }
+
+        let planDescriptor = FetchDescriptor<TrainingPlan>(
+            predicate: #Predicate<TrainingPlan> { !$0.isArchived },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        guard let plan = (try? context.fetch(planDescriptor))?.first else { return }
+        let workouts = plan.weeks.flatMap { $0.workouts }
+
+        var didChange = false
+        for log in logs {
+            let match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
+                                         in: workouts, calendar: calendar)
+            guard let workout = match else { continue }
+            workout.isCompleted = true
+            workout.completedAt = log.completedAt
+            workout.actualDistanceKm = log.distanceKm
+            workout.actualDurationSeconds = log.durationSeconds
+            workout.actualAvgPaceSecPerKm = log.avgPaceSecPerKm
+            workout.completionScore = log.completionScore
+            if let splits = log.kmSplitsJSON { workout.kmSplitsJSON = splits }
+            if let rating = log.feedbackRating { workout.feedbackRating = rating }
+            didChange = true
+        }
+        if didChange { try? context.save() }
+    }
+
+    private func bestWorkoutMatch(
+        for date: Date,
+        title: String?,
+        in workouts: [Workout],
+        calendar: Calendar
+    ) -> Workout? {
+        func candidates(dayOffset: Int) -> [Workout] {
+            guard let target = calendar.date(byAdding: .day, value: dayOffset, to: date) else { return [] }
+            return workouts.filter { workout in
+                calendar.isDate(workout.date, inSameDayAs: target)
+                    && !workout.isCompleted
+                    && workout.workoutType != .rest
+                    && workout.workoutType != .gym
+                    && workout.workoutType != .crossTraining
+                    && workout.workoutType != .mobility
+            }
+        }
+        // Same day first; then ±1 day for UTC/local drift, preferring title matches
+        for offset in [0, 1, -1] {
+            let pool = candidates(dayOffset: offset)
+            if let titled = pool.first(where: { $0.title == title }) { return titled }
+            if offset == 0, let any = pool.first { return any }
+        }
+        return nil
     }
 
     private func markPlannedWorkoutComplete(
