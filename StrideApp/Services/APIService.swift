@@ -84,6 +84,8 @@ class APIService: ObservableObject {
         let url = URL(string: "\(baseURL)/api/generate-plan")!
 
         var urlRequest = URLRequest(url: url)
+        // Generous idle timeout — the coach thinks before the first token streams.
+        urlRequest.timeoutInterval = 300
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &urlRequest)
@@ -153,6 +155,8 @@ class APIService: ObservableObject {
         let url = URL(string: "\(baseURL)/api/edit-plan")!
 
         var urlRequest = URLRequest(url: url)
+        // Generous idle timeout — the coach thinks before the first token streams.
+        urlRequest.timeoutInterval = 300
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &urlRequest)
@@ -220,6 +224,8 @@ class APIService: ObservableObject {
         let url = URL(string: "\(baseURL)/api/analyze-performance")!
 
         var urlRequest = URLRequest(url: url)
+        // Generous idle timeout — the coach thinks before the first token streams.
+        urlRequest.timeoutInterval = 300
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeader(to: &urlRequest)

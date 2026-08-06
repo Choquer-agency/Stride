@@ -1,7 +1,45 @@
+import asyncio
 import json
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+
+
+async def _with_heartbeat(chunks, interval: float = 10.0):
+    """
+    Re-yield LLM text chunks, emitting SSE comment heartbeats (": ping") while
+    the model is silent. Fable/Opus think before the first visible token —
+    sometimes for minutes — and a silent connection trips client idle timeouts.
+    SSE comments are ignored by the iOS parser (it only reads "data: " lines).
+
+    Yields ("chunk", text) or ("ping", None); raises the producer's exception.
+    """
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def pump():
+        try:
+            async for c in chunks:
+                await queue.put(("chunk", c))
+            await queue.put(("done", None))
+        except Exception as exc:
+            await queue.put(("error", exc))
+
+    task = asyncio.create_task(pump())
+    try:
+        while True:
+            try:
+                kind, payload = await asyncio.wait_for(queue.get(), timeout=interval)
+            except asyncio.TimeoutError:
+                yield ("ping", None)
+                continue
+            if kind == "chunk":
+                yield ("chunk", payload)
+            elif kind == "done":
+                return
+            else:
+                raise payload
+    finally:
+        task.cancel()
 
 from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, PostRunCoachRequest, PreRunCoachRequest, PreRunCoachResponse, ConflictAnalysisResponse
 from app.models.user import User
@@ -80,7 +118,7 @@ async def generate_training_plan(request: TrainingPlanRequest, current_user: Use
     async def generate():
         full_output: list[str] = []
         try:
-            async for chunk in client.generate_plan_stream(
+            llm_stream = client.generate_plan_stream(
                 system_prompt,
                 user_prompt,
                 name="generate-plan",
@@ -88,7 +126,11 @@ async def generate_training_plan(request: TrainingPlanRequest, current_user: Use
                 session_id=session_id,
                 metadata={"race_type": request.race_type.value, "fitness_level": request.fitness_level.value},
                 model=PLAN_MODEL,
-            ):
+            )
+            async for kind, chunk in _with_heartbeat(llm_stream):
+                if kind == "ping":
+                    yield ": ping\n\n"
+                    continue
                 full_output.append(chunk)
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
             # Persist the generated plan server-side (never breaks the stream)
@@ -155,7 +197,7 @@ async def edit_training_plan(request: PlanEditRequest, current_user: User = Depe
     async def generate():
         full_output: list[str] = []
         try:
-            async for chunk in client.generate_plan_stream(
+            llm_stream = client.generate_plan_stream(
                 system_prompt,
                 user_prompt,
                 name="edit-plan",
@@ -163,7 +205,11 @@ async def edit_training_plan(request: PlanEditRequest, current_user: User = Depe
                 session_id=session_id,
                 metadata={"race_type": request.race_type.value},
                 model=PLAN_EDIT_MODEL,
-            ):
+            )
+            async for kind, chunk in _with_heartbeat(llm_stream):
+                if kind == "ping":
+                    yield ": ping\n\n"
+                    continue
                 full_output.append(chunk)
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
             await plan_store.save_plan_own_session(
@@ -230,7 +276,7 @@ async def analyze_performance(request: PerformanceAnalysisRequest, current_user:
 
     async def generate():
         try:
-            async for chunk in client.generate_plan_stream(
+            llm_stream = client.generate_plan_stream(
                 system_prompt,
                 user_prompt,
                 name="analyze-performance",
@@ -241,7 +287,11 @@ async def analyze_performance(request: PerformanceAnalysisRequest, current_user:
                     "weeks_into_plan": request.weeks_into_plan,
                 },
                 model=PLAN_ANALYSIS_MODEL,
-            ):
+            )
+            async for kind, chunk in _with_heartbeat(llm_stream):
+                if kind == "ping":
+                    yield ": ping\n\n"
+                    continue
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
         except Exception as e:
