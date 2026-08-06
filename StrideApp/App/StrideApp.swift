@@ -76,7 +76,8 @@ struct StrideApp: App {
     /// active plan's weeks from rawPlanContent with the fixed parser,
     /// preserving completed-workout data by calendar date.
     private func rebuildPlansForTitleFixIfNeeded(container: ModelContainer) {
-        guard !UserDefaults.standard.bool(forKey: "hasRunPlanReparseMigrationV2") else { return }
+        // V3: also fixes hyphenated titles ("Medium-Long Run") that V2 split mid-word.
+        guard !UserDefaults.standard.bool(forKey: "hasRunPlanReparseMigrationV3") else { return }
 
         let context = ModelContext(container)
         do {
@@ -132,7 +133,7 @@ struct StrideApp: App {
             }
 
             try context.save()
-            UserDefaults.standard.set(true, forKey: "hasRunPlanReparseMigrationV2")
+            UserDefaults.standard.set(true, forKey: "hasRunPlanReparseMigrationV3")
         } catch {
             #if DEBUG
             print("Plan title-fix reparse migration failed: \(error)")

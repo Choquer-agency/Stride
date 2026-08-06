@@ -491,8 +491,9 @@ class PlanParser {
         // Common formats: "Easy Run – 8 km", "Threshold – Build lactate tolerance",
         // "Long Run with MP Block — Total: 26 km", "Rest"
 
-        // Split on en-dash, em-dash, or hyphen (the coach writes em-dashes)
-        let dashPattern = /^([^–—\-]+?)\s*[–—\-]/
+        // Split on a dash SURROUNDED BY SPACES (en/em/hyphen). Titles like
+        // "Medium-Long Run" contain unspaced hyphens that must not split.
+        let dashPattern = /^(.+?)\s+[–—\-]\s/
         if let match = description.firstMatch(of: dashPattern) {
             let title = String(match.1).trimmingCharacters(in: .whitespaces)
             if !title.isEmpty && title.count < 50 {

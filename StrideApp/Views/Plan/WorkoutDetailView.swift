@@ -120,9 +120,9 @@ struct WorkoutDetailView: View {
     /// and coaching sentences.
     private func ingestProse(_ line: String, into result: inout ParsedDetail) {
         var text = line
-        // Strip leading "Title —" (any dash flavor)
-        if let dashRange = text.range(of: #"^[^–—\-:]{1,60}[–—\-]\s*"#, options: .regularExpression),
-           text[dashRange].contains(where: { "–—-".contains($0) }) {
+        // Strip leading "Title — " (dash must be space-surrounded so hyphenated
+        // titles like "Medium-Long Run" don't split mid-word)
+        if let dashRange = text.range(of: #"^.{1,60}?\s[–—\-]\s+"#, options: .regularExpression) {
             text = String(text[dashRange.upperBound...])
         }
         for rawSentence in text.components(separatedBy: ". ") {
@@ -294,7 +294,7 @@ struct WorkoutDetailView: View {
                             .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
                             .padding(.horizontal, 16)
                         }
-                    } else if !parsedDetail.isEmpty {
+                    } else if !parsedDetail.isEmpty || effectiveFuel(for: parsedDetail) != nil {
                         runDetailCard(parsedDetail)
                     }
                     
@@ -509,6 +509,21 @@ struct WorkoutDetailView: View {
         }
     }
 
+    /// Every long run carries fueling guidance: the coach's own line when
+    /// present, otherwise a sensible default scaled to the distance.
+    private func effectiveFuel(for detail: ParsedDetail) -> String? {
+        if let fuel = detail.fuel { return fuel }
+        guard workout.workoutType == .longRun else { return nil }
+        let km = workout.distanceKm ?? 0
+        if km >= 20 {
+            return "40–60 g carbs per hour from the start, plus fluids at every opportunity."
+        } else if km >= 14 {
+            return "30–60 g carbs per hour after the first hour; carry fluids."
+        } else {
+            return "Carry fluids; a gel is optional past the hour mark."
+        }
+    }
+
     // MARK: - Run Detail Card
 
     private func runDetailCard(_ detail: ParsedDetail) -> some View {
@@ -549,8 +564,8 @@ struct WorkoutDetailView: View {
                 }
             }
 
-            // Fueling strip
-            if let fuel = detail.fuel {
+            // Fueling strip — always present on long runs
+            if let fuel = effectiveFuel(for: detail) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 12, weight: .semibold))
@@ -567,7 +582,7 @@ struct WorkoutDetailView: View {
 
             // Coach's note
             if let note = detail.note {
-                if !detail.segments.isEmpty || detail.fuel != nil {
+                if !detail.segments.isEmpty || effectiveFuel(for: detail) != nil {
                     Divider()
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
