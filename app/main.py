@@ -156,6 +156,8 @@ async def startup():
         # v2 Phase 2: pin race type for cron-driven prompts (no iOS context at cron time)
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS current_race_type VARCHAR(20) DEFAULT 'marathon'"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS checkin_day_of_week INTEGER"))
+        # Widen rep-range display column (seed data has values up to 17 chars)
+        await conn.execute(text("ALTER TABLE strength_exercises ALTER COLUMN default_rep_range TYPE VARCHAR(32)"))
 
         # v2 Phase 4: enforce one morning wellness check-in per user per date
         # (additional pre_run / post_run / manual entries on the same date are allowed).

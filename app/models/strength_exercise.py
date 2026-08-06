@@ -37,7 +37,7 @@ class StrengthExercise(Base):
     equipment = Column(String(24), nullable=False)             # Equipment value
     youtube_demo_url = Column(String(500), nullable=True)
     default_set_count = Column(SmallInteger, nullable=False, default=3)
-    default_rep_range = Column(String(16), nullable=False, default="8-12")  # display only
+    default_rep_range = Column(String(32), nullable=False, default="8-12")  # display only
 
     __table_args__ = (
         Index("ix_strength_exercises_category", "category"),
