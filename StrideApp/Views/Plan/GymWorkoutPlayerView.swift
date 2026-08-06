@@ -16,6 +16,16 @@ struct GymWorkoutPlayerView: View {
     @State private var showAbandonConfirm = false
     @State private var sessionStart = Date()
 
+    /// Timed stages run full brand-red with white text.
+    private var isRedMode: Bool {
+        guard stageIndex < stages.count else { return false }
+        if case .timed = stages[stageIndex].kind { return true }
+        return false
+    }
+
+    private var fgPrimary: Color { isRedMode ? .white : .primary }
+    private var fgSecondary: Color { isRedMode ? .white.opacity(0.8) : .secondary }
+
     // Weight adjustments this session: exercise name → chosen kg
     @State private var weights: [String: Double] = [:]
     @State private var dragAccumulator: CGFloat = 0
@@ -39,7 +49,8 @@ struct GymWorkoutPlayerView: View {
             Spacer()
             footer
         }
-        .background(Color(.systemBackground))
+        .background((isRedMode ? Color.stridePrimary : Color(.systemBackground)).ignoresSafeArea())
+        .animation(.easeInOut(duration: 0.25), value: isRedMode)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
             stages = GymSessionModel.stages(fromPrescription: workout.details ?? workout.title)
@@ -59,37 +70,26 @@ struct GymWorkoutPlayerView: View {
     // MARK: - Header / Footer
 
     private var header: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Button {
-                    stageIndex >= stages.count ? dismiss() : (showAbandonConfirm = true)
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .padding(10)
-                }
-                Spacer()
-                if stageIndex < stages.count {
-                    Text(stages[stageIndex].sectionLabel)
-                        .font(.inter(size: 12, weight: .semibold))
-                        .foregroundStyle(Color.stridePrimary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(Color.stridePrimary.opacity(0.1)))
-                }
-                Spacer()
-                Text(stageIndex < stages.count ? "\(stageIndex + 1)/\(stages.count)" : "Done")
-                    .font(.barlowCondensed(size: 16, weight: .medium))
-                    .foregroundStyle(.secondary)
+        HStack(spacing: 12) {
+            Button {
+                stageIndex >= stages.count ? dismiss() : (showAbandonConfirm = true)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(fgSecondary)
                     .padding(10)
             }
-            .padding(.horizontal, 8)
 
             ProgressView(value: Double(min(stageIndex, stages.count)), total: Double(max(stages.count, 1)))
-                .tint(.stridePrimary)
-                .padding(.horizontal, 20)
+                .tint(isRedMode ? .white : .stridePrimary)
+                .frame(maxWidth: .infinity)
+
+            Text(stageIndex < stages.count ? "\(stageIndex + 1)/\(stages.count)" : "Done")
+                .font(.barlowCondensed(size: 18, weight: .medium))
+                .foregroundStyle(fgSecondary)
+                .padding(10)
         }
+        .padding(.horizontal, 8)
         .padding(.top, 8)
     }
 
@@ -98,16 +98,19 @@ struct GymWorkoutPlayerView: View {
         if stageIndex < stages.count {
             let stage = stages[stageIndex]
             HStack(spacing: 12) {
-                if stageIndex > 0 {
+                // Back only when the PREVIOUS stage is rep/manual work (an
+                // accidental Done is recoverable; a finished timer is not).
+                if canGoBack {
                     Button {
                         timer?.invalidate(); timerRunning = false
                         stageIndex -= 1
                         prepareStage()
                     } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .frame(width: 54, height: 54)
-                            .background(Color(.systemGray6))
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(fgPrimary)
+                            .frame(width: 56, height: 56)
+                            .background(isRedMode ? Color.white.opacity(0.2) : Color(.systemGray6))
                             .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
@@ -118,23 +121,27 @@ struct GymWorkoutPlayerView: View {
                         timerRunning ? pauseTimer() : startTimer()
                     } label: {
                         Text(timerRunning ? "Pause" : (remainingSeconds == stageSeconds(stage) ? "Start Timer" : "Resume"))
-                            .font(.interSemibold(17))
+                            .font(.interSemibold(19))
+                            .foregroundColor(.stridePrimary)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 18)
+                            .background(Color.white)
+                            .clipShape(Capsule())
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.stridePrimary)
+                    .buttonStyle(.plain)
                 } else {
                     Button {
                         advance()
                     } label: {
                         Text("Done")
-                            .font(.interSemibold(17))
+                            .font(.interSemibold(19))
+                            .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
+                            .padding(.vertical, 18)
+                            .background(Color.stridePrimary)
+                            .clipShape(Capsule())
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.stridePrimary)
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 20)
@@ -159,49 +166,59 @@ struct GymWorkoutPlayerView: View {
 
     @ViewBuilder
     private func stageContent(_ stage: GymSessionModel.Stage) -> some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 16) {
+            Text(stage.sectionLabel)
+                .font(.inter(size: 14, weight: .semibold))
+                .foregroundColor(.stridePrimary)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(isRedMode ? Color.white : Color.stridePrimary.opacity(0.1)))
+
             if let setLabel = stage.setLabel {
                 Text(setLabel)
-                    .font(.inter(size: 13, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .kerning(1.2)
+                    .font(.inter(size: 16, weight: .semibold))
+                    .foregroundStyle(fgSecondary)
+                    .kerning(1.4)
             }
 
             Text(stage.exerciseName)
-                .font(.inter(size: 28, weight: .semibold))
+                .font(.inter(size: 34, weight: .semibold))
+                .foregroundStyle(fgPrimary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 
             if let side = stage.sideLabel {
                 Text(side)
-                    .font(.inter(size: 13, weight: .bold))
-                    .kerning(1.5)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Color.stridePrimary))
+                    .font(.inter(size: 15, weight: .bold))
+                    .kerning(1.6)
+                    .foregroundStyle(isRedMode ? Color.stridePrimary : .white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(isRedMode ? Color.white : Color.stridePrimary))
             }
 
             switch stage.kind {
             case .timed:
                 Text(formatCountdown(remainingSeconds))
-                    .font(.barlowCondensed(size: 110, weight: .medium))
+                    .font(.barlowCondensed(size: 132, weight: .medium))
                     .monospacedDigit()
-                    .foregroundStyle(remainingSeconds <= 5 && timerRunning ? Color.stridePrimary : .primary)
+                    .foregroundStyle(fgPrimary)
+                    .scaleEffect(remainingSeconds <= 5 && timerRunning ? 1.06 : 1.0)
+                    .animation(.easeInOut(duration: 0.3), value: remainingSeconds <= 5 && timerRunning)
 
             case .manual(let detail):
                 Text(detail)
-                    .font(.inter(size: 20, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .font(.inter(size: 24, weight: .medium))
+                    .foregroundStyle(fgSecondary)
                 Text("Tap Done when finished")
-                    .font(.inter(size: 13))
-                    .foregroundStyle(.tertiary)
+                    .font(.inter(size: 15))
+                    .foregroundStyle(fgSecondary.opacity(0.7))
 
             case .reps(let repsText, let weightKg, let suffix):
                 if !repsText.isEmpty {
                     Text(repsText)
-                        .font(.inter(size: 18, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        .font(.inter(size: 22, weight: .medium))
+                        .foregroundStyle(fgSecondary)
                 }
                 if weightKg != nil {
                     weightControl(for: stage, suffix: suffix)
@@ -227,7 +244,7 @@ struct GymWorkoutPlayerView: View {
             .buttonStyle(.plain)
 
             Text("\(current == floor(current) ? String(Int(current)) : String(format: "%.1f", current)) \(suffix)")
-                .font(.barlowCondensed(size: 76, weight: .medium))
+                .font(.barlowCondensed(size: 92, weight: .medium))
                 .monospacedDigit()
                 .contentTransition(.numericText())
 
@@ -302,6 +319,13 @@ struct GymWorkoutPlayerView: View {
     private func stageSeconds(_ stage: GymSessionModel.Stage) -> Int {
         if case .timed(let seconds) = stage.kind { return seconds }
         return 0
+    }
+
+    /// Back is offered only when the previous stage was rep/manual work.
+    private var canGoBack: Bool {
+        guard stageIndex > 0, stageIndex <= stages.count - 1 else { return false }
+        if case .timed = stages[stageIndex - 1].kind { return false }
+        return true
     }
 
     private func formatCountdown(_ seconds: Int) -> String {
