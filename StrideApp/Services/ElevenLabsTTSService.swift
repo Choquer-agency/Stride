@@ -27,13 +27,8 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
     /// whose delegate callbacks never fired — leaving music permanently ducked.
     static let shared = ElevenLabsTTSService()
 
-    private let apiKey = "sk_6c250411f6eed3dafe6b56c013dd12e26160505c379286af"
-
     /// ElevenLabs voice ID — swap this to change voices.
     var voiceId: String = "fDeOZu1sNd7qahm2fV4k"
-
-    /// Model to use. "eleven_multilingual_v2" for quality, "eleven_flash_v2_5" for speed.
-    private let modelId = "eleven_flash_v2_5"
 
     private var audioPlayer: AVAudioPlayer?
     private var nextPlayer: AVAudioPlayer?  // Pre-prepared for gapless transition
@@ -49,6 +44,9 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
     /// How early (in seconds) to start the next clip before current finishes.
     /// This trims the trailing silence baked into each MP3 clip.
     private let overlapAmount: TimeInterval = 0.12
+    /// Serializes clip resolution so a slow network response cannot let a later
+    /// announcement jump ahead of an earlier one.
+    private var preloadTask: Task<Void, Never>?
 
     /// Disk cache directory for dynamically fetched audio
     private lazy var cacheDirectory: URL = {
@@ -129,12 +127,15 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
         guard !clips.isEmpty else { onComplete?(); return }
         print("[ElevenLabs] Preloading sequence: \(clips.count) clips")
 
-        Task {
+        let previousTask = preloadTask
+        preloadTask = Task { [weak self] in
+            _ = await previousTask?.value
+            guard let self else { return }
             // Resolve all clips to Data on a background thread
             var audioDataList: [Data] = []
 
             for clip in clips {
-                if let data = await resolveClip(clip) {
+                if let data = await self.resolveClip(clip) {
                     audioDataList.append(data)
                 }
             }
@@ -154,8 +155,8 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
                 }
                 // onStart fires on the first audible play only (ignored if already speaking).
                 self.pendingOnStart = onStart ?? self.pendingOnStart
-                preloadedQueue.append(contentsOf: audioDataList)
-                playNextPreloaded()
+                self.preloadedQueue.append(contentsOf: audioDataList)
+                self.playNextPreloaded()
             }
         }
     }
@@ -181,6 +182,8 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
         overlapTimer?.invalidate()
         overlapTimer = nil
         preloadedQueue.removeAll()
+        preloadTask?.cancel()
+        preloadTask = nil
         audioPlayer?.stop()
         audioPlayer = nil
         nextPlayer = nil
@@ -383,26 +386,23 @@ final class ElevenLabsTTSService: NSObject, AVAudioPlayerDelegate {
         ttsLog.info("Voice cache cleared")
     }
 
-    // MARK: - ElevenLabs API
+    // MARK: - Server-side Voice API
 
     private func fetchSpeech(text: String) async throws -> Data {
-        let url = URL(string: "https://api.elevenlabs.io/v1/text-to-speech/\(voiceId)")!
+        let url = URL(string: "\(APIConfiguration.serverURL)/api/voice/speech")!
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "xi-api-key")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
+        let token = await MainActor.run { AuthService.shared.currentToken }
+        if let token {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         let body: [String: Any] = [
             "text": text,
-            "model_id": modelId,
-            "voice_settings": [
-                "stability": 0.35,
-                "similarity_boost": 0.8,
-                "style": 0.3,
-                "use_speaker_boost": true
-            ]
+            "voice_id": voiceId
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 

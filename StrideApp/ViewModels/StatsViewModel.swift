@@ -58,26 +58,15 @@ class StatsViewModel: ObservableObject {
     }
 
     // MARK: - Static Helper for No-Plan Mode
-    /// Calculate weekly distance for the current calendar week (Sunday-Saturday) from RunLogs
+    /// Calculate weekly distance using the user's locale-aware calendar week.
     static func weeklyDistanceForCurrentCalendarWeek(runLogs: [RunLog]) -> WeeklyDistanceStats {
         let calendar = Calendar.current
-        let today = Date()
-
-        let weekday = calendar.component(.weekday, from: today)
-        let daysFromSunday = (weekday == 1) ? 0 : weekday - 1
-        guard let sunday = calendar.date(byAdding: .day, value: -daysFromSunday, to: today),
-              let saturday = calendar.date(byAdding: .day, value: 6, to: sunday) else {
+        guard let interval = calendar.dateInterval(of: .weekOfYear, for: Date()) else {
             return WeeklyDistanceStats(completed: 0, planned: 0, isNoPlanMode: true)
         }
 
-        let sundayStart = calendar.startOfDay(for: sunday)
-        let saturdayEnd = calendar.startOfDay(for: saturday).addingTimeInterval(86400 - 1)
-
         let completed = runLogs
-            .filter { runLog in
-                let d = calendar.startOfDay(for: runLog.completedAt)
-                return d >= sundayStart && d <= saturdayEnd
-            }
+            .filter { $0.isValidForStats && interval.contains($0.completedAt) }
             .reduce(0.0) { $0 + $1.distanceKm }
 
         return WeeklyDistanceStats(completed: completed, planned: 0, isNoPlanMode: true)
@@ -104,9 +93,10 @@ class StatsViewModel: ObservableObject {
             return WeeklyDistanceStats(completed: 0, planned: 0)
         }
 
-        let completed = week.workouts
-            .filter { $0.isCompleted && $0.workoutType != .rest }
-            .reduce(0.0) { $0 + ($1.effectiveDistanceKm ?? 0) }
+        let interval = Calendar.current.dateInterval(of: .weekOfYear, for: Date())
+        let completed = runLogs
+            .filter { $0.isValidForStats && (interval?.contains($0.completedAt) ?? false) }
+            .reduce(0.0) { $0 + $1.distanceKm }
 
         let planned = week.workouts
             .filter { $0.workoutType != .rest }
@@ -124,9 +114,13 @@ class StatsViewModel: ObservableObject {
 
         let previousWeek = plan.sortedWeeks[currentWeekIndex - 1]
 
-        let completed = previousWeek.workouts
-            .filter { $0.isCompleted && $0.workoutType != .rest }
-            .reduce(0.0) { $0 + ($1.effectiveDistanceKm ?? 0) }
+        let calendar = Calendar.current
+        let currentInterval = calendar.dateInterval(of: .weekOfYear, for: Date())
+        let previousDate = currentInterval.flatMap { calendar.date(byAdding: .second, value: -1, to: $0.start) }
+        let previousInterval = previousDate.flatMap { calendar.dateInterval(of: .weekOfYear, for: $0) }
+        let completed = runLogs
+            .filter { $0.isValidForStats && (previousInterval?.contains($0.completedAt) ?? false) }
+            .reduce(0.0) { $0 + $1.distanceKm }
 
         let planned = previousWeek.workouts
             .filter { $0.workoutType != .rest }
@@ -149,6 +143,7 @@ class StatsViewModel: ObservableObject {
     }
 
     static func rolling4WeekAverage(from runLogs: [RunLog]) -> Double {
+        let runLogs = runLogs.filter(\.isValidForStats)
         let calendar = Calendar.current
         let today = Date()
 
@@ -177,6 +172,7 @@ class StatsViewModel: ObservableObject {
     }
 
     static func yearToDateDistance(from runLogs: [RunLog]) -> Double {
+        let runLogs = runLogs.filter(\.isValidForStats)
         let calendar = Calendar.current
         let currentYear = calendar.component(.year, from: Date())
 
@@ -355,14 +351,14 @@ class StatsViewModel: ObservableObject {
     // MARK: - Static Helpers (RunLog-based)
 
     static func longestRunEver(from runLogs: [RunLog]) -> Double {
-        runLogs.map { $0.distanceKm }.max() ?? 0
+        runLogs.filter(\.isValidForStats).map { $0.distanceKm }.max() ?? 0
     }
 
     static func highestWeeklyMileage(from runLogs: [RunLog]) -> Double {
         let calendar = Calendar.current
         guard !runLogs.isEmpty else { return 0 }
 
-        let grouped = Dictionary(grouping: runLogs) { runLog in
+        let grouped = Dictionary(grouping: runLogs.filter(\.isValidForStats)) { runLog in
             let components = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: runLog.completedAt)
             return "\(components.yearForWeekOfYear ?? 0)-W\(components.weekOfYear ?? 0)"
         }
@@ -378,7 +374,7 @@ class StatsViewModel: ObservableObject {
         var bestTimeSeconds: Int = Int.max
         var bestDate: Date? = nil
 
-        for runLog in runLogs {
+        for runLog in runLogs where runLog.isValidForStats {
             let splits = runLog.decodedKmSplits
             guard splits.count >= targetKm else { continue }
 

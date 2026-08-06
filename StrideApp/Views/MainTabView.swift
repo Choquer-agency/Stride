@@ -5,20 +5,26 @@ import PostHog
 struct MainTabView: View {
     @State private var selectedTab: Tab = .plan
     @State private var hideTabBar: Bool = false
+
+    // Coach deep links (push taps) presented as sheets over whatever tab is active.
+    @ObservedObject private var deepLinkRouter = DeepLinkRouter.shared
+    @State private var presentedCheckinId: String?
+    @State private var showCheckinFlow = false
+    @State private var presentedReviewEventId: UUID?
+    @State private var showReview = false
+    @State private var showCoachInbox = false
     
     enum Tab: Int {
         case run = 0
         case plan = 1
         case stats = 2
-        case community = 3
-        case profile = 4
+        case profile = 3
 
         var title: String {
             switch self {
             case .run: return "Run"
             case .plan: return "Plan"
             case .stats: return "Stats"
-            case .community: return "Community"
             case .profile: return "Profile"
             }
         }
@@ -38,10 +44,6 @@ struct MainTabView: View {
                     NavigationStack {
                         StatsView(selectedTab: $selectedTab)
                     }
-                case .community:
-                    NavigationStack {
-                        CommunityView()
-                    }
                 case .profile:
                     NavigationStack {
                         ProfileView()
@@ -51,7 +53,7 @@ struct MainTabView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !hideTabBar {
-                    Color.clear.frame(height: 50)
+                    Color.clear.frame(height: 72)
                 }
             }
             .overlay(alignment: .bottom) {
@@ -66,6 +68,44 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, newTab in
             PostHogSDK.shared.capture("tab_switched", properties: ["tab": newTab.title])
         }
+        .onAppear { consumeDeepLinkIfNeeded(deepLinkRouter.pendingLink) }
+        .onChange(of: deepLinkRouter.pendingLink) { _, link in
+            consumeDeepLinkIfNeeded(link)
+        }
+        .fullScreenCover(isPresented: $showCheckinFlow) {
+            WeeklyCheckinFlowView(checkinId: presentedCheckinId)
+        }
+        .sheet(isPresented: $showReview) {
+            if let eventId = presentedReviewEventId {
+                WeeklyReviewCardView(eventId: eventId)
+            }
+        }
+        .sheet(isPresented: $showCoachInbox) {
+            NavigationStack { CoachInboxView() }
+        }
+    }
+
+    /// Consume the coach deep links this tab container owns. Garmin links stay
+    /// with IntegrationsSection; unhandled links remain pending for other views.
+    private func consumeDeepLinkIfNeeded(_ link: DeepLink?) {
+        guard let link else { return }
+        switch link {
+        case .coachCheckin(let checkinId):
+            presentedCheckinId = checkinId
+            showCheckinFlow = true
+            deepLinkRouter.consume()
+        case .coachWeeklyReview(let eventIdString):
+            if let eventId = UUID(uuidString: eventIdString) {
+                presentedReviewEventId = eventId
+                showReview = true
+            }
+            deepLinkRouter.consume()
+        case .coachInbox:
+            showCoachInbox = true
+            deepLinkRouter.consume()
+        default:
+            break
+        }
     }
 }
 
@@ -74,26 +114,23 @@ struct CustomTabBar: View {
     @Binding var selectedTab: MainTabView.Tab
     let screenWidth: CGFloat
     
-    // Proportional sizing (based on 402px Figma frame, widened for 5 tabs)
-    private var pillWidth: CGFloat { screenWidth * 0.90 }
-    private var pillHeight: CGFloat { 62 }
-    private var buttonsWidth: CGFloat { screenWidth * 0.82 }
-    private var bottomOffset: CGFloat { screenWidth * 0.0373 }
-    private var blurHeight: CGFloat { screenWidth * 0.209 }
+    private var pillWidth: CGFloat { min(screenWidth - 32, 430) }
+    private var pillHeight: CGFloat { 64 }
+    private var buttonsWidth: CGFloat { pillWidth - 12 }
+    private var bottomOffset: CGFloat { 8 }
+    private var blurHeight: CGFloat { 92 }
     
     var body: some View {
         ZStack(alignment: .bottom) {
-            // Layer 1: Progressive background blur
-            // Full width, pinned to the very bottom of the screen
             Rectangle()
-                .fill(.regularMaterial)
+                .fill(.thinMaterial)
                 .frame(maxWidth: .infinity)
                 .frame(height: blurHeight)
                 .mask(
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: 0),
-                            .init(color: .black.opacity(0.5), location: 0.4),
+                            .init(color: .black.opacity(0.35), location: 0.45),
                             .init(color: .black, location: 1)
                         ],
                         startPoint: .top,
@@ -101,40 +138,44 @@ struct CustomTabBar: View {
                     )
                 )
             
-            // Layer 2 & 3: Floating pill with brand-color glow shadow
             HStack(spacing: 0) {
                 TabBarButton(
                     tab: .run,
                     selectedTab: $selectedTab,
-                    icon: { StrideLogoView(height: 28, color: $0) },
+                    icon: { color in FlagIconView(size: 23, color: color) },
                     title: "Run"
                 )
                 
                 TabBarButton(
                     tab: .plan,
                     selectedTab: $selectedTab,
-                    icon: { FlagIconView(size: 24, color: $0) },
+                    icon: { color in
+                        Image(systemName: "calendar")
+                            .font(.system(size: 21, weight: .medium))
+                            .foregroundStyle(color)
+                    },
                     title: "Plan"
                 )
                 
                 TabBarButton(
                     tab: .stats,
                     selectedTab: $selectedTab,
-                    icon: { StatsIconView(size: 24, color: $0) },
+                    icon: { color in
+                        Image(systemName: "chart.xyaxis.line")
+                            .font(.system(size: 21, weight: .medium))
+                            .foregroundStyle(color)
+                    },
                     title: "Stats"
-                )
-
-                TabBarButton(
-                    tab: .community,
-                    selectedTab: $selectedTab,
-                    icon: { CommunityIconView(size: 22, color: $0) },
-                    title: "Community"
                 )
 
                 TabBarButton(
                     tab: .profile,
                     selectedTab: $selectedTab,
-                    icon: { ProfileIconView(size: 24, color: $0) },
+                    icon: { color in
+                        Image(systemName: "person")
+                            .font(.system(size: 21, weight: .medium))
+                            .foregroundStyle(color)
+                    },
                     title: "Profile"
                 )
             }
@@ -142,10 +183,11 @@ struct CustomTabBar: View {
             .frame(width: pillWidth, height: pillHeight)
             .background(
                 Capsule()
-                    .fill(Color(.systemBackground))
+                    .fill(.ultraThinMaterial)
             )
+            .overlay(Capsule().stroke(Color.black.opacity(0.06), lineWidth: 1))
             .clipShape(Capsule())
-            .shadow(color: Color.stridePrimary.opacity(0.20), radius: 25, x: 0, y: 4)
+            .shadow(color: Color.black.opacity(0.10), radius: 18, x: 0, y: 6)
             .padding(.bottom, bottomOffset)
         }
         .frame(height: blurHeight)
@@ -170,17 +212,24 @@ struct TabBarButton<Icon: View>: View {
                 selectedTab = tab
             }
         }) {
-            VStack(spacing: 4) {
-                icon(isSelected ? .stridePrimary : .black)
-                    .frame(width: 30, height: 30)
+            VStack(spacing: 3) {
+                icon(isSelected ? .stridePrimary : Color(.secondaryLabel))
+                    .frame(width: 34, height: 32)
+                    .background(
+                        Circle()
+                            .fill(isSelected ? Color.stridePrimary.opacity(0.10) : .clear)
+                            .frame(width: 34, height: 34)
+                    )
                 
                 Text(title)
-                    .font(.inter(size: 12, weight: isSelected ? .medium : .regular))
-                    .foregroundColor(isSelected ? .stridePrimary : .black)
+                    .font(.inter(size: 11, weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? .stridePrimary : Color(.secondaryLabel))
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(PlainButtonStyle())
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

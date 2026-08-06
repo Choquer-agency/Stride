@@ -1,66 +1,99 @@
+import hashlib
 from pathlib import Path
 from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, RaceType, PlanMode
 from app.services.conflict_analyzer import REQUIRED_BENCHMARKS, get_required_benchmarks
-from datetime import timedelta
+from datetime import date, timedelta
+
+# Shared coaching foundation (voice, units, safety) prepended to every coaching prompt.
+FOUNDATION_PROMPT = "_coach_foundation.txt"
+PLAN_QUALITY_PROMPT = "_plan_quality_contract.txt"
+# Plan-building framework (reasoning frame, training vocabulary, periodization,
+# pace-zone derivation, output standards). Composed for plan generation/editing only.
+PLAN_CORE_PROMPT = "coach_plan_core.txt"
 
 
 def get_coach_file(race_type: RaceType, custom_distance_km: float | None = None) -> str:
-    """Route to the correct coach prompt based on race type and custom distance."""
+    """Route to the correct race-specific module based on race type and custom distance."""
     if race_type != RaceType.CUSTOM:
         return {
-            RaceType.FIVE_K: "coach_speed.txt",
-            RaceType.TEN_K: "coach_speed.txt",
-            RaceType.HALF_MARATHON: "coach_half_marathon.txt",
-            RaceType.MARATHON: "coach_marathon.txt",
-        }.get(race_type, "coach_marathon.txt")
+            RaceType.FIVE_K: "race/speed.txt",
+            RaceType.TEN_K: "race/speed.txt",
+            RaceType.HALF_MARATHON: "race/half.txt",
+            RaceType.MARATHON: "race/marathon.txt",
+        }.get(race_type, "race/marathon.txt")
     # Custom: route by distance
     km = custom_distance_km or 42.195
     if km >= 50:
-        return "coach_ultra.txt"
+        return "race/ultra.txt"
     if km >= 35:
-        return "coach_marathon.txt"
+        return "race/marathon.txt"
     if km >= 15:
-        return "coach_half_marathon.txt"
-    return "coach_speed.txt"
+        return "race/half.txt"
+    return "race/speed.txt"
 
 
 class PromptBuilder:
-    """Builds prompts for training plan generation."""
-    
+    """Builds prompts for training plan generation and coaching loops."""
+
     def __init__(self):
         self._prompt_cache: dict[str, str] = {}
+        self._sha_cache: dict[str, str] = {}
         self._prompts_dir = Path(__file__).parent.parent / "prompts"
-    
+
     def _load_prompt(self, filename: str) -> str:
         """Load and cache a prompt file."""
         if filename not in self._prompt_cache:
             prompt_path = self._prompts_dir / filename
             self._prompt_cache[filename] = prompt_path.read_text(encoding="utf-8")
         return self._prompt_cache[filename]
+
+    def compose(self, *filenames: str) -> str:
+        """Concatenate multiple prompt fragments with `\\n\\n` separators."""
+        return "\n\n".join(self._load_prompt(f) for f in filenames)
+
+    def prompt_sha(self, filename: str) -> str:
+        """
+        Return a 6-char sha256 prefix of the prompt file's current contents.
+        Used for `coaching_events.prompt_used` versioning.
+        """
+        if filename not in self._sha_cache:
+            content = self._load_prompt(filename)
+            self._sha_cache[filename] = hashlib.sha256(content.encode("utf-8")).hexdigest()[:6]
+        return self._sha_cache[filename]
+
+    def _coaching_prompt(
+        self,
+        behavior_filename: str,
+        race_type: RaceType | None = None,
+        custom_distance_km: float | None = None,
+        memo: str = "",
+    ) -> str:
+        """
+        Compose a full coaching prompt:
+            foundation + race-specific persona (if applicable) + memo block + behavior instructions.
+
+        Args:
+            behavior_filename: e.g. "coach_weekly_review.txt"
+            race_type: Athlete's target race; if provided, race-specific coach is included
+            custom_distance_km: For Custom race types
+            memo: Pre-loaded coach memo content. Empty string skips the memo block.
+        """
+        parts: list[str] = [self._load_prompt(FOUNDATION_PROMPT)]
+        if race_type is not None:
+            coach_file = get_coach_file(race_type, custom_distance_km)
+            parts.append(self._load_prompt(coach_file))
+        if memo:
+            parts.append(f"## What you know about this athlete\n\n{memo}")
+        parts.append(self._load_prompt(behavior_filename))
+        return "\n\n".join(parts)
     
     def get_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
         """
-        Get the appropriate system prompt for the given race type.
-
-        Args:
-            race_type: The target race distance
-            custom_distance_km: Custom distance in km (for Custom race type)
-
-        Returns:
-            The specialized coaching system prompt
+        System prompt for plan generation:
+        coach voice + plan-building framework + race module + quality contract.
         """
         coach_file = get_coach_file(race_type, custom_distance_km)
-        return self._load_prompt(coach_file)
-    
-    @property
-    def system_prompt(self) -> str:
-        """
-        Legacy property for backwards compatibility.
-        Returns the marathon coach as default.
-        
-        Deprecated: Use get_system_prompt(race_type) instead.
-        """
-        return self._load_prompt("coach_marathon.txt")
+        return self.compose(FOUNDATION_PROMPT, PLAN_CORE_PROMPT, coach_file, PLAN_QUALITY_PROMPT)
     
     def build_user_prompt(self, request: TrainingPlanRequest) -> str:
         """
@@ -74,7 +107,8 @@ class PromptBuilder:
         """
         # Calculate training duration
         training_days = (request.race_date - request.start_date).days
-        training_weeks = training_days // 7
+        # Count calendar rows the model must output, including partial first/final weeks.
+        training_weeks = max(1, (training_days + 6) // 7)
         
         # Format rest days
         rest_days_str = ", ".join([d.value for d in request.rest_days]) if request.rest_days else "None specified"
@@ -227,26 +261,24 @@ ATHLETE OVERRIDE ACTIVE
 The athlete has reviewed the identified training considerations and CHOSEN TO PURSUE 
 their original goal of {goal_time}.
 
-AGGRESSIVE MODE INSTRUCTIONS:
-• Build a progressive plan that starts at the athlete's current demonstrated fitness level
-• Systematically build toward goal pace over the training block
-• Include marathon-pace exposure in the final 4-6 weeks of training
-• Prioritize the highest probability of success at the stated goal
-• Still respect injury prevention principles but push the training appropriately
-• Do NOT water down the plan or suggest easier alternatives
+AMBITIOUS MODE INSTRUCTIONS:
+• Start from the athlete's demonstrated fitness, not the fitness implied by the goal
+• Progress toward goal-specific work only as the available timeline and background support
+• Include race-pace exposure appropriate to this race distance and demonstrated readiness
+• Prioritize the highest probability of arriving healthy enough to race well
+• Be direct when the original target remains a reach; ambition does not override safety
 • The athlete understands the challenge and wants to train for their goal
 
-MANDATORY TRAINING BENCHMARKS (NON-NEGOTIABLE):
-• Peak long run MUST reach at least {peak_long_run} km before taper begins
-• Peak weekly volume should approach {peak_volume} km during the highest volume weeks
-• Progression may be compressed (more aggressive week-to-week increases) to hit these benchmarks
-• If the timeline requires faster progression than 10%/week, use up to 15%/week for long runs
-• These benchmarks are REQUIRED for race readiness — do NOT reduce them
-• A plan that fails to reach the {peak_long_run} km peak long run is INVALID
+READINESS REFERENCES (ASPIRATIONAL, NOT FORCED):
+• A well-prepared athlete for this goal may peak near a {peak_long_run} km long run
+• A well-prepared athlete may approach {peak_volume} km in the highest-volume week
+• Reach these only when progression from current training is coherent and recoverable
+• If either reference is not safely reachable, say so plainly and prescribe the best
+  achievable preparation rather than manufacturing a dangerous progression
 
 The athlete is competitive and has made an informed decision to pursue this goal.
 Build the strongest possible plan to give them the best chance of achieving it.
-The plan MUST hit the required training benchmarks even if progression is aggressive.
+Do not confuse "strongest" with "most volume"; specificity, consistency, and recovery matter.
 """
         
         elif request.plan_mode == PlanMode.RECOMMENDED:
@@ -262,20 +294,25 @@ adjusted goal of {adjusted_goal}.
 RECOMMENDED MODE INSTRUCTIONS:
 • Build the plan around the adjusted goal time of {adjusted_goal}
 • Prioritize consistency, health, and sustainable progression
-• Use conservative pacing that matches current fitness
+• Use evidence-based pacing that matches current fitness
 • Focus on building the aerobic base thoroughly before race-specific work
 • The athlete may exceed this goal on race day, but training should be calibrated here
-• Include appropriate marathon-pace work based on the adjusted goal
+• Include race-specific pace work appropriate to the event and adjusted goal
 """
         
         return ""
 
     def get_analysis_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
-        """Load the performance analysis system prompt, composed with the race-specific coach persona."""
+        """
+        Performance analysis: voice + race module + analysis behavior.
+
+        Deliberately excludes _plan_quality_contract.txt — the contract's
+        parser-safe output rules describe plan documents and would conflict with
+        the analysis prose format. coach_analysis.txt carries the structural
+        invariants an analysis must respect.
+        """
         coach_file = get_coach_file(race_type, custom_distance_km)
-        coach_persona = self._load_prompt(coach_file)
-        analysis_instructions = self._load_prompt("coach_analysis.txt")
-        return coach_persona + "\n\n" + analysis_instructions
+        return self.compose(FOUNDATION_PROMPT, coach_file, "coach_analysis.txt")
 
     def build_analysis_user_prompt(self, request: PerformanceAnalysisRequest) -> str:
         """
@@ -311,6 +348,7 @@ RECOMMENDED MODE INSTRUCTIONS:
 =====================================
 
 PLAN INFORMATION
+Analysis Date: {date.today().strftime("%A, %B %d, %Y")}
 Race Distance: {analysis_distance}
 Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
 Plan Start Date: {request.start_date.strftime("%A, %B %d, %Y")}
@@ -332,11 +370,75 @@ COMPLETED WORKOUT DATA ({len(request.completed_workouts)} workouts)
 Please analyze this athlete's training execution and provide your assessment."""
 
     def get_edit_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
-        """Load the plan modification system prompt, composed with the race-specific coach persona."""
+        """Plan modification: same composition as generation, plus edit-mode behavior."""
         coach_file = get_coach_file(race_type, custom_distance_km)
-        coach_persona = self._load_prompt(coach_file)
-        edit_instructions = self._load_prompt("coach_edit.txt")
-        return coach_persona + "\n\n" + edit_instructions
+        return self.compose(
+            FOUNDATION_PROMPT, PLAN_CORE_PROMPT, coach_file, PLAN_QUALITY_PROMPT, "coach_edit.txt"
+        )
+
+    def get_pre_run_voice_prompt(self) -> str:
+        """Load the pre-run voice (TTS) coach prompt — Itzler-style send-off before run start."""
+        return self._load_prompt("coach_pre_run_voice.txt")
+
+    def get_post_run_voice_prompt(self, prerecorded_alerts: str) -> str:
+        """Load the post-run voice (TTS) coach prompt with prerecorded-alerts placeholder substituted."""
+        template = self._load_prompt("coach_post_run_voice.txt")
+        return template.replace("{prerecorded_alerts}", prerecorded_alerts)
+
+    # ── Coaching loop prompts (Phases 2–9) ──────────────────────────────────
+    # Each composes: _coach_foundation.txt + race-specific persona + memo + behavior file.
+    # Behavior files are added in their respective phase implementations.
+
+    def get_weekly_review_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_weekly_review.txt", race_type, custom_distance_km, memo)
+
+    def get_block_review_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_block_review.txt", race_type, custom_distance_km, memo)
+
+    def get_post_run_check_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_post_run.txt", race_type, custom_distance_km, memo)
+
+    def get_red_flag_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_red_flag.txt", race_type, custom_distance_km, memo)
+
+    def get_consolidation_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_consolidation.txt", race_type, custom_distance_km, memo)
+
+    def get_post_race_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_post_race.txt", race_type, custom_distance_km, memo)
+
+    def get_race_prep_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_race_prep.txt", race_type, custom_distance_km, memo)
+
+    def get_race_logistics_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_race_logistics.txt", race_type, custom_distance_km, memo)
+
+    def get_race_fueling_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_race_fueling.txt", race_type, custom_distance_km, memo)
+
+    def get_chat_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_chat.txt", race_type, custom_distance_km, memo)
+
+    def get_nutrition_prompt(self, race_type: RaceType | None = None, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_nutrition.txt", race_type, custom_distance_km, memo)
+
+    def get_nutrition_meal_feedback_prompt(self, memo: str = "") -> str:
+        # Race-specific persona omitted — meal feedback is generic running fueling.
+        return self._coaching_prompt("coach_nutrition_meal_feedback.txt", None, None, memo)
+
+    def get_nutrition_parse_vision_prompt(self) -> str:
+        """Vision-parsing prompt for photo/text meal logging — no memo, no race persona."""
+        return self._load_prompt("coach_nutrition_parse_vision.txt")
+
+    def get_wellness_prompt(self, race_type: RaceType | None = None, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_wellness.txt", race_type, custom_distance_km, memo)
+
+    def get_wellness_concern_prompt(self, race_type: RaceType | None = None, custom_distance_km: float | None = None, memo: str = "") -> str:
+        return self._coaching_prompt("coach_wellness_concern.txt", race_type, custom_distance_km, memo)
+
+    def get_memo_update_prompt(self) -> str:
+        """Used by coach_memo_service to update the persistent memo after a weekly review."""
+        return self._load_prompt("coach_memo_update.txt")
 
     def build_edit_user_prompt(self, request: PlanEditRequest) -> str:
         """
@@ -349,6 +451,7 @@ Please analyze this athlete's training execution and provide your assessment."""
         return f"""CURRENT TRAINING PLAN
 =====================================
 Race Distance: {edit_distance}
+Modification Date: {date.today().strftime("%A, %B %d, %Y")}
 Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
 Race Name: {request.race_name or "Not specified"}
 Goal Time: {request.goal_time or "Not specified"}

@@ -117,54 +117,63 @@ enum WorkoutType: String, Codable, CaseIterable, Identifiable {
     case longRun = "long_run"
     case tempoRun = "tempo_run"
     case intervals = "intervals"
+    case fartlek = "fartlek"
     case hillRepeats = "hill_repeats"
+    case drills = "drills"
     case recovery = "recovery"
+    case mobility = "mobility"
     case rest = "rest"
     case crossTraining = "cross_training"
     case gym = "gym"
     case race = "race"
-    
+
     var id: String { rawValue }
-    
+
     var displayName: String {
         switch self {
         case .easyRun: return "Easy Run"
         case .longRun: return "Long Run"
         case .tempoRun: return "Tempo Run"
         case .intervals: return "Intervals"
+        case .fartlek: return "Fartlek"
         case .hillRepeats: return "Hill Repeats"
+        case .drills: return "Strides & Drills"
         case .recovery: return "Recovery"
+        case .mobility: return "Mobility"
         case .rest: return "Rest Day"
         case .crossTraining: return "Cross Training"
         case .gym: return "Strength Training"
         case .race: return "Race Day"
         }
     }
-    
+
     var icon: String {
         switch self {
         case .easyRun: return "figure.run"
         case .longRun: return "figure.run.circle"
         case .tempoRun: return "gauge.with.dots.needle.67percent"
         case .intervals: return "timer"
+        case .fartlek: return "speedometer"
         case .hillRepeats: return "mountain.2"
+        case .drills: return "shoeprints.fill"
         case .recovery: return "heart.circle"
+        case .mobility: return "figure.cooldown"
         case .rest: return "bed.double"
         case .crossTraining: return "figure.mixed.cardio"
         case .gym: return "dumbbell"
         case .race: return "flag.checkered"
         }
     }
-    
+
     var color: String {
         switch self {
         case .easyRun: return "workoutEasy"
         case .longRun: return "workoutLong"
         case .tempoRun: return "workoutTempo"
-        case .intervals, .hillRepeats: return "workoutInterval"
+        case .intervals, .fartlek, .hillRepeats, .drills: return "workoutInterval"
         case .recovery: return "workoutRecovery"
         case .rest: return "workoutRest"
-        case .crossTraining, .gym: return "workoutGym"
+        case .crossTraining, .gym, .mobility: return "workoutGym"
         case .race: return "workoutRace"
         }
     }

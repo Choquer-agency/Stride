@@ -4,12 +4,15 @@ import PostHog
 
 struct PlanView: View {
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var planSync = PlanSyncService.shared
     @State private var selectedWeekNumber: Int
     @State private var selectedWorkout: Workout?
     @State private var lastHapticWeek: Int = 0
     @State private var showDeleteConfirmation = false
     @State private var showEditSheet = false
     @State private var showAnalysisSheet = false
+    @State private var showCoachChat = false
+    @State private var showCoachInbox = false  // v2 Phase 2
     @State private var prefillEditInstruction: String?
 
     let plan: TrainingPlan
@@ -92,6 +95,17 @@ struct PlanView: View {
             ScrollViewReader { dayProxy in
                 ScrollView {
                     LazyVStack(spacing: 8) {
+                        // v2 Phase 2: pinned active focuses from latest weekly review
+                        if !readOnly {
+                            if planSync.pendingServerPlan != nil {
+                                serverPlanUpdateCard
+                                    .padding(.top, 8)
+                            }
+                            CheckinInviteCardView()
+                                .padding(.top, 8)
+                            ActiveFocusesCardView()
+                                .padding(.top, 8)
+                        }
                         ForEach(workoutsByDay, id: \.date) { dayData in
                             let isToday = Calendar.current.isDateInToday(dayData.date)
                             DayCardView(
@@ -139,6 +153,11 @@ struct PlanView: View {
             }
         }
         .background(Color(.systemBackground))
+        .task {
+            if !readOnly {
+                await planSync.reconcile(context: modelContext)
+            }
+        }
         .sheet(item: $selectedWorkout) { workout in
             WorkoutDetailView(
                 workout: workout,
@@ -163,6 +182,12 @@ struct PlanView: View {
                 .onDisappear {
                     prefillEditInstruction = nil
                 }
+        }
+        .sheet(isPresented: $showCoachChat) {
+            CoachChatView(trainingPlanId: nil)
+        }
+        .sheet(isPresented: $showCoachInbox) {
+            CoachInboxView()
         }
         .fullScreenCover(isPresented: $showAnalysisSheet) {
             PerformanceAnalysisView(plan: plan) { instruction in
@@ -190,13 +215,20 @@ struct PlanView: View {
                 .clipShape(Capsule())
             }
 
-            // Top row: Stride Logo + Three-dot menu
+            // Top row: Ask Coach + Stride Logo + Three-dot menu
             HStack {
                 if !readOnly {
-                    // Invisible spacer for centering the logo
-                    Image(systemName: "ellipsis")
-                        .font(.title3)
-                        .opacity(0)
+                    // v2 Phase 5: chat entry point. Mirrors the three-dot menu's footprint
+                    // on the opposite side so the logo stays centered.
+                    Button {
+                        showCoachChat = true
+                    } label: {
+                        Image(systemName: "bubble.left.and.text.bubble.right")
+                            .font(.title3)
+                            .foregroundStyle(Color.stridePrimary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
                 }
 
                 Spacer()
@@ -208,6 +240,12 @@ struct PlanView: View {
                 if !readOnly {
                     // Three-dot menu
                     Menu {
+                        Button(action: { showCoachInbox = true }) {
+                            Label("Coach inbox", systemImage: "tray.full")
+                        }
+
+                        Divider()
+
                         Button(action: {
                             PostHogSDK.shared.capture("plan_edit_started")
                             showEditSheet = true
@@ -262,6 +300,61 @@ struct PlanView: View {
         .padding(.bottom, 8)
     }
     
+    // MARK: - Server Plan Update Card
+    private var serverPlanUpdateCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(Color.stridePrimary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Your coach updated your plan")
+                        .font(.interSemibold(15))
+                    if let note = planSync.pendingServerPlan?.changeNote, !note.isEmpty {
+                        Text(note)
+                            .font(.interBody(13))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    } else {
+                        Text("A newer version of your plan is available")
+                            .font(.interBody(13))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+            }
+            HStack(spacing: 10) {
+                Button {
+                    withAnimation { planSync.applyPendingServerPlan(context: modelContext) }
+                } label: {
+                    Text("Apply update")
+                        .font(.interSemibold(14))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.stridePrimary)
+
+                Button {
+                    withAnimation { planSync.dismissPendingServerPlan() }
+                } label: {
+                    Text("Keep mine")
+                        .font(.interSemibold(14))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding(14)
+        .background(Color.stridePrimary.opacity(0.08))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.stridePrimary.opacity(0.25), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
     // MARK: - Next Week Card
     private var nextWeekCard: some View {
         Button(action: {

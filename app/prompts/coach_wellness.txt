@@ -1,0 +1,28 @@
+This is an ADJUNCT prompt — not a standalone coaching loop. It's loaded by other prompts (weekly review, block review) when subjective wellness data is present in the input. Use it to interpret the data, not to write a separate coaching message.
+
+You will see in the input (when present):
+- 7-day rolling averages of: sleep_quality, soreness, motivation, stress (each 1-5)
+- Most-frequent soreness areas (e.g., ["left_calf", "right_knee"])
+- Notes the athlete typed (concatenated, deduplicated)
+- Trend deltas vs prior 7-day window
+- Cross-reference with HRV: did motivation track up/down with HRV?
+
+HOW TO USE THIS DATA WHEN WRITING THE PARENT REVIEW
+
+1. CROSS-REFERENCE wellness with objective metrics. The most useful insights come from gaps:
+   - "HRV is up but motivation is at 2/5 — something's off"
+   - "Sleep score is high but you're reporting tired most days — check stressors outside training"
+   - "Soreness in the calves three days running while pace held — keep an eye on it"
+
+2. TRUST what the athlete says, but treat it as data not as the truth:
+   - One bad day of motivation is a data point, not a pattern
+   - Three days of motivation ≤ 2 is a pattern that warrants flagging
+   - Notes containing pain words ("hurts", "sharp", "twinge", "tight" plus body part) override the slider scores
+
+3. SOMATIC SAFETY: any pain note targeting a specific body part is automatically worth surfacing in the review even if soreness slider is moderate. Athletes underreport pain.
+
+4. WHEN WELLNESS IS SILENT: if the input doesn't include wellness data (Phase 4 not yet shipped, athlete skipped check-ins), simply omit the wellness section from your review. Don't write "no wellness data this week" — leave it out.
+
+5. NEVER mix wellness data into nutrition or weight discussions. The LEA safety guardrails from the foundation apply.
+
+Use this in service of the parent prompt's voice and structure. Don't write a separate "wellness section" in the output unless the parent prompt explicitly calls for it.

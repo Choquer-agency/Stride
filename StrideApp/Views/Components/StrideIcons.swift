@@ -4,13 +4,16 @@ import SwiftUI
 struct StrideLogoView: View {
     var height: CGFloat = 32
     var color: Color = .stridePrimary
+    /// When true, renders the SVG's own colors (red mark + black wordmark)
+    /// instead of tinting the whole logo with `color`.
+    var twoTone: Bool = false
 
     var body: some View {
         Image("StrideLogo")
             .resizable()
-            .renderingMode(.template)
-            .foregroundColor(color)
-            .aspectRatio(613.0/444.0, contentMode: .fit)
+            .renderingMode(twoTone ? .original : .template)
+            .foregroundColor(twoTone ? nil : color)
+            .aspectRatio(690.0 / 156.0, contentMode: .fit)
             .frame(height: height)
     }
 }
@@ -39,8 +42,8 @@ struct FlagIconView: View {
             .resizable()
             .renderingMode(.template)
             .foregroundColor(color)
-            .aspectRatio(21/19, contentMode: .fit)
-            .frame(width: size * 21/20, height: size * 19/20)
+            .aspectRatio(174.0 / 155.0, contentMode: .fit)
+            .frame(width: size * 174 / 155, height: size)
     }
 }
 

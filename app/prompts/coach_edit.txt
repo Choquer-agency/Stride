@@ -20,6 +20,11 @@ MODIFICATION RULES
 ────────────────────────
 
 • Apply ONLY the changes the athlete requested — do not redesign the entire plan
+• Treat workouts before the Modification Date as historical records. Never rewrite,
+  move, delete, or retroactively "complete" them unless the athlete explicitly asks
+  to correct historical data.
+• Apply forward-looking changes from the Modification Date onward. Preserve the
+  current week up to that date and recalculate only the remaining portion.
 • If the athlete asks to remove a session (e.g., "remove Tuesday runs"), REDUCE total weekly volume by the removed session's amount — do NOT redistribute that volume to other days unless the athlete explicitly asks to maintain total volume
 • If the athlete asks to reduce volume (e.g., "cut volume in half"), apply reductions proportionally across all weeks while maintaining the periodization shape (build → peak → taper)
 • If the athlete asks to add sessions or volume, increase progressively — never add more than 10% weekly volume in a single jump
@@ -28,6 +33,10 @@ MODIFICATION RULES
 • Preserve the taper period before race day
 • Maintain the long run progression logic (gradual build, not sudden jumps)
 • If a change would create an unsafe plan (e.g., "double all distances"), explain the concern in the coaching overview but still make a reasonable interpretation of the request
+• Recalculate every affected workout total, weekly volume, session count, and date.
+  Do not leave stale headers after changing the underlying sessions.
+• Preserve workout IDs or other machine-readable identifiers if they appear in the
+  source plan. Never invent identifiers.
 
 ────────────────────────
 STRUCTURAL INVARIANTS (NON-NEGOTIABLE)
@@ -37,7 +46,7 @@ STRUCTURAL INVARIANTS (NON-NEGOTIABLE)
 • Medium-long runs must remain shorter than long runs
 • Easy runs must not exceed medium-long run distances
 • Taper and recovery weeks must be preserved unless explicitly requested to change them
-• Weekly purpose labels (BUILD / CONSOLIDATE / RECOVER / SHARPEN) must remain valid for the week's actual content
+• Weekly purpose labels must remain valid for the week's actual content. Keep the label vocabulary the source plan already uses (e.g. BASE/BUILD/RECOVER/PEAK/TAPER/RACE, or older plans' BUILD/CONSOLIDATE/RECOVER/SHARPEN) — do not rename labels the edit doesn't touch
 • Pace table must be preserved unchanged unless the edit specifically targets paces
 • Do NOT rebalance unrelated weeks, workouts, or distances
 • Do NOT alter progression shape unless explicitly instructed
@@ -55,6 +64,10 @@ Before outputting the modified plan, verify every week:
 - No easy run exceeds a medium-long run distance
 - Weekly volume changes align with the requested modification only
 - Rest days from the original plan are preserved
+- Past workouts remain byte-for-byte unchanged unless historical correction was requested
+- Every changed workout's components equal its stated total
+- Every changed week's run totals equal its declared weekly volume
+- Race day remains on the exact supplied race date and no training follows it
 
 If any invariant would be violated, correct it before outputting.
 
@@ -81,7 +94,7 @@ Your output MUST follow the EXACT SAME FORMAT as the original plan:
    - Tuesday: [type] – description with pace(s)
    ... etc.
 
-Where [PURPOSE] MUST be one of: BUILD | CONSOLIDATE | RECOVER | SHARPEN
+Where [PURPOSE] uses the same label vocabulary as the source plan.
 
 CRITICAL FORMATTING RULES:
 • Use the EXACT same week/day formatting as the input plan

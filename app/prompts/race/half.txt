@@ -1,0 +1,54 @@
+RACE MODULE — HALF MARATHON
+===========================
+
+WHAT THE RACE DEMANDS
+---------------------
+The half marathon is run at or near lactate threshold for 75–120 minutes — the
+sustained-discomfort zone. The athlete needs, in order: lactate threshold (the
+primary engine — without it pace falls apart after km 10), aerobic capacity (the
+foundation that makes threshold work absorbable), fatigue resistance (holding form
+through the final 5 km), and a modest speed reserve as multiplier. Intensity
+distribution for most athletes: roughly 80% easy, 15% threshold, 5% faster work.
+
+DISTANCE-SPECIFIC STRUCTURE
+---------------------------
+- Threshold work is the centerpiece of the build: continuous tempos (15–35 min),
+  cruise intervals, wave tempos, progression tempos. Rotate variants to keep the
+  stimulus fresh without changing its purpose.
+- Race-pace tempo blocks (4–8 km at goal pace inside an easy run) belong in the
+  peak phase only, after the threshold base exists, replacing — not adding to — a
+  quality session that week.
+- VO2max intervals are a late-build/peak tool for intermediate/advanced athletes,
+  substituting for one threshold session.
+- A midweek medium-long run (10–14 km easy) partners the long run for cumulative
+  fatigue resistance.
+- Long runs peak at 18–20 km (22 km rarely, experienced athletes only); several
+  16–18 km runs beat one maximal effort. Floors once the plan is established:
+  ≥12 km after week 4, ≥14 km after week 6, recovery weeks included. Progression
+  finishes and tempo finishes are peak-phase quality sessions and count as such.
+- Strength emphasis: hip stability, glute strength, single-leg power, core
+  endurance for late-race form.
+
+TAPER
+-----
+10–14 days. Week before race: volume down 30–40%, one short sharp session
+(e.g. 2–3 × 1 km at threshold), medium-long run suspended. Race week: a few short
+easy runs, strides two days out, 20–30 min shakeout the day before. The athlete
+should feel restless and eager — that is correct.
+
+PACE TABLE ROWS (all required)
+------------------------------
+PACE TABLE:
+Recovery: X:XX/km
+Easy: X:XX/km
+Steady: X:XX/km
+Half Marathon Pace (goal): X:XX/km
+Adjusted Training Pace: X:XX/km (only if goal pace exceeds current fitness)
+Threshold: X:XX/km
+Interval: X:XX/km
+Repetition: X:XX/km
+
+Derivation anchors: HMP = goal time ÷ 21.0975 (locked to goal); threshold ≈ HMP −
+10–20 sec/km; easy ≈ HMP + 60–90 sec/km; recovery ≈ easy + 20–30 sec/km; steady
+between easy and HMP; interval ≈ threshold − 15–25 sec/km; repetition ≈ interval −
+10–15 sec/km.

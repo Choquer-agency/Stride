@@ -15,8 +15,10 @@ struct StatsView: View {
 
     // Calculate weekly distance for no-plan mode
     private var noPlanWeeklyStats: WeeklyDistanceStats {
-        StatsViewModel.weeklyDistanceForCurrentCalendarWeek(runLogs: runLogs)
+        StatsViewModel.weeklyDistanceForCurrentCalendarWeek(runLogs: validRunLogs)
     }
+
+    private var validRunLogs: [RunLog] { runLogs.filter(\.isValidForStats) }
 
     /// Use runLogs.count as a SwiftUI dependency trigger.
     private var runLogChangeToken: Int {
@@ -27,7 +29,7 @@ struct StatsView: View {
         ScrollView {
             VStack(spacing: 12) {
                 if let plan = activePlan {
-                    let viewModel = StatsViewModel(plan: plan, runLogs: runLogs)
+                    let viewModel = StatsViewModel(plan: plan, runLogs: validRunLogs)
                     let filteredWeeks = viewModel.weeksForTimeRange(.fullPlan)
 
                     // Stride Logo at top center
@@ -41,7 +43,7 @@ struct StatsView: View {
                         .id(runLogChangeToken)
 
                     // Distance Bar Chart
-                    DistanceBarChartView(runLogs: runLogs)
+                    DistanceBarChartView(runLogs: validRunLogs)
                         .padding(.horizontal, 16)
 
                     // Training Composition (for current week or selected week)
@@ -62,7 +64,7 @@ struct StatsView: View {
                     .padding(.horizontal, 16)
 
                     // Daily Run Log
-                    DailyRunLogView(runLogs: runLogs)
+                    DailyRunLogView(runLogs: validRunLogs)
                         .padding(.horizontal, 16)
 
                     // Milestones
@@ -87,8 +89,8 @@ struct StatsView: View {
                         // Summary Cards
                         StatsSummarySectionNoPlan(
                             weeklyStats: noPlanWeeklyStats,
-                            yearToDate: StatsViewModel.yearToDateDistance(from: runLogs),
-                            fourWeekAverage: StatsViewModel.rolling4WeekAverage(from: runLogs),
+                            yearToDate: StatsViewModel.yearToDateDistance(from: validRunLogs),
+                            fourWeekAverage: StatsViewModel.rolling4WeekAverage(from: validRunLogs),
                             onRaceCountdownTap: {
                                 selectedTab = .plan
                             }
@@ -97,21 +99,21 @@ struct StatsView: View {
                         .id(runLogChangeToken)
 
                         // Distance Bar Chart
-                        DistanceBarChartView(runLogs: runLogs)
+                        DistanceBarChartView(runLogs: validRunLogs)
                             .padding(.horizontal, 16)
 
                         // Daily Run Log
-                        DailyRunLogView(runLogs: runLogs)
+                        DailyRunLogView(runLogs: validRunLogs)
                             .padding(.horizontal, 16)
 
                         // Milestones
                         MilestonesView(
-                            longestRunEver: StatsViewModel.longestRunEver(from: runLogs),
-                            highestWeeklyMileage: StatsViewModel.highestWeeklyMileage(from: runLogs),
-                            fastest5K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 5),
-                            fastest10K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 10),
-                            fastest21K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 21),
-                            fastest42K: StatsViewModel.fastestConsecutiveTime(from: runLogs, distanceKm: 42)
+                            longestRunEver: StatsViewModel.longestRunEver(from: validRunLogs),
+                            highestWeeklyMileage: StatsViewModel.highestWeeklyMileage(from: validRunLogs),
+                            fastest5K: StatsViewModel.fastestConsecutiveTime(from: validRunLogs, distanceKm: 5),
+                            fastest10K: StatsViewModel.fastestConsecutiveTime(from: validRunLogs, distanceKm: 10),
+                            fastest21K: StatsViewModel.fastestConsecutiveTime(from: validRunLogs, distanceKm: 21),
+                            fastest42K: StatsViewModel.fastestConsecutiveTime(from: validRunLogs, distanceKm: 42)
                         )
                         .padding(.horizontal, 16)
                         .padding(.bottom, 100)

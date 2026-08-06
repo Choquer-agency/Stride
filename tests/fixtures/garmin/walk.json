@@ -1,0 +1,10 @@
+{
+  "activity_id": "garmin-walk-001",
+  "user_id": "FIXTURE_GARMIN_USER",
+  "activity_type": "walking",
+  "start_time": "2026-05-04T20:00:00Z",
+  "duration_in_seconds": 1800,
+  "distance_in_meters": 2200,
+  "average_heart_rate": 92,
+  "max_heart_rate": 105
+}

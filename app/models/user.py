@@ -2,10 +2,24 @@ import uuid
 import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import Column, String, DateTime, Float, Text, Boolean
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, String, DateTime, Float, Text, Boolean, Integer, Time
+from sqlalchemy.dialects.postgresql import UUID, JSONB, ARRAY
 
 from app.database import Base
+
+
+# Default per-loop coaching modes for new users.
+# Each new loop ships in shadow until manually promoted via admin.
+# Chat ships live (low blast-radius). Nutrition ships off until Phase 6 lands.
+DEFAULT_COACHING_MODES = {
+    "weekly_review": "shadow",
+    "block_review": "shadow",
+    "post_run_check": "shadow",
+    "race_prep": "shadow",
+    "chat": "live",
+    "nutrition": "off",
+    "wellness": "live",
+}
 
 
 class AuthProvider(str, enum.Enum):
@@ -51,6 +65,39 @@ class User(Base):
 
     # Admin
     is_admin = Column(Boolean, default=False, nullable=False)
+
+    # ── v2 coaching infrastructure (Phase 0) ────────────────────────────────
+    # Per-loop shadow/live/off toggle
+    coaching_modes = Column(JSONB, nullable=False, default=lambda: dict(DEFAULT_COACHING_MODES))
+    # First-3-events feedback counter per loop type
+    coaching_feedback_seen = Column(JSONB, nullable=False, default=dict)
+    # APNs hex token (set via /api/devices/register)
+    apns_device_token = Column(String(64), nullable=True)
+    # Garmin OAuth + connection state (Phase 1 wires)
+    garmin_access_token = Column(Text, nullable=True)
+    garmin_refresh_token = Column(Text, nullable=True)
+    garmin_user_id = Column(String(64), nullable=True, index=True)
+    garmin_connected_at = Column(DateTime(timezone=True), nullable=True)
+    garmin_disconnected_at = Column(DateTime(timezone=True), nullable=True)
+    garmin_backfill_status = Column(String(16), nullable=False, default="pending")
+    garmin_backfill_progress = Column(Integer, nullable=False, default=0)
+    # Notification preferences
+    quiet_hours_start = Column(Time, nullable=True)
+    quiet_hours_end = Column(Time, nullable=True)
+    muted_notification_types = Column(ARRAY(String), nullable=False, default=list)
+    # Pause coach (Phase 3) — null = not paused; future timestamp = paused until then;
+    # epoch 0 (or some sentinel) could indicate "until resume" but we use a separate flag.
+    coaching_paused_until = Column(DateTime(timezone=True), nullable=True)
+    coaching_resume_pending = Column(Boolean, nullable=False, default=False)
+
+    # ── v2 Phase 2: race-type pin for cron-driven prompts ───────────────────
+    # Set by iOS when the active TrainingPlan changes; the weekly-review cron
+    # has no iOS context so it reads from here. Defaults to 'marathon'.
+    current_race_type = Column(String(20), nullable=True, default="marathon")
+
+    # Weekly check-in day pin (0=Monday .. 6=Sunday; NULL → Sunday). Set by iOS
+    # from the active plan's rest day — same pattern as current_race_type.
+    checkin_day_of_week = Column(Integer, nullable=True)
 
     # Timestamps
     created_at = Column(

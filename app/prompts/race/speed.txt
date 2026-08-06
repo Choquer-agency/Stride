@@ -1,0 +1,53 @@
+RACE MODULE — 5K / 10K
+======================
+
+WHAT THE RACE DEMANDS
+---------------------
+5K and 10K are run at or above lactate threshold with a heavy VO2max component.
+Priorities, in order: aerobic base (the foundation everything sits on), VO2max
+development (the primary race-specific stimulus), lactate threshold, speed and
+running economy, race-pace pacing skill. Speed without base collapses; base
+without sharpening leaves time on the table.
+
+DISTANCE-SPECIFIC STRUCTURE
+---------------------------
+- Typical week: 1–2 quality sessions, one long run, easy volume, strides 2–3×/week.
+- Long runs are 25–35% of weekly volume — typically peaking 12–18 km. They build
+  aerobic durability, not race-specific fatigue resistance; easy pace only, and
+  they must stay structurally meaningful (never shorter than a typical easy run,
+  even late in the plan).
+- Quality tiers by current volume: under 30 km/week → one quality session, 80%+
+  easy, strides over structured speed. 30–50 km/week → up to two quality sessions.
+  Over 50 km/week with 8+ weeks of consistency and clean recovery → a third
+  session is available; if used, justify it in the overview.
+- VO2max intervals: 2–5 min reps (800–1600 m) at 3K–5K effort with roughly equal
+  recovery. Repetition work: 200–400 m fast-and-relaxed with full recovery.
+  Race-pace blocks of 2–4 km belong in the final 3–4 weeks.
+- Define both 5K and 10K race pace in the table, but train only the goal-distance
+  race pace; the other is reference.
+- Strength emphasis for short-distance athletes: power, plyometric readiness,
+  running economy — best stacked after interval or threshold days.
+
+TAPER
+-----
+Short and sharp: 7–10 days for 5K, 10–14 days for 10K. Cut volume 40–50% in the
+final week, keep 1–2 short sharp touches (last one 2–3 days out: short intervals
+or strides), stay light and energized. Beginners detrain fast — never give them
+two consecutive low-volume weeks; keep 3–5 km easy runs through the final 10 days.
+
+PACE TABLE ROWS (all required)
+------------------------------
+PACE TABLE:
+Recovery: X:XX/km
+Easy: X:XX/km
+Steady: X:XX/km
+Threshold: X:XX/km
+Interval (VO2max): X:XX/km
+Repetition: X:XX/km
+Race Pace (5K): X:XX/km
+Race Pace (10K): X:XX/km
+
+Derivation anchors: 5K race pace = goal 5K time ÷ 5; 10K pace ≈ 5K pace + 10–15
+sec/km; interval ≈ 5K pace or slightly faster; threshold ≈ 10K pace + 10–15 sec/km;
+easy ≈ threshold + 60–90 sec/km. Bias training paces toward demonstrated fitness
+when the goal is ahead of it.

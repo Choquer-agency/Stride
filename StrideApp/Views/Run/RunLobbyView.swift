@@ -68,9 +68,11 @@ struct RunLobbyView: View {
               let currentWeek = plan.currentWeek else { return nil }
         return currentWeek.sortedWorkouts.first { workout in
             workout.isToday
+            && !workout.isCompleted
             && workout.workoutType != .rest
             && workout.workoutType != .gym
             && workout.workoutType != .crossTraining
+            && workout.workoutType != .mobility
         }
     }
 
@@ -93,56 +95,45 @@ struct RunLobbyView: View {
                 mapBackground
             }
 
-            // Fixed content overlay
+            // Primary run setup
             VStack(spacing: 0) {
-                // Logo
-                StrideLogoView(height: 35)
-                    .padding(.top, 20)
+                StrideLogoView(height: 24)
+                    .padding(.top, 18)
 
-                // "TODAYS WORKOUT" header
-                HStack(spacing: 6) {
-                    Image("FlagIcon")
-                        .resizable()
-                        .renderingMode(.template)
-                        .frame(width: 14, height: 14)
-                    Text("TODAYS WORKOUT")
-                        .font(.barlowCondensed(size: 14, weight: .medium))
-                        .tracking(1)
+                if todaysWorkout != nil {
+                    tabToggle
+                        .padding(.top, 22)
                 }
-                .foregroundColor(.stridePrimary)
-                .padding(.top, 20)
 
-                // Tab toggle
-                tabToggle
-                    .padding(.top, 24)
-
-                // Tab content
                 if selectedTab == .todaysWorkout {
                     todaysWorkoutContent
-                        .padding(.top, 16)
+                        .padding(.top, 20)
                 } else {
                     freeRunContent
-                        .padding(.top, 20)
+                        .padding(.top, 24)
                 }
 
                 Spacer()
 
-                // Mode indicator (tappable toggle)
                 modeIndicator
 
-                // Start button
                 startButton
-                    .padding(.top, 16)
-                    .padding(.horizontal, 40)
-                    .padding(.bottom, 100)
+                    .padding(.top, 14)
+                    .padding(.bottom, 96)
             }
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, 20)
         }
         .animation(.easeInOut(duration: 0.3), value: runMode)
         .animation(.easeInOut(duration: 0.2), value: selectedTab)
+        .onChange(of: todaysWorkout?.id) { _, workoutId in
+            if workoutId == nil { selectedTab = .freeRun }
+        }
         .onAppear {
             startBlinkingAnimation()
+            if todaysWorkout == nil {
+                selectedTab = .freeRun
+            }
             if locationManager.authorizationStatus == .notDetermined {
                 locationManager.requestPermission()
             }
@@ -201,21 +192,18 @@ struct RunLobbyView: View {
     // MARK: - Tab Toggle
 
     private var tabToggle: some View {
-        HStack(spacing: 20) {
-            if let workout = todaysWorkout {
+        HStack(spacing: 4) {
+            if todaysWorkout != nil {
                 Button {
                     selectedTab = .todaysWorkout
                 } label: {
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(Color(workout.workoutType.color))
-                            .frame(width: 12, height: 12)
-                            .opacity(selectedTab == .todaysWorkout ? 1 : 0.4)
-
-                        Text(workout.workoutType.displayName)
-                            .font(.inter(size: 16, weight: selectedTab == .todaysWorkout ? .semibold : .medium))
-                            .foregroundColor(selectedTab == .todaysWorkout ? .primary : .secondary)
-                    }
+                    Text("Today")
+                        .font(.inter(size: 14, weight: .semibold))
+                        .foregroundColor(selectedTab == .todaysWorkout ? .primary : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                        .background(selectedTab == .todaysWorkout ? Color.white : Color.clear)
+                        .clipShape(Capsule())
                 }
                 .buttonStyle(PlainButtonStyle())
             }
@@ -224,56 +212,64 @@ struct RunLobbyView: View {
                 selectedTab = .freeRun
             } label: {
                 Text("Free Run")
-                    .font(.inter(size: 16, weight: selectedTab == .freeRun ? .semibold : .medium))
+                    .font(.inter(size: 14, weight: .semibold))
                     .foregroundColor(selectedTab == .freeRun ? .primary : .secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(selectedTab == .freeRun ? Color.white : Color.clear)
+                    .clipShape(Capsule())
             }
             .buttonStyle(PlainButtonStyle())
         }
-        .onAppear {
-            // If no planned workout, default to free run
-            if todaysWorkout == nil {
-                selectedTab = .freeRun
-            }
-        }
+        .padding(4)
+        .frame(maxWidth: 300)
+        .background(Color(.secondarySystemBackground).opacity(0.9))
+        .clipShape(Capsule())
     }
 
     // MARK: - Today's Workout Content
 
     private var todaysWorkoutContent: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: 18) {
             if let workout = todaysWorkout {
-                // Large distance + pace
-                HStack(spacing: 16) {
+                VStack(spacing: 4) {
+                    Text(workout.title)
+                        .font(.inter(size: 22, weight: .semibold))
+                        .multilineTextAlignment(.center)
+                    Text(workout.workoutType.displayName)
+                        .font(.inter(size: 13, weight: .medium))
+                        .foregroundStyle(Color(workout.workoutType.color))
+                }
+
+                HStack(alignment: .top, spacing: 12) {
                     if let distKm = workout.distanceKm, distKm > 0 {
-                        VStack(spacing: 2) {
+                        metricCard(title: "Distance") {
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
                                 Text(distKm.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(distKm))" : String(format: "%.1f", distKm))
-                                    .font(.barlowCondensed(size: 82, weight: .medium))
+                                    .font(.barlowCondensed(size: 54, weight: .medium))
                                 Text("km")
-                                    .font(.barlowCondensed(size: 28, weight: .medium))
+                                    .font(.barlowCondensed(size: 22, weight: .medium))
                                     .foregroundColor(.secondary)
                             }
-                            Text("Distance")
-                                .font(.inter(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
                         }
                     }
 
                     if let pace = workout.paceDescription {
-                        VStack(spacing: 2) {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(pace)
-                                    .font(.barlowCondensed(size: 82, weight: .medium))
-                            }
-                            Text("Pace")
-                                .font(.inter(size: 12, weight: .medium))
+                        metricCard(title: "Target Pace") {
+                            Text(compactPace(pace))
+                                .font(.barlowCondensed(size: 42, weight: .medium))
+                                .minimumScaleFactor(0.72)
+                                .lineLimit(1)
+                            Text("/km")
+                                .font(.barlowCondensed(size: 20, weight: .medium))
                                 .foregroundColor(.secondary)
                         }
                     }
                 }
+                .frame(maxWidth: 520)
 
                 // Workout details
-                VStack(spacing: 8) {
+                VStack(spacing: 6) {
                     HStack(spacing: 6) {
                         Image(systemName: "doc.text")
                             .font(.system(size: 14, weight: .medium))
@@ -288,6 +284,7 @@ struct RunLobbyView: View {
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .lineSpacing(4)
+                            .lineLimit(3)
                     } else {
                         Text("\(workout.workoutType.displayName) — \(workout.distanceDisplay ?? "") at \(workout.paceDescription ?? "easy pace")")
                             .font(.inter(size: 13, weight: .regular))
@@ -295,8 +292,34 @@ struct RunLobbyView: View {
                             .multilineTextAlignment(.center)
                     }
                 }
+                .padding(.horizontal, 12)
             }
         }
+    }
+
+    private func metricCard<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) { content() }
+                .frame(maxWidth: .infinity, minHeight: 66)
+            Text(title)
+                .font(.inter(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 10)
+        .background(Color(.secondarySystemBackground).opacity(0.92))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func compactPace(_ pace: String) -> String {
+        pace
+            .replacingOccurrences(of: " /km", with: "")
+            .replacingOccurrences(of: "/km", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     // MARK: - Free Run Content
@@ -305,6 +328,14 @@ struct RunLobbyView: View {
 
     private var freeRunContent: some View {
         VStack(spacing: 20) {
+            VStack(spacing: 4) {
+                Text("Run your way")
+                    .font(.inter(size: 22, weight: .semibold))
+                Text("Set a goal or simply head out")
+                    .font(.inter(size: 13))
+                    .foregroundStyle(.secondary)
+            }
+
             // Value display — tap to open picker, drag to adjust
             VStack(spacing: 0) {
                 if freeRunGoalMode == .distance {
@@ -431,39 +462,58 @@ struct RunLobbyView: View {
     // MARK: - Mode Indicator
 
     private var modeIndicator: some View {
-        VStack(spacing: 4) {
-            Text(runMode == .outdoor ? "Outdoor" : "Treadmill")
-                .font(.inter(size: 20, weight: .medium))
-                .foregroundColor(.primary)
+        VStack(spacing: 9) {
+            HStack(spacing: 8) {
+                runModeButton(.outdoor, title: "Outdoor", icon: "location.fill")
+                treadmillModeButton
+            }
 
             HStack(spacing: 6) {
                 Circle()
                     .fill(modeStatusColor)
-                    .frame(width: 8, height: 8)
-                    .opacity(isConnecting ? (indicatorVisible ? 1.0 : 0.3) : 1.0)
-
+                    .frame(width: 7, height: 7)
+                    .opacity(isConnecting ? (indicatorVisible ? 1 : 0.35) : 1)
                 Text(modeStatusLabel)
-                    .font(.inter(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .font(.inter(size: 12))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
         }
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.easeInOut(duration: 0.3)) {
-                setRunMode(runMode == .outdoor ? .treadmill : .outdoor)
-            }
+    }
+
+    private func runModeButton(_ mode: RunMode, title: String, icon: String) -> some View {
+        let selected = runMode == mode
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) { setRunMode(mode) }
+        } label: {
+            Label(title, systemImage: icon)
+                .font(.inter(size: 13, weight: .semibold))
+                .foregroundStyle(selected ? Color.white : Color.primary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(selected ? Color.strideBrandBlack : Color(.secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
-        .gesture(
-            DragGesture(minimumDistance: 30)
-                .onEnded { value in
-                    if abs(value.translation.width) > abs(value.translation.height) {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            setRunMode(runMode == .outdoor ? .treadmill : .outdoor)
-                        }
-                    }
-                }
-        )
+        .buttonStyle(.plain)
+    }
+
+    private var treadmillModeButton: some View {
+        let selected = runMode == .treadmill
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) { setRunMode(.treadmill) }
+        } label: {
+            HStack(spacing: 7) {
+                TreadmillIconView(size: 18, color: selected ? .white : .primary)
+                Text("Treadmill")
+            }
+            .font(.inter(size: 13, weight: .semibold))
+            .foregroundStyle(selected ? Color.white : Color.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(selected ? Color.strideBrandBlack : Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private var modeStatusColor: Color {
@@ -502,16 +552,22 @@ struct RunLobbyView: View {
                 )
             }
         } label: {
-            Text("Start Workout")
+            Text(startButtonTitle)
                 .font(.inter(size: 18, weight: .bold))
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
-                .frame(height: 60)
+                .frame(height: 56)
                 .background(canStart ? Color.stridePrimary : Color.gray.opacity(0.4))
                 .clipShape(Capsule())
         }
         .disabled(!canStart)
         .buttonStyle(PlainButtonStyle())
+    }
+
+    private var startButtonTitle: String {
+        if runMode == .treadmill && !isConnected { return "Connect Treadmill to Start" }
+        if selectedTab == .todaysWorkout, todaysWorkout != nil { return "Start Today's Run" }
+        return runMode == .outdoor ? "Start Outdoor Run" : "Start Treadmill Run"
     }
 
     // MARK: - Distance/Time Editor Sheet

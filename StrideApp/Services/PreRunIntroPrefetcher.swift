@@ -142,6 +142,7 @@ final class PreRunIntroPrefetcher {
             && workout.workoutType != .rest
             && workout.workoutType != .gym
             && workout.workoutType != .crossTraining
+            && workout.workoutType != .mobility
         }
     }
 

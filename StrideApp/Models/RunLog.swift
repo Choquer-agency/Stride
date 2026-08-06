@@ -52,6 +52,15 @@ final class RunLog {
         return WorkoutType(rawValue: raw)
     }
 
+    /// Excludes partial syncs and implausible debug records from aggregates.
+    var isValidForStats: Bool {
+        guard distanceKm.isFinite, durationSeconds.isFinite, avgPaceSecPerKm.isFinite else { return false }
+        guard distanceKm > 0, distanceKm <= 250,
+              durationSeconds >= 30, durationSeconds <= 60 * 60 * 48 else { return false }
+        let derivedPace = durationSeconds / distanceKm
+        return derivedPace >= 90 && derivedPace <= 3_600
+    }
+
     var effectiveTitle: String {
         if let title = plannedWorkoutTitle, !title.isEmpty {
             return title

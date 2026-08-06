@@ -1,4 +1,5 @@
 import Foundation
+import QuartzCore
 
 class PaceSmoother {
     private struct SpeedSample {

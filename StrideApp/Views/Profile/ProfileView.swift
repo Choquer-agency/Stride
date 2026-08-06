@@ -6,6 +6,9 @@ struct ProfileView: View {
     @StateObject private var achievementsVM = AchievementsViewModel()
     @State private var showEditProfile = false
 
+    @State private var showDeleteConfirmation = false
+    @State private var accountError: String?
+
     var body: some View {
         List {
             // Profile Header
@@ -54,6 +57,10 @@ struct ProfileView: View {
                     Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                         .foregroundStyle(.red, .red)
                 }
+
+                Button("Delete Account", role: .destructive) {
+                    showDeleteConfirmation = true
+                }
             }
         }
         .tint(Color.stridePrimary)
@@ -62,6 +69,32 @@ struct ProfileView: View {
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showEditProfile) {
             EditProfileView()
+        }
+        .confirmationDialog(
+            "Permanently delete your account?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete Account", role: .destructive) {
+                Task {
+                    do {
+                        try await authService.deleteAccount()
+                    } catch {
+                        accountError = error.localizedDescription
+                    }
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your profile and synced Stride data will be permanently deleted. This cannot be undone.")
+        }
+        .alert("Account Could Not Be Deleted", isPresented: Binding(
+            get: { accountError != nil },
+            set: { if !$0 { accountError = nil } }
+        )) {
+            Button("OK", role: .cancel) { accountError = nil }
+        } message: {
+            Text(accountError ?? "Please try again.")
         }
         .onAppear { achievementsVM.loadAll() }
     }

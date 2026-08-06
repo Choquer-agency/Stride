@@ -62,9 +62,9 @@ extension WorkoutType {
             return .threshold  // Tempo runs are threshold effort
         case .race:
             return .marathonPace  // Race pace
-        case .intervals, .hillRepeats:
+        case .intervals, .fartlek, .hillRepeats, .drills:
             return .interval
-        case .rest, .gym, .crossTraining:
+        case .rest, .gym, .crossTraining, .mobility:
             return nil // Not a running intensity
         }
     }

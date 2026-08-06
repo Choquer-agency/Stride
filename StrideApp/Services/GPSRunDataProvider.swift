@@ -8,6 +8,9 @@ private let gpsLog = Logger(subsystem: "com.stride.app", category: "GPSRunDataPr
 /// Manages its own elapsed time (with pause/resume) and accumulates distance from CLLocation updates.
 final class GPSRunDataProvider: RunDataProvider {
     var onRunSample: ((RunSample) -> Void)?
+    /// Raw speed signal that fires on every GPS update — *including while paused* —
+    /// so AutoPauseService can detect resume. Regular `onRunSample` is gated by pause.
+    var onSpeedTick: ((Double) -> Void)?
     let dataSourceType: String = "gps"
     let deviceName: String? = nil
 
@@ -28,6 +31,7 @@ final class GPSRunDataProvider: RunDataProvider {
     private var totalDistanceMeters: Double = 0
     private var lastLocation: CLLocation?
     private var lastAltitude: Double?
+    private var filteredAltitude: Double?
 
     // Timer management
     private var runStartTime: Date?
@@ -52,6 +56,7 @@ final class GPSRunDataProvider: RunDataProvider {
         totalDistanceMeters = 0
         lastLocation = nil
         lastAltitude = nil
+        filteredAltitude = nil
         routePoints = []
         elevationGain = 0
         elevationLoss = 0
@@ -88,38 +93,53 @@ final class GPSRunDataProvider: RunDataProvider {
     // MARK: - Location Handling
 
     private func handleLocation(_ location: CLLocation) {
+        // Emit raw speed before the pause gate so auto-resume detection still fires
+        // while paused. Invalid GPS speeds (< 0) report as 0 → runner still "stopped".
+        let rawSpeed = location.speed >= 0 ? location.speed : 0
+        onSpeedTick?(rawSpeed)
+
         // Don't accumulate distance or emit samples while paused
         guard !isPaused else { return }
 
         guard let startTime = runStartTime else { return }
 
-        // Elapsed time excluding paused intervals
-        let elapsedTime = Date().timeIntervalSince(startTime) - totalPausedDuration
+        // Use the sensor timestamp so delayed/batched Core Location callbacks do not
+        // inflate elapsed time or make distance and pace disagree.
+        let elapsedTime = max(0, location.timestamp.timeIntervalSince(startTime) - totalPausedDuration)
+
+        let previousLocation = lastLocation
+        let segmentDistance = previousLocation.map { location.distance(from: $0) } ?? 0
+        let segmentDuration = previousLocation.map { location.timestamp.timeIntervalSince($0.timestamp) } ?? 0
 
         // Accumulate distance from previous valid location
-        if let last = lastLocation {
-            let delta = location.distance(from: last)
-            // Sanity check: reject jumps > 100m between updates (GPS teleportation)
-            if delta < 100 {
-                totalDistanceMeters += delta
+        if let last = previousLocation, segmentDuration > 0 {
+            // Accuracy-aware jitter floor plus a speed-based teleport ceiling.
+            let jitterFloor = max(1.5, min(5, (location.horizontalAccuracy + last.horizontalAccuracy) * 0.12))
+            let maximumPlausibleDistance = max(25, segmentDuration * 8 + location.horizontalAccuracy)
+            if segmentDistance >= jitterFloor && segmentDistance <= maximumPlausibleDistance {
+                totalDistanceMeters += segmentDistance
             } else {
-                gpsLog.warning("Rejected GPS jump: \(delta)m")
+                gpsLog.debug("Rejected GPS segment: \(segmentDistance)m over \(segmentDuration)s")
             }
         }
         lastLocation = location
 
-        // Elevation tracking (smoothed with 3m threshold to reduce GPS altitude noise)
-        let altitude = location.altitude
+        // Low-pass altitude before accumulating gain/loss or feeding route coaching.
+        // Poor vertical fixes get less influence than good fixes.
+        let verticalAccuracy = location.verticalAccuracy
+        let alpha = verticalAccuracy >= 0 && verticalAccuracy <= 8 ? 0.25 : 0.10
+        let altitude = filteredAltitude.map { $0 + alpha * (location.altitude - $0) } ?? location.altitude
+        filteredAltitude = altitude
         if let lastAlt = lastAltitude {
             let altDelta = altitude - lastAlt
-            if altDelta > 3.0 {
-                elevationGain += altDelta
-                lastAltitude = altitude
-            } else if altDelta < -3.0 {
-                elevationLoss += abs(altDelta)
+            if abs(altDelta) >= 2.5 {
+                if altDelta > 0 {
+                    elevationGain += altDelta
+                } else {
+                    elevationLoss += abs(altDelta)
+                }
                 lastAltitude = altitude
             }
-            // Within ±3m threshold: don't update lastAltitude (dead zone filter)
         } else {
             lastAltitude = altitude
         }
@@ -128,10 +148,8 @@ final class GPSRunDataProvider: RunDataProvider {
         let speedMps: Double
         if location.speed >= 0 {
             speedMps = location.speed
-        } else if let last = lastLocation, elapsedTime > 0 {
-            let timeDelta = location.timestamp.timeIntervalSince(last.timestamp)
-            let distDelta = location.distance(from: last)
-            speedMps = timeDelta > 0 ? distDelta / timeDelta : 0
+        } else if previousLocation != nil, segmentDuration > 0 {
+            speedMps = segmentDistance / segmentDuration
         } else {
             speedMps = 0
         }

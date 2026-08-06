@@ -1,0 +1,16 @@
+{
+  "user_id": "FIXTURE_GARMIN_USER",
+  "vo2max_running": 57.1,
+  "training_status": "productive",
+  "acute_load": 412,
+  "chronic_load": 388,
+  "acute_chronic_ratio": 1.06,
+  "lactate_threshold_hr": 168,
+  "lactate_threshold_pace_sec_per_km": 240,
+  "race_predictors": {
+    "five_k": 1140,
+    "ten_k": 2370,
+    "half_marathon": 5040,
+    "marathon": 10440
+  }
+}

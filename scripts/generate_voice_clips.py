@@ -11,7 +11,7 @@ import time
 import json
 import subprocess
 
-API_KEY = "sk_6c250411f6eed3dafe6b56c013dd12e26160505c379286af"
+API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
 VOICE_ID = "fDeOZu1sNd7qahm2fV4k"
 MODEL_ID = "eleven_flash_v2_5"
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "StrideApp", "Audio")
@@ -29,6 +29,9 @@ DELAY_BETWEEN_REQUESTS = 0.35
 def generate_clip(filename: str, text: str):
     """Call ElevenLabs API via curl and save MP3."""
     filepath = os.path.join(OUTPUT_DIR, filename)
+
+    if not API_KEY:
+        raise RuntimeError("Set ELEVENLABS_API_KEY before generating voice clips")
 
     if os.path.exists(filepath) and os.path.getsize(filepath) > 1000:
         return "skip"

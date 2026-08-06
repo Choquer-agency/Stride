@@ -1,0 +1,15 @@
+{
+  "user_id": "FIXTURE_GARMIN_USER",
+  "calendar_date": "2026-05-05",
+  "resting_heart_rate": 48,
+  "hrv_overnight": 62,
+  "sleep_duration_minutes": 462,
+  "sleep_score": 84,
+  "sleep_stages": {"deep_min": 78, "light_min": 252, "rem_min": 98, "awake_min": 34},
+  "body_battery_start": 88,
+  "body_battery_end": 42,
+  "body_battery_low": 14,
+  "stress_score": 28,
+  "steps": 9420,
+  "active_minutes": 92
+}

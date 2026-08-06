@@ -18,6 +18,11 @@ final class VoiceCoachService {
     // Halfway tracking
     private var hasAnnouncedHalfway = false
 
+    /// Exposes whether the halfway distance milestone has been announced, so callers
+    /// can dedupe other announcements (e.g., skip the km split when the km boundary
+    /// coincides with the halfway point).
+    var halfwayAnnounced: Bool { hasAnnouncedHalfway }
+
     // Time checkpoint tracking
     private var hasAnnounced30Min = false
     private var hasAnnounced60Min = false
@@ -101,7 +106,9 @@ final class VoiceCoachService {
     /// Progressive detail:
     ///   - KM 1: km + pace + total time
     ///   - KM 2+: km + pace + average pace + total time
-    func announceKmSplit(kilometer: Int, paceSecPerKm: Double, totalElapsedTime: TimeInterval, avgPaceSecPerKm: Double? = nil) {
+    /// When `isDistanceFocused` is true (long/easy distance runs), total time is omitted
+    /// mid-run so the runner isn't distracted by cumulative clock time.
+    func announceKmSplit(kilometer: Int, paceSecPerKm: Double, totalElapsedTime: TimeInterval, avgPaceSecPerKm: Double? = nil, isDistanceFocused: Bool = false) {
         guard settings.isEnabled, settings.announceKmSplits else { return }
 
         let unitPrefix = settings.paceUnit == .km ? "km" : "mile"
@@ -121,21 +128,30 @@ final class VoiceCoachService {
             clips.append(contentsOf: paceClips(secondsPerKm: avgPace, includeUnit: false))
         }
 
-        clips.append(.bundled("total_time", fallbackText: "Total time:"))
-        clips.append(contentsOf: timeClips(totalElapsedTime))
+        if !isDistanceFocused {
+            clips.append(.bundled("total_time", fallbackText: "Total time:"))
+            clips.append(contentsOf: timeClips(totalElapsedTime))
+        }
 
         tts.speakSequence(clips)
     }
 
     /// Announce a pace zone change with the specific number of seconds off target.
     /// `diffSeconds` is positive when slow (pace > target), negative when fast.
+    ///
+    /// Debounce is asymmetric: off-pace alerts wait out the full `paceZoneDebounceInterval`,
+    /// but recovery transitions (off-pace → .onPace) bypass it so the runner hears
+    /// "back on pace" immediately after a successful correction.
     func announcePaceZoneChange(from oldZone: PaceZone, to newZone: PaceZone, diffSeconds: Int = 0) {
         guard settings.isEnabled, settings.announcePaceZone else { return }
         guard newZone != .noTarget else { return }
+        guard newZone != lastAnnouncedPaceZone else { return }
 
         let now = Date()
-        guard now.timeIntervalSince(lastPaceZoneAnnouncement) >= paceZoneDebounceInterval else { return }
-        guard newZone != lastAnnouncedPaceZone else { return }
+        let isRecovery = newZone == .onPace && oldZone.isOffPace
+        if !isRecovery {
+            guard now.timeIntervalSince(lastPaceZoneAnnouncement) >= paceZoneDebounceInterval else { return }
+        }
 
         lastPaceZoneAnnouncement = now
         lastAnnouncedPaceZone = newZone
@@ -154,11 +170,7 @@ final class VoiceCoachService {
         case .slightlyFast:
             text = "\(absDiff) \(secWord) ahead of pace."
         case .onPace:
-            if oldZone == .tooSlow || oldZone == .slightlySlow || oldZone == .tooFast || oldZone == .slightlyFast {
-                text = "Back on pace."
-            } else {
-                text = nil
-            }
+            text = isRecovery ? "Back on pace." : nil
         case .noTarget:
             text = nil
         }
@@ -166,6 +178,16 @@ final class VoiceCoachService {
         if let t = text {
             tts.speakSequence([.text(t)])
         }
+    }
+
+    /// Announce the one-way pivot from pace-chasing to distance-focused mode when
+    /// the runner can no longer realistically hit target pace. Played once, then
+    /// `announcePaceZoneChange` is suppressed for the rest of the run.
+    func announceDistancePivot() {
+        guard settings.isEnabled, settings.announcePaceZone else { return }
+        tts.speakSequence([
+            .text("Let's take the pressure off the pace. Forget the clock — focus on distance and finish this thing strong.")
+        ])
     }
 
     /// Announce pace alert with specific values (uses API + cache for the values).
@@ -374,7 +396,7 @@ final class VoiceCoachService {
 
     func announceRunEnded() {
         guard settings.isEnabled else { return }
-        tts.speakSequence([.bundled("run_ended", fallbackText: "Run ended.")])
+        tts.speakSequence([.bundled("run_ended", fallbackText: "Run ended — you left it all out there.")])
     }
 
     func announceRunSaved() {
@@ -547,6 +569,125 @@ final class VoiceCoachService {
         }
 
         tts.speakSequence(clips)
+    }
+
+    // MARK: - 2B. MID-RUN Intelligent Coaching (terrain + finish push)
+
+    /// Announce last kilometer with performance-aware message.
+    func announceLastKm(trend: PerformanceTrend) {
+        guard settings.isEnabled, settings.announceFinishPush else { return }
+
+        var clips: [AudioClip] = [
+            .text("Last kilometer.")
+        ]
+
+        switch trend {
+        case .fading:
+            clips.append(.text("Dig deep. Don't let it slip."))
+        case .holding:
+            clips.append(.text("You're running strong. Hold this pace to the finish."))
+        case .surging:
+            clips.append(.text("You're flying. Bring it home."))
+        }
+
+        tts.speakSequence(clips)
+    }
+
+    /// Announce final 200m push.
+    func announceFinalPush() {
+        guard settings.isEnabled, settings.announceFinishPush else { return }
+        tts.speakSequence([
+            .text("Two hundred meters! Sprint it in! Leave nothing out there!")
+        ])
+    }
+
+    /// Replaces the standard km-split announcement when the runner crosses their
+    /// target distance (whole-km targets). Celebrates the finish, speaks the final
+    /// split pace and total time, and adds a performance-aware closing line.
+    func announceTargetReached(
+        finalKm: Int,
+        finalSplitPaceSecPerKm: Double,
+        totalElapsedTime: TimeInterval,
+        trend: PerformanceTrend?,
+        withinTargetPace: Bool
+    ) {
+        guard settings.isEnabled else { return }
+
+        var clips: [AudioClip] = [
+            .text("You crushed it. Target distance complete."),
+            .text("Final split:"),
+        ]
+        clips.append(contentsOf: paceClips(secondsPerKm: finalSplitPaceSecPerKm, includeUnit: false))
+        clips.append(.bundled("total_time", fallbackText: "Total time:"))
+        clips.append(contentsOf: timeClips(totalElapsedTime))
+
+        let closing: String
+        switch (withinTargetPace, trend) {
+        case (true, .holding):
+            closing = "You held the pace the whole way. That's how it's done."
+        case (true, .surging):
+            closing = "You finished stronger than you started. Huge."
+        case (true, .fading):
+            closing = "You dug deep to the finish. Well earned."
+        case (false, .surging):
+            closing = "Strong close."
+        case (false, .fading):
+            closing = "Tough one — proud of you for closing it out."
+        default:
+            closing = "Nice work out there."
+        }
+        clips.append(.text(closing))
+
+        tts.speakSequence(clips)
+    }
+
+    /// Announce upcoming hill on the return leg of an out-and-back. Because the
+    /// runner has already traversed this segment outbound, the message acknowledges
+    /// familiarity instead of treating the hill as a surprise.
+    func announceHillWarning(distanceAheadMeters: Int, isUphill: Bool) {
+        guard settings.isEnabled, settings.announceTerrainCoaching else { return }
+
+        let distanceHundreds = distanceAheadMeters / 100
+        guard distanceHundreds > 0 else { return }
+
+        let hillType = isUphill ? "Hill" : "Downhill"
+        let distancePhrase = distanceHundreds == 1 ? "about 100 meters" : "about \(distanceHundreds) hundred meters"
+        let message: String
+        if isUphill {
+            message = "\(hillType) coming up in \(distancePhrase). You handled this on the way out — stay strong."
+        } else {
+            message = "\(hillType) coming up in \(distancePhrase). Let it carry you."
+        }
+
+        tts.speakSequence([.text(message)])
+    }
+
+    /// Announce that a hill has been cleared.
+    func announceHillCleared(isUphill: Bool) {
+        guard settings.isEnabled, settings.announceTerrainCoaching else { return }
+
+        if isUphill {
+            tts.speakSequence([.text("You crushed that hill. Coast down. Let's finish strong.")])
+        } else {
+            tts.speakSequence([.text("Downhill done. Back to work.")])
+        }
+    }
+
+    /// Append performance context after the existing halfway announcement.
+    func announceEnhancedHalfway(trend: PerformanceTrend) {
+        guard settings.isEnabled, settings.announceHalfway else { return }
+
+        let message: String
+        switch trend {
+        case .fading:
+            message = "You've slowed a bit. Settle into your rhythm for the back half."
+        case .holding:
+            message = "Right on pace. Keep this rolling."
+        case .surging:
+            message = "You're ahead of pace. Smart running."
+        }
+
+        tts.speakSequence([.text(message)])
     }
 
     // MARK: - Cache Management

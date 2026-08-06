@@ -24,19 +24,8 @@
 	<true/>
 	<key>MBXAccessToken</key>
 	<string>pk.eyJ1IjoiY2hvcXVlciIsImEiOiJjbW5yb3d6N3QwNG50MnFxMWtsY2IyYTJ2In0.BJsGKQaYMSrJX0R78_lhVg</string>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<true/>
-	</dict>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Stride needs Bluetooth access to connect to your Assault Runner treadmill and log workout data.</string>
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_http._tcp</string>
-	</array>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Stride needs to connect to your local development server to generate personalized training plans.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Stride needs background location access to track your run while your phone is in your pocket.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -57,6 +46,17 @@
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.stride-v.2.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>stride</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>bluetooth-central</string>
@@ -65,10 +65,6 @@
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>armv7</string>
-	</array>
 	<key>UIRequiresFullScreen</key>
 	<true/>
 	<key>UISupportedInterfaceOrientations</key>

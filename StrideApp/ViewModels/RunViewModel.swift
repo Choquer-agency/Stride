@@ -104,6 +104,15 @@ enum PaceZone {
         }
     }
 
+    /// True for any zone where the runner has drifted off the target pace —
+    /// used to gate the fast "back on pace" recovery path.
+    var isOffPace: Bool {
+        switch self {
+        case .tooSlow, .slightlySlow, .tooFast, .slightlyFast: return true
+        case .onPace, .noTarget: return false
+        }
+    }
+
     var statusText: String {
         switch self {
         case .onPace, .slightlyFast: return "On Pace"
@@ -165,6 +174,10 @@ class RunViewModel: ObservableObject {
     @Published var targetPaceMaxSec: Double?     // slower boundary (higher sec/km)
     @Published var paceZone: PaceZone = .noTarget
 
+    /// Point-of-no-return flag: once set, we stop nagging about pace and let the
+    /// runner focus on finishing the distance. One-way — never flips back during a run.
+    @Published private(set) var distanceOnlyMode: Bool = false
+
     // MARK: - Planned Workout Reference
     var plannedWorkoutId: UUID?
 
@@ -177,6 +190,18 @@ class RunViewModel: ObservableObject {
     /// Whether this is a time-based workout (has duration target but no distance target).
     var isTimeBasedWorkout: Bool {
         isPlannedRun && targetDurationMinutes != nil && targetDistanceKm == nil
+    }
+
+    /// Whether this workout is distance-focused (long runs, or easy/free runs at 8km+).
+    /// Used to suppress total-time readouts on mid-run splits so the runner isn't
+    /// distracted by cumulative clock time until the finish.
+    var isDistanceFocusedWorkout: Bool {
+        if plannedWorkoutType == .longRun { return true }
+        if let target = targetDistanceKm, target >= 8 {
+            // Easy / unplanned runs at 8km+ count as distance-focused.
+            if plannedWorkoutType == .easyRun || plannedWorkoutType == nil { return true }
+        }
+        return false
     }
 
     // MARK: - GPS / Route State
@@ -192,6 +217,7 @@ class RunViewModel: ObservableObject {
     private let paceSmoother = PaceSmoother()
     private let autoPauseService = AutoPauseService()
     private let voiceCoach = VoiceCoachService()
+    private lazy var midRunCoach = MidRunCoachingService(voiceCoach: voiceCoach)
 
     // Kilometer split tracking
     private var lastRecordedKm: Int = 0
@@ -253,6 +279,13 @@ class RunViewModel: ObservableObject {
             }
             autoPauseService.onAutoResume = { [weak self] in
                 DispatchQueue.main.async { self?.resumeRun() }
+            }
+            // Feed the auto-pause detector from the raw GPS tick so it keeps
+            // receiving speed samples while paused and can trigger resume.
+            if let gps = provider as? GPSRunDataProvider {
+                gps.onSpeedTick = { [weak self] speed in
+                    self?.autoPauseService.processSample(speedMps: speed)
+                }
             }
         } else {
             autoPauseService.isEnabled = false
@@ -407,6 +440,7 @@ class RunViewModel: ObservableObject {
         targetPaceMinSec = nil
         targetPaceMaxSec = nil
         paceZone = .noTarget
+        distanceOnlyMode = false
 
         // Clear GPS state
         routeCoordinates = []
@@ -415,6 +449,7 @@ class RunViewModel: ObservableObject {
         currentAltitude = nil
         autoPauseService.reset()
         voiceCoach.reset()
+        midRunCoach.reset()
 
         // Stop display timer
         displayTimer?.invalidate()
@@ -433,6 +468,7 @@ class RunViewModel: ObservableObject {
         displayTimer?.invalidate()
         displayTimer = nil
         voiceCoach.reset()
+        midRunCoach.reset()
         autoPauseService.reset()
     }
 
@@ -525,10 +561,8 @@ class RunViewModel: ObservableObject {
             currentAltitude = altitude
         }
 
-        // 3b. Auto-pause detection (outdoor GPS runs only)
-        if let speed = sample.speedMps {
-            autoPauseService.processSample(speedMps: speed)
-        }
+        // 3b. Auto-pause detection runs off GPSRunDataProvider.onSpeedTick so it
+        // keeps receiving samples while paused. Nothing to do here.
 
         // 4. Pace — smooth raw speed, then format
         if let rawSpeedMps = sample.speedMps, rawSpeedMps > 0 {
@@ -562,6 +596,29 @@ class RunViewModel: ObservableObject {
             targetDistanceKm: targetDistanceKm,
             targetDurationMinutes: targetDurationMinutes
         )
+
+        // 9. Intelligent mid-run coaching (terrain + finish push + performance context)
+        let routePoints: [RoutePoint]?
+        let isGPS: Bool
+        if let gpsProvider = dataProvider as? GPSRunDataProvider {
+            routePoints = gpsProvider.routePoints
+            isGPS = true
+        } else if let simProvider = dataProvider as? SimulatedGPSRunDataProvider {
+            routePoints = simProvider.routePoints
+            isGPS = true
+        } else {
+            routePoints = nil
+            isGPS = false
+        }
+        midRunCoach.update(
+            routePoints: routePoints,
+            currentDistanceKm: distance,
+            targetDistanceKm: targetDistanceKm,
+            elapsedTime: elapsedTime,
+            smoothedPaceSecPerKm: nil, // pace zone already handles smoothing
+            kmSplits: kilometerSplits,
+            isGPSRun: isGPS
+        )
     }
 
     // MARK: - Pace Formatting
@@ -587,8 +644,12 @@ class RunViewModel: ObservableObject {
     /// because we require sustained residency before announcing).
     private var candidateZone: PaceZone = .noTarget
     private var candidateZoneSince: TimeInterval = 0
-    /// How long the runner must stay in a new zone before we announce it.
+    /// Sustained duration before announcing a new off-pace zone — stays generous to
+    /// avoid false positives from transient pace noise.
     private let sustainedZoneDuration: TimeInterval = 30.0
+    /// Shorter window for the recovery transition (off-pace → on-pace) so runners
+    /// get fast confirmation that their micro-adjustments worked.
+    private let recoveryZoneDuration: TimeInterval = 12.0
 
     private func updatePaceZone(_ smoothedPace: Double) {
         guard let minPace = targetPaceMinSec, let maxPace = targetPaceMaxSec else {
@@ -613,17 +674,73 @@ class RunViewModel: ObservableObject {
             candidateZoneSince = elapsedTime
         }
 
-        // Only transition + announce after sustained residency.
-        let sustained = elapsedTime - candidateZoneSince >= sustainedZoneDuration
+        // Asymmetric gating: recovery (off-pace → on-pace) uses a shorter window so
+        // runners hear "back on pace" quickly after a correction.
+        let isRecovery = candidateZone == .onPace && paceZone.isOffPace
+        let requiredDuration = isRecovery ? recoveryZoneDuration : sustainedZoneDuration
+
+        let sustained = elapsedTime - candidateZoneSince >= requiredDuration
         if sustained && candidateZone != paceZone {
             let oldZone = paceZone
             paceZone = candidateZone
 
-            // Compute how far off target so the voice alert can say specific seconds.
-            let targetMid = ((minPace + maxPace) / 2.0)
-            let diffSeconds = Int(round(smoothedPace - targetMid))
-            voiceCoach.announcePaceZoneChange(from: oldZone, to: paceZone, diffSeconds: diffSeconds)
+            // Suppress pace-zone voice once we've pivoted to distance-only; UI still updates.
+            if !distanceOnlyMode {
+                // Compute how far off target so the voice alert can say specific seconds.
+                let targetMid = ((minPace + maxPace) / 2.0)
+                let diffSeconds = Int(round(smoothedPace - targetMid))
+                voiceCoach.announcePaceZoneChange(from: oldZone, to: paceZone, diffSeconds: diffSeconds)
+            }
         }
+    }
+
+    // MARK: - Pace Pivot (point of no return)
+
+    /// After halfway, if the runner's last two splits were both so far off the
+    /// required finish pace that they can't realistically catch up, flip to
+    /// distance-only mode: suppress pace-zone alerts and play a single handoff cue.
+    /// One-way — we don't flip back even if a later split surges.
+    private func evaluatePacePivot() {
+        guard !distanceOnlyMode else { return }
+        guard let target = targetDistanceKm, target > 0 else { return }
+        guard let targetMax = targetPaceMaxSec, targetPaceMinSec != nil else { return }
+        guard kilometerSplits.count >= 2 else { return }
+
+        let distRemaining = target - distance
+        guard distRemaining > 0.2 else { return }    // too close to finish to matter
+
+        let pastHalfway = distance >= target * 0.5
+        let targetTotalTime = targetMax * target
+        let timeOverrun = elapsedTime >= targetTotalTime
+
+        // Hard pivot: already past the target clock regardless of distance progress.
+        if timeOverrun {
+            triggerPacePivot(reason: "over target time")
+            return
+        }
+
+        // Soft pivot: past halfway AND last two splits were both >30s/km slower
+        // than the pace required to still finish at the target's slow edge.
+        guard pastHalfway else { return }
+        let timeRemaining = targetTotalTime - elapsedTime
+        let requiredPace = timeRemaining / distRemaining
+
+        let recent = kilometerSplits.suffix(2).compactMap { split -> Double? in
+            guard let secs = split.pace.toSeconds else { return nil }
+            return Double(secs)
+        }
+        guard recent.count == 2 else { return }
+
+        let deficitThreshold: Double = 30.0    // sec/km
+        if recent.allSatisfy({ $0 > requiredPace + deficitThreshold }) {
+            triggerPacePivot(reason: "two splits >\(Int(deficitThreshold))s/km off required")
+        }
+    }
+
+    private func triggerPacePivot(reason: String) {
+        distanceOnlyMode = true
+        voiceCoach.announceDistancePivot()
+        runLog.info("Pace pivot → distance-only at km \(self.distance) (\(reason))")
     }
 
     // MARK: - Pace Drift
@@ -728,21 +845,65 @@ class RunViewModel: ObservableObject {
         if let latestSplit = kilometerSplits.last {
             showSplitFeedback(for: latestSplit)
 
-            // Voice: announce the completed km split
-            // KM 1: pace + total time. KM 2+: pace + average pace + total time.
+            // Voice: announce the completed km split, unless this km coincides with
+            // a milestone that will speak its own line (halfway, finish) — in which case
+            // the milestone announcement replaces the standard split.
             if let paceSeconds = latestSplit.pace.toSeconds {
                 let avgPace = distance > 0 ? elapsedTime / distance : 0
-                voiceCoach.announceKmSplit(
-                    kilometer: latestSplit.kilometer,
-                    paceSecPerKm: Double(paceSeconds),
-                    totalElapsedTime: elapsedTime,
-                    avgPaceSecPerKm: latestSplit.kilometer >= 2 ? avgPace : nil
-                )
+                let kmDouble = Double(latestSplit.kilometer)
+
+                // Halfway collision: km boundary == target/2 and halfway not yet announced.
+                let halfwayOnThisKm: Bool = {
+                    guard let target = targetDistanceKm, target > 0 else { return false }
+                    guard !voiceCoach.halfwayAnnounced else { return false }
+                    return abs(target / 2.0 - kmDouble) < 0.05
+                }()
+
+                // Finish collision: km boundary == target (exact whole-km target).
+                let finishOnThisKm: Bool = {
+                    guard let target = targetDistanceKm, target > 0 else { return false }
+                    return abs(target - kmDouble) < 0.05
+                }()
+
+                if finishOnThisKm {
+                    // Fire the celebratory finish announcement in place of the standard split.
+                    let trend = midRunCoach.performanceTrend(kmSplits: kilometerSplits)
+                    let avgPaceAll = distance > 0 ? elapsedTime / distance : 0
+                    let heldTarget: Bool = {
+                        guard let minP = targetPaceMinSec, let maxP = targetPaceMaxSec else { return false }
+                        return avgPaceAll >= minP && avgPaceAll <= maxP
+                    }()
+                    voiceCoach.announceTargetReached(
+                        finalKm: latestSplit.kilometer,
+                        finalSplitPaceSecPerKm: Double(paceSeconds),
+                        totalElapsedTime: elapsedTime,
+                        trend: trend,
+                        withinTargetPace: heldTarget
+                    )
+                    midRunCoach.onKmSplitAnnounced()
+                } else if halfwayOnThisKm {
+                    // Suppress the standard split — checkProgressMilestones will fire
+                    // the halfway announcement on this same sample, which already
+                    // includes km-down / km-to-go / total time.
+                    midRunCoach.onKmSplitAnnounced()
+                } else {
+                    voiceCoach.announceKmSplit(
+                        kilometer: latestSplit.kilometer,
+                        paceSecPerKm: Double(paceSeconds),
+                        totalElapsedTime: elapsedTime,
+                        avgPaceSecPerKm: latestSplit.kilometer >= 2 ? avgPace : nil,
+                        isDistanceFocused: isDistanceFocusedWorkout
+                    )
+                    midRunCoach.onKmSplitAnnounced()
+                }
             }
         }
 
         // Re-evaluate fastest split
         markFastestSplit()
+
+        // Evaluate whether to pivot to distance-only coaching.
+        evaluatePacePivot()
     }
 
     /// Find the fastest split, mark it with isFastest, and compute diff-from-fastest for each split.

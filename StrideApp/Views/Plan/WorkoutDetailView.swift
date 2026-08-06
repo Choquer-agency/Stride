@@ -503,9 +503,9 @@ struct WorkoutDetailView: View {
 extension WorkoutType {
     var isRunRelated: Bool {
         switch self {
-        case .easyRun, .longRun, .tempoRun, .intervals, .hillRepeats, .recovery, .race:
+        case .easyRun, .longRun, .tempoRun, .intervals, .fartlek, .hillRepeats, .drills, .recovery, .race:
             return true
-        case .rest, .crossTraining, .gym:
+        case .rest, .crossTraining, .gym, .mobility:
             return false
         }
     }

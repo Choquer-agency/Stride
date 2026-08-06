@@ -8,7 +8,15 @@ class Base(DeclarativeBase):
 
 
 settings = get_settings()
-engine = create_async_engine(settings.database_url, echo=False)
+# pool_pre_ping: Neon closes idle connections; without a health check the first
+# query after an idle period 500s with "connection is closed" (seen on /auth/apple).
+# pool_recycle keeps pooled connections younger than Neon's idle timeout.
+engine = create_async_engine(
+    settings.database_url,
+    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=280,
+)
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 

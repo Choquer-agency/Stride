@@ -1,0 +1,59 @@
+RACE MODULE — ULTRA (50K AND BEYOND)
+====================================
+
+WHAT THE RACE DEMANDS
+---------------------
+Ultra readiness is not weekly mileage — it is time-on-feet adaptation, cumulative
+fatigue resistance, fueling and hydration execution under stress, mental
+durability, and terrain-specific preparation. Ultras are trained by DURATION and
+cumulative fatigue. A plan that builds mileage without building long-run duration
+produces a runner who can run a lot, not a runner who can run long. Long runs are
+measured in hours as much as kilometres; every run beyond ~2.5–3 hours carries
+fueling practice notes; effort (RPE) governs where terrain makes pace unreliable.
+
+DISTANCE-SPECIFIC STRUCTURE
+---------------------------
+- Peak long-run targets by goal: 50K → 32–40 km or 3.5–5 h, multiple runs ≥28 km.
+  100K → 45–55 km or 5–7 h, multiple ≥35 km, at least one ≥6 h effort. 100 miles →
+  50–65 km or 6–8 h, multiple ≥45 km, at least one ≥8 h. If the timeline can't
+  reach these safely, say so plainly in the overview.
+- Back-to-back long weekends (both days scheduled explicitly as long runs) are
+  mandatory in peak phases for 100K+ (optional/introductory for first-time 50K):
+  appearing in at least 3 build/peak weeks, with no gym Friday–Sunday those weeks.
+  Order the days by the athlete's limiter — depletion-first for durability
+  builders, longer-second for experienced racers simulating late-race fatigue.
+- A midweek medium-long run (15–25 km, 1.5–3 h easy) sustains cumulative fatigue
+  adaptation.
+- Recovery weeks keep a real long run (50K: 18–24 km; 100K: 22–30 km; 100M:
+  25–35 km) — ultra adaptation requires sustained exposure; recovery comes from
+  reduced intensity and total volume, not from deleting the long run.
+- Quality is secondary: threshold/steady work in modest doses, capped by the
+  contract; under 50 km/week → one quality session and 85%+ easy.
+- Terrain adaptation: road → reliable pace targets and even rhythm; trail →
+  effort-first pacing and elevation targets on key long runs; mountain → pace
+  targets illustrative only, mandatory hiking segments in long runs, weekly
+  elevation gain tracked alongside distance, eccentric-loading strength emphasis.
+- 100-mile extras: night-running exposure on 2–3 long runs, real-food fueling
+  practice beyond 5 hours, programmed walk/run ratios on 4+ hour efforts, race
+  execution and contingency review in the final two weeks.
+- Strength emphasis: posterior chain, single-leg strength, eccentric loading for
+  descents, power-hiking musculature for mountain events.
+
+TAPER
+-----
+50K: 10–14 days. 100K and beyond: 2–3 weeks. Final significant long run ~2 weeks
+out at moderate duration; final-week volume down 40–60%; race week is short easy
+running, generous rest, and logistics/mental rehearsal rather than fitness.
+
+PACE TABLE ROWS (all required)
+------------------------------
+PACE TABLE:
+Recovery: X:XX/km (RPE 2)
+Easy: X:XX/km (RPE 3)
+Steady: X:XX/km (RPE 4-5)
+Threshold: X:XX/km (RPE 6-7)
+Ultra Long Run: X:XX–X:XX/km (RPE 3-4, conversational)
+Race Pace (Goal): X:XX/km (estimated)
+
+Race pace is an estimate shaped by terrain, conditions, and experience — present
+it as such. Long-run prescriptions pair distance with expected time-on-feet.

@@ -6,46 +6,11 @@ struct SettingsSectionsView: View {
     @AppStorage("hapticFeedback") private var hapticFeedback = true
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @EnvironmentObject private var bluetoothManager: BluetoothManager
-    @EnvironmentObject private var authService: AuthService
-
     @State private var scanTimer: Timer?
-    @State private var leaderboardOptIn: Bool = false
-    @State private var displayName: String = ""
-    @State private var didLoadCommunityFields = false
 
     var body: some View {
-        // Community Section
-        Section {
-            Toggle(isOn: $leaderboardOptIn) {
-                Label("Join Leaderboards", systemImage: "trophy")
-                    .foregroundStyle(Color.primary, Color.stridePrimary)
-            }
-            .tint(Color.stridePrimary)
-            .onChange(of: leaderboardOptIn) { _, newValue in
-                guard didLoadCommunityFields else { return }
-                saveCommunityField { $0.leaderboardOptIn = newValue }
-            }
-
-            HStack {
-                Label("Display Name", systemImage: "person.text.rectangle")
-                    .foregroundStyle(Color.primary, Color.stridePrimary)
-                Spacer()
-                TextField("Runner123", text: $displayName)
-                    .multilineTextAlignment(.trailing)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: 150)
-                    .onSubmit {
-                        let trimmed = displayName.trimmingCharacters(in: .whitespaces)
-                        guard !trimmed.isEmpty else { return }
-                        saveCommunityField { $0.displayName = trimmed }
-                    }
-            }
-        } header: {
-            Text("Community")
-        } footer: {
-            Text("Your display name and profile photo are visible on leaderboards when opted in.")
-        }
-        .onAppear { loadCommunityFields() }
+        // v2 Phase 1: Garmin + future integrations
+        IntegrationsSection()
 
         // Treadmill Section
         Section {
@@ -141,24 +106,6 @@ struct SettingsSectionsView: View {
         // Voice Coaching Section
         VoiceCoachSettingsSection()
 
-        // Voice Usage Tracking
-        Section {
-            NavigationLink {
-                TTSUsageView()
-            } label: {
-                HStack {
-                    Label("Voice Usage", systemImage: "chart.bar.doc.horizontal")
-                        .foregroundStyle(Color.primary, Color.stridePrimary)
-                    Spacer()
-                    Text("\(TTSUsageLog.shared.todayUsage()) chars today")
-                        .font(.inter(size: 12, weight: .regular))
-                        .foregroundColor(.secondary)
-                }
-            }
-        } header: {
-            Text("Voice Analytics")
-        }
-
         // Account Section
         Section {
             NavigationLink {
@@ -247,44 +194,6 @@ struct SettingsSectionsView: View {
             Text("Support")
         }
 
-        // TEMP: DELETE THIS SECTION after correcting the run data.
-        Section {
-            NavigationLink {
-                TempWorkoutEditView()
-            } label: {
-                Label("Edit Run Data", systemImage: "pencil.circle")
-                    .foregroundStyle(.red, .red)
-            }
-        } header: {
-            Text("Debug (Temporary)")
-        }
-        // END TEMP
-    }
-
-    // MARK: - Community Helpers
-
-    private func loadCommunityFields() {
-        if let user = currentUser {
-            leaderboardOptIn = user.leaderboardOptIn
-            displayName = user.displayName ?? ""
-        }
-        didLoadCommunityFields = true
-    }
-
-    private var currentUser: UserResponse? {
-        switch authService.authState {
-        case .signedIn(let user): return user
-        case .needsProfile(let user): return user
-        default: return nil
-        }
-    }
-
-    private func saveCommunityField(_ update: (inout ProfileUpdateRequest) -> Void) {
-        var request = ProfileUpdateRequest()
-        update(&request)
-        Task {
-            _ = try? await authService.updateProfile(request)
-        }
     }
 
     // MARK: - Helpers

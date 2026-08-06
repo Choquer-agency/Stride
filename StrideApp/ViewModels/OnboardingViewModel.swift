@@ -225,10 +225,24 @@ class OnboardingViewModel: ObservableObject {
             context.insert(plan)
             try? context.save()
         }
-        
+
+        // Pin the athlete's check-in day server-side so the weekly check-in
+        // invite cron fires on their rest day (Sunday default if this fails).
+        let checkinDay = Self.checkinDay(restDays: data.restDays)
+        Task { await APIService.shared.registerCheckinDay(checkinDay) }
+
         generatedPlan = plan
         isLoading = false
         isComplete = true
+    }
+
+    /// The rest day that best closes the training week: Sunday if it's a rest
+    /// day, otherwise the latest rest day of the week, otherwise Sunday.
+    static func checkinDay(restDays: Set<DayOfWeek>) -> Int {
+        let order: [DayOfWeek] = [.monday, .tuesday, .wednesday, .thursday, .friday, .saturday, .sunday]
+        if restDays.contains(.sunday) { return 6 }
+        let indices = restDays.compactMap { order.firstIndex(of: $0) }
+        return indices.max() ?? 6
     }
     
     // MARK: - Validation Helpers

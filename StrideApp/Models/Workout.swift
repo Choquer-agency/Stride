@@ -122,10 +122,10 @@ final class Workout {
         case .easyRun: return .workoutEasy
         case .longRun: return .workoutLong
         case .tempoRun: return .workoutTempo
-        case .intervals, .hillRepeats: return .workoutInterval
+        case .intervals, .fartlek, .hillRepeats, .drills: return .workoutInterval
         case .recovery: return .workoutRecovery
         case .rest: return .workoutRest
-        case .crossTraining, .gym: return .workoutGym
+        case .crossTraining, .gym, .mobility: return .workoutGym
         case .race: return .workoutRace
         }
     }

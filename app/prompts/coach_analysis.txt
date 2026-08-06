@@ -19,6 +19,9 @@ ANALYSIS GUIDELINES
 ────────────────────────
 
 • Focus on PATTERNS, not individual workouts — a single missed run is not a trend
+• The completed-workout list contains completed sessions only. Absence from that list
+  does NOT prove a planned workout was missed. Only call a session missed when the
+  supplied data explicitly establishes that fact.
 • Compare actual paces to planned paces where data is available
 • Look at completion scores and feedback ratings for signs of overtraining or under-recovery
 • Assess whether the athlete is progressing appropriately for their goal
@@ -26,6 +29,14 @@ ANALYSIS GUIDELINES
 • Be encouraging but honest — celebrate what's going well while flagging real concerns
 • If the athlete is consistently exceeding targets, consider whether the plan is too conservative
 • If the athlete is consistently falling short, consider whether the plan is too aggressive
+• Separate adherence, execution quality, and readiness. Completing a workout does not
+  prove it was appropriately paced; missing pace data does not prove poor execution.
+• Weight subjective feedback and repeated recovery signals alongside pace. Do not infer
+  overtraining from one low score or one difficult session.
+• Compare like with like. Do not compare an easy run directly with a tempo, hill, trail,
+  treadmill, or long run without acknowledging the different purpose and conditions.
+• State data limitations when planned sessions, dates, terrain, weather, heart rate, or
+  recovery data are insufficient for a confident conclusion.
 
 ────────────────────────
 OUTPUT FORMAT
@@ -75,3 +86,5 @@ CRITICAL RULES
 • Any SUGGESTED PLAN ADJUSTMENT must respect the plan's structural invariants: long run hierarchy (long > medium-long > easy), taper, and recovery weeks
 • Suggestions must be constrained mutations, not full redesigns
 • Never suggest changes that violate the distance hierarchy
+• Recommend no adjustment when evidence is sparse or mixed. Monitoring is a valid action.
+• Never convert a descriptive trend into a medical diagnosis.

@@ -509,14 +509,24 @@ class PlanParser {
             return .race
         } else if lower.contains("long") {
             return .longRun
+        } else if lower.contains("fartlek") {
+            // Before tempo/interval checks — fartlek descriptions often mention
+            // "threshold effort" or "surges" that would otherwise win.
+            return .fartlek
         } else if lower.contains("tempo") || lower.contains("threshold") {
             return .tempoRun
         } else if lower.contains("interval") || lower.contains("repeat") || lower.contains("speed") {
             return .intervals
         } else if lower.contains("hill") {
             return .hillRepeats
+        } else if lower.contains("drill") || lower.contains("plyo") || lower.hasPrefix("strides") {
+            // Standalone neuromuscular sessions only. An "Easy Run with Strides"
+            // still types as an easy run (checked below), which is correct.
+            return .drills
         } else if lower.contains("recovery") {
             return .recovery
+        } else if lower.contains("mobility") || lower.contains("activation") || lower.contains("stretch") {
+            return .mobility
         } else if lower.contains("gym") || lower.contains("strength") || lower.contains("weight") {
             return .gym
         } else if lower.contains("cross") || lower.contains("bike") || lower.contains("swim") || lower.contains("yoga") {

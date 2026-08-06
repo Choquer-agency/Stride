@@ -5,7 +5,15 @@ from fastapi.responses import StreamingResponse
 
 from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, PostRunCoachRequest, PreRunCoachRequest, PreRunCoachResponse, ConflictAnalysisResponse
 from app.models.user import User
-from app.services.anthropic_client import AnthropicClient
+from app.services import plan_store
+from app.services.anthropic_client import AnthropicClient, ClaudeRefusalError
+from app.services.coaching_models import (
+    PLAN_MODEL,
+    PLAN_EDIT_MODEL,
+    PLAN_ANALYSIS_MODEL,
+    PRE_RUN_COACH_MODEL,
+    POST_RUN_COACH_MODEL,
+)
 from app.services.prompt_builder import prompt_builder
 from app.services.conflict_analyzer import conflict_analyzer
 from app.services.auth_service import get_current_user
@@ -70,6 +78,7 @@ async def generate_training_plan(request: TrainingPlanRequest, current_user: Use
     })
 
     async def generate():
+        full_output: list[str] = []
         try:
             async for chunk in client.generate_plan_stream(
                 system_prompt,
@@ -78,9 +87,26 @@ async def generate_training_plan(request: TrainingPlanRequest, current_user: Use
                 user_id=user_id_str,
                 session_id=session_id,
                 metadata={"race_type": request.race_type.value, "fitness_level": request.fitness_level.value},
+                model=PLAN_MODEL,
             ):
+                full_output.append(chunk)
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
+            # Persist the generated plan server-side (never breaks the stream)
+            await plan_store.save_plan_own_session(
+                current_user.id,
+                "".join(full_output),
+                source="generated",
+                race_type=request.race_type.value,
+                race_date=request.race_date,
+                race_name=request.race_name,
+                goal_time=request.goal_time,
+                custom_distance_km=request.custom_distance_km,
+                start_date=request.start_date,
+                fitness_level=request.fitness_level.value,
+            )
             yield f"data: {json.dumps({'done': True})}\n\n"
+        except ClaudeRefusalError:
+            yield f"data: {json.dumps({'error': 'The coach could not process this request. Please adjust your inputs and try again.'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
@@ -126,6 +152,7 @@ async def edit_training_plan(request: PlanEditRequest, current_user: User = Depe
     })
 
     async def generate():
+        full_output: list[str] = []
         try:
             async for chunk in client.generate_plan_stream(
                 system_prompt,
@@ -134,9 +161,25 @@ async def edit_training_plan(request: PlanEditRequest, current_user: User = Depe
                 user_id=user_id_str,
                 session_id=session_id,
                 metadata={"race_type": request.race_type.value},
+                model=PLAN_EDIT_MODEL,
             ):
+                full_output.append(chunk)
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
+            await plan_store.save_plan_own_session(
+                current_user.id,
+                "".join(full_output),
+                source="edited",
+                race_type=request.race_type.value,
+                race_date=request.race_date,
+                race_name=request.race_name,
+                goal_time=request.goal_time,
+                custom_distance_km=request.custom_distance_km,
+                start_date=request.start_date,
+                change_note=request.edit_instructions[:2000],
+            )
             yield f"data: {json.dumps({'done': True})}\n\n"
+        except ClaudeRefusalError:
+            yield f"data: {json.dumps({'error': 'The coach could not process this request. Please adjust your instructions and try again.'})}\n\n"
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
@@ -195,6 +238,7 @@ async def analyze_performance(request: PerformanceAnalysisRequest, current_user:
                     "race_type": request.race_type.value,
                     "weeks_into_plan": request.weeks_into_plan,
                 },
+                model=PLAN_ANALYSIS_MODEL,
             ):
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
@@ -213,36 +257,6 @@ async def analyze_performance(request: PerformanceAnalysisRequest, current_user:
 
 
 # ── Post-Run AI Coach ────────────────────────────────────────────────────────
-
-POST_RUN_COACH_SYSTEM_PROMPT = """You are a running coach delivering a spoken post-run summary directly to your athlete through their headphones. They just finished a run and are cooling down.
-
-VOICE AND TONE:
-- Speak like a real coach who knows this runner personally — warm, direct, encouraging, never robotic
-- This will be read aloud by a text-to-speech engine, so write exactly how a human would speak: contractions, natural rhythm, no bullet points, no markdown, no special characters, no emojis
-- Never use abbreviations like "km" or "bpm" — say "kilometers", "beats per minute"
-- Write numbers as spoken words for small values ("three", "five") and numerals for pace/distance where precision matters ("4:35", "21.1 kilometers")
-- Keep the total response between 90 and 150 words — this should feel like a 30 to 45 second voice note from a coach, not a report
-- One flowing paragraph. No headers, no lists, no line breaks.
-
-CONTENT STRUCTURE (flow naturally between these, don't treat them as sections):
-1. Acknowledge what they just did — distance, effort, the fact that they showed up
-2. Call out ONE highlight — a fast split, a new record, strong pacing consistency, negative split, or simply that they held steady the whole way. Pick the most impressive thing from the data, not everything.
-3. If a personal record was set, make it a moment — but keep it to one sentence, don't overdo it
-4. Bridge to tomorrow's workout — frame it with purpose. Why does tomorrow's session matter? What should their mindset be going into it? Keep it to one or two sentences.
-5. Close with a quick human reminder — stretching, hydrating, eating, resting. Keep it casual and brief, like a coach as you walk away.
-
-WHAT TO AVOID:
-- Don't list every split or stat. You have the data — use it to inform your commentary, not to recite it.
-- Don't be generic. Reference specific numbers from their run. "Your third kilometer was your fastest" is better than "you had some great splits."
-- Don't be sycophantic or over-the-top. Be genuinely encouraging the way a good coach is — honest, warm, specific.
-- Don't use filler phrases like "Great job out there today!" as an opener. Start with something specific to THIS run.
-- Never say "I" or refer to yourself. You're coaching them, not talking about yourself.
-- Don't repeat information they already heard from the prerecorded in-run alerts (split times were already called out live). Your job is to synthesize and give perspective, not repeat.
-
-PRERECORDED ALERTS ALREADY DELIVERED (do not repeat these verbatim — the runner already heard them):
-{prerecorded_alerts}
-
-Use the data below to generate the summary."""
 
 
 def _build_post_run_user_prompt(req: PostRunCoachRequest) -> str:
@@ -331,10 +345,8 @@ async def post_run_coach(request: PostRunCoachRequest, current_user: User = Depe
     Generate a personalized post-run coaching summary.
     Streams back spoken text designed for ElevenLabs TTS playback.
     """
-    system_prompt = POST_RUN_COACH_SYSTEM_PROMPT.replace(
-        "{prerecorded_alerts}",
-        request.prerecorded_alerts_delivered or "Kilometer splits with pace and total time were announced each kilometer."
-    )
+    prerecorded_alerts = request.prerecorded_alerts_delivered or "Kilometer splits with pace and total time were announced each kilometer."
+    system_prompt = prompt_builder.get_post_run_voice_prompt(prerecorded_alerts)
     user_prompt = _build_post_run_user_prompt(request)
 
     client = AnthropicClient()
@@ -358,6 +370,7 @@ async def post_run_coach(request: PostRunCoachRequest, current_user: User = Depe
                     "distance_km": request.total_distance_km,
                     "run_type": request.run_type,
                 },
+                model=POST_RUN_COACH_MODEL,
             ):
                 yield f"data: {json.dumps({'content': chunk})}\n\n"
             yield f"data: {json.dumps({'done': True})}\n\n"
@@ -376,34 +389,6 @@ async def post_run_coach(request: PostRunCoachRequest, current_user: User = Depe
 
 
 # ── Pre-Run AI Coach ─────────────────────────────────────────────────────────
-
-PRE_RUN_COACH_SYSTEM_PROMPT = """You are a female running coach giving a short, spoken motivational send-off to your athlete through their headphones, right before they start a run. The run timer starts the instant you stop speaking — so your final words ARE the launch cue.
-
-VOICE AND TONE:
-- Channel the energy of Jesse Itzler coaching a former competitive athlete. Direct, confident, a little edge. You're talking to someone who's been on start lines that mattered — treat them like it.
-- This athlete responds to challenge, not comfort. Frame the workout as an opportunity to prove something, not as something they'll "get through." Push their competitive identity.
-- Warm but never soft. You believe in them because of what they've done, not to make them feel good.
-- Written for text-to-speech: contractions, natural rhythm, no markdown, no emojis, no special characters.
-- No abbreviations. Say "kilometers", not "km".
-
-STRUCTURE:
-- ALWAYS open with the athlete's name (use the exact name from the ATHLETE CONTEXT below — do not substitute any other name). If a time-of-day is provided, use a short natural greeting that matches it before or alongside the name. Examples by time of day (replace [NAME] with the actual athlete name):
-  - early morning (4am–8am): "Good morning, [NAME]." / "Early one today, [NAME]."
-  - morning (9am–11am): "Morning, [NAME]." / "[NAME] —"
-  - afternoon (12pm–4pm): "Afternoon, [NAME]." / "Hey [NAME]."
-  - evening (5pm–8pm): "Evening, [NAME]." / "Hey [NAME]."
-  - night (after 9pm): "Late one tonight, [NAME]." / "Night run, [NAME]."
-  If no athlete name is provided, just open with "Hey —" or drop straight into the workout. NEVER invent or guess a name. NEVER use "Hey, champion!" / "Alright, runner!" / other generic filler.
-- Middle: a short, personal motivational nudge that references the specific workout (type, distance, pace, goal race, weeks out). Make it feel personal to THIS run, not a generic pep talk.
-- END with exactly this phrase, word-for-word: "Three, two, one, let's go." This is the run-start trigger — it must appear verbatim as the final words of your response. No variations, no substitutions, no trailing words after it.
-
-CONSTRAINTS:
-- 30 to 55 words total, including the countdown.
-- ONE short paragraph. Natural speech rhythm.
-- Never refer to yourself ("I", "me"). You're talking to them, not about yourself.
-- Favor language of separation, ownership, and competitive edge. Phrases like "this is where you separate," "prove it today," "own every step" — not "you've got this" or "be proud of yourself."
-
-Use the workout details below."""
 
 
 def _build_pre_run_user_prompt(req: PreRunCoachRequest) -> str:
@@ -444,7 +429,7 @@ async def pre_run_coach(request: PreRunCoachRequest, current_user: User = Depend
     try:
         client = AnthropicClient()
         text = await client.generate_plan(
-            PRE_RUN_COACH_SYSTEM_PROMPT,
+            prompt_builder.get_pre_run_voice_prompt(),
             _build_pre_run_user_prompt(request),
             name="pre-run-coach",
             user_id=user_id_str,
@@ -453,6 +438,7 @@ async def pre_run_coach(request: PreRunCoachRequest, current_user: User = Depend
                 "workout_type": request.workout_type,
                 "is_free_run": request.is_free_run,
             },
+            model=PRE_RUN_COACH_MODEL,
         )
     except Exception as e:
         tb = traceback.format_exc()
@@ -470,3 +456,110 @@ async def pre_run_coach(request: PreRunCoachRequest, current_user: User = Depend
         log.exception("analytics capture failed (non-fatal)")
 
     return PreRunCoachResponse(text=text.strip())
+
+
+# ── Server-side plan store: pull + backfill sync ─────────────────────────────
+
+
+from datetime import date as _date
+from typing import Optional as _Optional
+from uuid import UUID as _UUID
+
+from pydantic import BaseModel as _BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession
+
+from app.database import get_db as _get_db
+
+
+class ActivePlanResponse(_BaseModel):
+    id: _Optional[_UUID] = None
+    updated_at: _Optional[str] = None
+    source: _Optional[str] = None
+    raw_plan_content: _Optional[str] = None
+    race_type: _Optional[str] = None
+    race_date: _Optional[str] = None
+    race_name: _Optional[str] = None
+    goal_time: _Optional[str] = None
+    custom_distance_km: _Optional[float] = None
+    start_date: _Optional[str] = None
+    change_note: _Optional[str] = None
+
+
+@router.get("/plans/active", response_model=ActivePlanResponse)
+async def get_active_plan(
+    current_user: User = Depends(get_current_user),
+    db: _AsyncSession = Depends(_get_db),
+) -> ActivePlanResponse:
+    """
+    The server's copy of the athlete's active plan. iOS compares updated_at
+    against the last version it applied; a newer server_edit means the coach
+    changed the plan here and the app should offer to apply it.
+    """
+    record = await plan_store.get_active(db, current_user.id)
+    if record is None:
+        return ActivePlanResponse()
+    return ActivePlanResponse(
+        id=record.id,
+        updated_at=record.updated_at.isoformat() if record.updated_at else None,
+        source=record.source,
+        raw_plan_content=record.raw_plan_content,
+        race_type=record.race_type,
+        race_date=record.race_date.isoformat() if record.race_date else None,
+        race_name=record.race_name,
+        goal_time=record.goal_time,
+        custom_distance_km=record.custom_distance_km,
+        start_date=record.start_date.isoformat() if record.start_date else None,
+        change_note=record.change_note,
+    )
+
+
+class PlanSyncRequest(_BaseModel):
+    client_plan_id: _Optional[_UUID] = None
+    raw_plan_content: str
+    race_type: _Optional[str] = None
+    race_date: _Optional[_date] = None
+    race_name: _Optional[str] = None
+    goal_time: _Optional[str] = None
+    custom_distance_km: _Optional[float] = None
+    start_date: _Optional[_date] = None
+
+
+@router.post("/plans/sync", response_model=ActivePlanResponse)
+async def sync_plan(
+    body: PlanSyncRequest,
+    current_user: User = Depends(get_current_user),
+    db: _AsyncSession = Depends(_get_db),
+) -> ActivePlanResponse:
+    """
+    iOS backfill: upload the device's active plan when the server has no copy
+    (plans created before server-side persistence) or when the device holds
+    content the server doesn't. No-ops when content already matches.
+    """
+    if not body.raw_plan_content.strip():
+        raise HTTPException(status_code=400, detail="raw_plan_content is required")
+
+    existing = await plan_store.get_active(db, current_user.id)
+    if existing is not None and existing.raw_plan_content == body.raw_plan_content:
+        record = existing
+    else:
+        record = await plan_store.save_plan(
+            db,
+            current_user.id,
+            body.raw_plan_content,
+            source="ios_backfill",
+            race_type=body.race_type,
+            race_date=body.race_date,
+            race_name=body.race_name,
+            goal_time=body.goal_time,
+            custom_distance_km=body.custom_distance_km,
+            start_date=body.start_date,
+            client_plan_id=body.client_plan_id,
+        )
+        await db.commit()
+
+    return ActivePlanResponse(
+        id=record.id,
+        updated_at=record.updated_at.isoformat() if record.updated_at else None,
+        source=record.source,
+        race_type=record.race_type,
+    )

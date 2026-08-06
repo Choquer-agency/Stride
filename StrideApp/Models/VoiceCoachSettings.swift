@@ -39,6 +39,8 @@ struct VoiceCoachSettings: Codable {
     var announceEncouragement: Bool = true
     var announcePostRunSummary: Bool = true
     var announceRecords: Bool = true
+    var announceTerrainCoaching: Bool = true
+    var announceFinishPush: Bool = true
 
     // MARK: - UserDefaults Persistence
 

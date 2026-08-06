@@ -209,6 +209,20 @@ class AuthService: ObservableObject {
 
     // MARK: - Sign Out
 
+    func deleteAccount() async throws {
+        isLoading = true
+        error = nil
+        defer { isLoading = false }
+
+        let url = URL(string: "\(baseURL)/auth/account")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        addAuthHeader(to: &request)
+        let (_, response) = try await URLSession.shared.data(for: request)
+        try checkForAuthError(response)
+        signOut()
+    }
+
     func signOut() {
         token = nil
         clearCachedUser()

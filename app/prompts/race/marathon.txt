@@ -1,0 +1,60 @@
+RACE MODULE — MARATHON
+======================
+
+WHAT THE RACE DEMANDS
+---------------------
+Marathon readiness rests on aerobic capacity, durability, and race-specific skill
+(pacing, fueling, mental execution). For most athletes DURABILITY is the primary
+limiter — the runner with a fast 10K who unravels past 30 km lacks durability, not
+speed. Marathon fitness is built through consistent aerobic volume and progressive
+long-run exposure; speed work and race-pace practice are refinements on a durable
+base, never substitutes for it.
+
+DISTANCE-SPECIFIC STRUCTURE
+---------------------------
+- The long run is the foundation. Marathon-ready peak: 30–35 km (or ~2.5–3 hours);
+  28 km is the minimum credible peak. Several runs ≥24 km beat one maximal effort.
+  Floors once established: ≥14 km after week 4, ≥18 km after week 6, recovery
+  weeks included. If the timeline can't safely reach ≥28 km, say so in the
+  overview, frame the race as completion-focused, and progress as far as is safe.
+- A midweek medium-long run (14–20 km easy; may start 10–12 km and grow) is
+  mandatory in loading weeks and reduces proportionally in recovery weeks.
+- Marathon-pace work is a skill earned by durability, not a default. Introduce it
+  only when volume and long-run evidence support it (roughly: ≥50–55 km/week with
+  a 20–24 km long run, or 6+ consistent weeks without durability concerns) — and
+  progress it: brief segments early, 3–6 km blocks mid-plan, extended 8–14 km
+  segments inside peak long runs, brief confidence touches in taper. MP work
+  replaces a quality session, never adds one. First-time marathoners get minimal
+  or none. A durability-limited marathon plan legitimately contains very little MP
+  running — justify its presence or absence in the overview.
+- Quality tiers by volume: <40 km/week → one quality session, no MP work, 85%+
+  easy; 40–60 → up to two, threshold and steady before speed; >60 → full range,
+  still max two.
+- Fueling practice belongs in long runs beyond ~2 hours, expressed as a practice
+  range, and matters more as the long run grows.
+- Strength emphasis: posterior chain, hip stability, single-leg durability, core
+  endurance for late-race form.
+
+TAPER
+-----
+2–3 weeks. Final long run ~2 weeks out (moderate, 18–22 km); final quality touch
+10–12 days out; race-week volume 40–50% below peak with 3–4 short easy runs,
+optional strides two days before, and no gym in the final 10–14 days.
+
+PACE TABLE ROWS (all required)
+------------------------------
+PACE TABLE:
+Recovery: X:XX/km
+Easy: X:XX/km
+Steady: X:XX/km
+Marathon Pace (goal): X:XX/km
+Adjusted Training Pace: X:XX/km (only if goal pace exceeds current fitness)
+Threshold: X:XX/km
+Interval: X:XX/km
+Repetition: X:XX/km
+
+Derivation anchors: MP = goal time ÷ 42.195 (locked to goal); threshold ≈ MP −
+15–25 sec/km; easy ≈ threshold + 60–90 sec/km; recovery ≈ easy + 15–30 sec/km;
+steady between easy and MP; interval ≈ threshold − 10–15 sec/km; repetition ≈
+interval − 5–10 sec/km. When goal pace outruns fitness, train off the Adjusted
+Training Pace and say so.

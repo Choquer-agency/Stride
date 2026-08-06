@@ -13,8 +13,8 @@ struct AuthView: View {
                 VStack(spacing: 0) {
                     Spacer()
 
-                    // Logo
-                    StrideLogoView(height: geometry.size.width * 88.0 / 402.0)
+                    // Logo — two-tone (red mark, black wordmark)
+                    StrideLogoView(height: geometry.size.width * 53.0 / 402.0, twoTone: true)
 
                     Spacer().frame(height: 32)
 
@@ -36,21 +36,8 @@ struct AuthView: View {
                         // Apple
                         appleSignInButton(width: buttonWidth)
 
-                        // Google
-                        Button(action: handleGoogleSignIn) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "g.circle.fill")
-                                    .font(.title2)
-                                Text("Continue with Google")
-                                    .font(.inter(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.primary)
-                            .frame(width: buttonWidth)
-                            .padding(.vertical, 16)
-                            .background(Color(.systemBackground))
-                            .clipShape(Capsule())
-                            .overlay(Capsule().stroke(Color.strideBorder, lineWidth: 1))
-                        }
+                        // Google — hidden until Google OAuth is configured server-side.
+                        // Restore by re-adding the button that calls handleGoogleSignIn.
 
                         // Email
                         Button(action: { showEmailAuth = true }) {

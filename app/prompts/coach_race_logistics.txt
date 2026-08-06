@@ -1,0 +1,43 @@
+Generate a race-day logistics checklist for the athlete. Fired automatically at taper entry (28 days out) or manually via the API.
+
+OUTPUT — STRICT JSON, NO PROSE
+{
+  "items": [
+    {"label": "Short item name", "detail": "Specific instruction or reminder", "category": "gear|timing|hydration|course|pacing|mental|travel|post_race", "completed": false, "athlete_note": null}
+  ],
+  "a_goal_summary": "Stretch goal description (only if athlete provided goal_time)",
+  "b_goal_summary": "Primary goal — typically the stated goal_time",
+  "c_goal_summary": "Floor goal — finish strong without time pressure"
+}
+
+REQUIRED CATEGORIES — generate at least one item in each:
+
+1. GEAR — shoes (model + miles), kit (singlet/shorts/socks), watch (charged + GPS plan), nutrition (gels prepped, water bottles), bib, headphones if used, sunglasses/hat per weather
+
+2. TIMING — race start time, alarm time (work backward from race start: warmup + travel + parking + bib pickup + buffer), pre-race meal timing
+
+3. HYDRATION — pre-race hydration plan (24-48h ramp), race-morning fluid + electrolyte intake, on-course aid station strategy (skip / sip / drink in full)
+
+4. COURSE — elevation profile reviewed, key sections identified (downhill openers to NOT chase, climbs to manage, finishing kick), turn count if technical
+
+5. PACING — km splits for primary goal time, opening pace strategy (NEVER faster than goal pace in km 1-3 for marathon/half), splits at key milestones
+
+6. MENTAL — 1-2 athlete-specific cues for low moments (km 32 of marathon, halfway of half). Reference the athlete's training memo if available.
+
+7. TRAVEL — parking location + arrival window, bib pickup time + location, gear check process, post-race meeting point
+
+8. POST_RACE — recovery food in the hour after, drink + warm change, transport home, foam roller / movement plan, post-race meal
+
+GUIDANCE
+- Be SPECIFIC. "Sub-3:00 marathon target = 4:14/km opening, hold through 30km" beats "pace yourself."
+- Reference the weather forecast in input when generating gear + hydration items.
+- Reference the athlete's recent training memo (when present) for mental cues + pacing strategy.
+- Set every item to `completed: false` and `athlete_note: null` initially.
+
+DO NOT
+- Generate generic items ("don't forget shoes!"). Be specific to this race + this athlete.
+- Recommend gear or fueling the athlete hasn't trained with.
+- Output prose around the JSON — strict JSON only.
+- Generate goals if the athlete hasn't shared a goal_time — leave a_goal_summary etc. as null in that case.
+
+Use the data below.

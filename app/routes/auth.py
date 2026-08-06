@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import Base, get_db
 from app.models.user import User
+from app.models.strength_session import StrengthSession
+from app.models.strength_set import StrengthSet
 from app.models.auth_schemas import (
     EmailRegisterRequest,
     EmailLoginRequest,
@@ -237,3 +239,38 @@ async def update_profile(
         })
 
     return UserResponse.model_validate(current_user)
+
+
+@router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_account(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Permanently remove the account and all rows that reference it."""
+    user_id = current_user.id
+    # Sets are owned indirectly through their session.
+    session_ids = select(StrengthSession.id).where(StrengthSession.user_id == user_id)
+    await db.execute(delete(StrengthSet).where(StrengthSet.session_id.in_(session_ids)))
+
+    # The schema contains several independent features rather than one ORM
+    # relationship graph. Delete dependent rows in FK order so deletion remains
+    # complete as new user-owned tables are registered with Base.metadata.
+    for table in reversed(Base.metadata.sorted_tables):
+        if table.name == User.__tablename__:
+            continue
+        user_columns = [
+            column
+            for column in table.columns
+            if any(foreign_key.target_fullname == "users.id" for foreign_key in column.foreign_keys)
+        ]
+        required_columns = [column for column in user_columns if not column.nullable]
+        nullable_columns = [column for column in user_columns if column.nullable]
+        if required_columns:
+            await db.execute(delete(table).where(or_(*(column == user_id for column in required_columns))))
+        # Shared content such as an event may outlive its creator. Remove the
+        # attribution instead of deleting other users' registrations with it.
+        for column in nullable_columns:
+            await db.execute(update(table).where(column == user_id).values({column.name: None}))
+
+    await db.delete(current_user)
+    analytics.capture(str(user_id), "account_deleted")
