@@ -35,7 +35,10 @@ class PlanParser {
         
         // Patterns to detect week headers and day entries
         // Week patterns like "WEEK 1 [BUILD]", "Week 1:", etc.
-        let weekPattern = /[Ww][Ee][Ee][Kk]\s*(\d+)/
+        // Anchored to line start: prose like "…goal pace from week 18 onward"
+        // must NOT create a week, or the real WEEK 18 header gets skipped as a
+        // duplicate and its workouts merge into the previous week.
+        let weekPattern = /^[Ww][Ee][Ee][Kk]\s*(\d+)/
         // Day patterns - can start with bullet points, dashes, or directly with day name
         // Matches: "- Monday:", "Monday:", "• Monday:", "  - Monday:", etc.
         // Now handles: colon, en-dash, hyphen, em-dash, horizontal bar, figure dash, or optional separator
