@@ -310,10 +310,20 @@ struct DayCardView: View {
 
     private func metadataLine(for workout: Workout, isGymLike: Bool) -> String? {
         if isGymLike {
-            // Gym cards carry the focus in the title (e.g. "Core endurance, hip stability")
-            if let duration = workout.durationDisplay { return duration }
-            let focus = workout.title
-            return (focus.isEmpty || focus.lowercased() == "gym") ? nil : focus
+            // Prescription-format titles ("Main strength — Back squat 4×6 @ 50 kg; …")
+            // show just the focus; old-format titles show as-is.
+            var focus = workout.title
+            if let dashRange = focus.range(of: #"\s[–—\-]\s"#, options: .regularExpression),
+               focus.contains(";") {
+                focus = String(focus[..<dashRange.lowerBound])
+            } else if let semiIdx = focus.firstIndex(of: ";") {
+                focus = String(focus[..<semiIdx])
+            }
+            focus = focus.trimmingCharacters(in: .whitespaces)
+            if focus.isEmpty || focus.lowercased() == "gym" {
+                return workout.durationDisplay
+            }
+            return focus
         }
         var parts: [String] = []
         if let distance = workout.distanceDisplay { parts.append(distance) }

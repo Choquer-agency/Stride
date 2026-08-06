@@ -29,28 +29,70 @@ struct WorkoutDetailView: View {
         workout.workoutType == .gym || workout.workoutType == .crossTraining
     }
 
-    // Parse gym workout title into individual exercises and set/rep info
-    private var gymExercises: [String] {
-        let source = workout.title
-        let items = source
-            .components(separatedBy: ",")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    // MARK: - Gym prescription parsing
+    //
+    // New-format gym lines: "Focus — Exercise 4×6 @ 60 kg; Exercise 3×8; …"
+    // Old-format lines fall back to comma-separated focus areas.
+
+    private struct GymItem: Identifiable {
+        let id = UUID()
+        let name: String
+        let scheme: String?     // "4×6 @ 60 kg", "4 min easy", nil for focus-only
+    }
+
+    private var gymSource: String {
+        var source = workout.details ?? workout.title
+        // Strip "Gym (PM):", "Gym:", "Gym —", "- Friday: Gym —" style prefixes
+        if let range = source.range(of: #"^.*?Gym(\s*\((?:AM|PM)\))?\s*[:：–—\-]\s*"#, options: .regularExpression) {
+            source = String(source[range.upperBound...])
+        }
+        return source.trimmingCharacters(in: .whitespaces)
+    }
+
+    private var gymFocus: String? {
+        let source = gymSource
+        guard source.contains(";") else { return nil }
+        let head = source.components(separatedBy: ";")[0]
+        // "Main strength — SkiErg 4 min easy" → focus is the part before the dash
+        if let dashRange = head.range(of: #"\s[–—\-]\s"#, options: .regularExpression) {
+            let focus = String(head[..<dashRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+            if !focus.isEmpty && !focus.contains(where: \.isNumber) { return focus }
+        }
+        return nil
+    }
+
+    private var gymItems: [GymItem] {
+        var source = gymSource
+        guard source.contains(";") else {
+            // Old format: comma-separated focus areas, no schemes
+            return source
+                .components(separatedBy: ",")
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .map { GymItem(name: $0.prefix(1).uppercased() + $0.dropFirst(), scheme: nil) }
+        }
+        // Drop the focus header off the first item if present
+        if let focus = gymFocus, let range = source.range(of: focus) {
+            source = String(source[range.upperBound...])
+            if let dashRange = source.range(of: #"^\s*[–—\-]\s*"#, options: .regularExpression) {
+                source = String(source[dashRange.upperBound...])
+            }
+        }
+        return source
+            .components(separatedBy: ";")
+            .map { $0.trimmingCharacters(in: CharacterSet(charactersIn: " .")) }
             .filter { !$0.isEmpty }
-        return items
-    }
-
-    // Separate exercises from set/rep instructions (e.g. "3 sets of 10")
-    private var gymExerciseNames: [String] {
-        gymExercises.filter { item in
-            item.range(of: #"\d+\s*sets"#, options: .regularExpression) == nil
-        }
-    }
-
-    private var gymSetRepInfo: String? {
-        let setReps = gymExercises.filter { item in
-            item.range(of: #"\d+\s*sets"#, options: .regularExpression) != nil
-        }
-        return setReps.first
+            .map { item in
+                // Split name from scheme at the first digit ("Back squat 4×6 @ 50 kg")
+                if let digitIdx = item.firstIndex(where: \.isNumber), digitIdx != item.startIndex {
+                    let name = String(item[..<digitIdx]).trimmingCharacters(in: .whitespaces)
+                    let scheme = String(item[digitIdx...]).trimmingCharacters(in: .whitespaces)
+                    if !name.isEmpty && !scheme.isEmpty {
+                        return GymItem(name: name, scheme: scheme)
+                    }
+                }
+                return GymItem(name: item, scheme: nil)
+            }
     }
 
     // MARK: - Structured detail parsing
@@ -257,42 +299,8 @@ struct WorkoutDetailView: View {
                     
                     // Workout Details Card
                     if isGymWorkout {
-                        // Gym: show exercises parsed from title
-                        if !gymExerciseNames.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
-                                // Header
-                                HStack(spacing: 8) {
-                                    Image(systemName: workout.workoutType.icon)
-                                        .font(.system(size: 18))
-                                        .foregroundColor(.primary)
-
-                                    Text("Exercises")
-                                        .font(.interSemibold(15))
-                                        .foregroundStyle(.primary)
-                                }
-
-                                // Exercise list
-                                VStack(alignment: .leading, spacing: 6) {
-                                    ForEach(Array(gymExerciseNames.enumerated()), id: \.offset) { _, exercise in
-                                        Text(exercise)
-                                            .font(.inter(size: 14, weight: .semibold))
-                                            .foregroundStyle(.primary)
-                                    }
-                                }
-
-                                // Set/rep info
-                                if let setRep = gymSetRepInfo {
-                                    Text(setRep)
-                                        .font(.inter(size: 13, weight: .regular))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(16)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
-                            .padding(.horizontal, 16)
+                        if !gymItems.isEmpty {
+                            gymDetailCard
                         }
                     } else if !parsedDetail.isEmpty || effectiveFuel(for: parsedDetail) != nil {
                         runDetailCard(parsedDetail)
@@ -522,6 +530,59 @@ struct WorkoutDetailView: View {
         } else {
             return "Carry fluids; a gel is optional past the hour mark."
         }
+    }
+
+    // MARK: - Gym Detail Card
+
+    private var gymDetailCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "dumbbell")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                Text("Session")
+                    .font(.interSemibold(15))
+                    .foregroundStyle(.primary)
+                if let focus = gymFocus {
+                    Spacer()
+                    Text(focus)
+                        .font(.inter(size: 12, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(Color(.systemGray6)))
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(gymItems.enumerated()), id: \.element.id) { index, item in
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(item.name)
+                            .font(.inter(size: 14, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 12)
+                        if let scheme = item.scheme {
+                            Text(scheme)
+                                .font(.barlowCondensed(size: 16, weight: .medium))
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    }
+                    .padding(.vertical, 9)
+
+                    if index < gymItems.count - 1 {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
+        .padding(.horizontal, 16)
     }
 
     // MARK: - Run Detail Card
