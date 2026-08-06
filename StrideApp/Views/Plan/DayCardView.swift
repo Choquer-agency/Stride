@@ -310,18 +310,26 @@ struct DayCardView: View {
 
     private func metadataLine(for workout: Workout, isGymLike: Bool) -> String? {
         if isGymLike {
-            // Prescription-format titles ("Main strength — Back squat 4×6 @ 50 kg; …")
-            // show just the focus; old-format titles show as-is.
-            var focus = workout.title
-            if let dashRange = focus.range(of: #"\s[–—\-]\s"#, options: .regularExpression),
-               focus.contains(";") {
-                focus = String(focus[..<dashRange.lowerBound])
-            } else if let semiIdx = focus.firstIndex(of: ";") {
-                focus = String(focus[..<semiIdx])
+            // Prescription-format lines ("… Gym — Focus — Ex 4×6 @ 50 kg; …")
+            // show just the focus. Standalone gym days carry it in `details`
+            // (title is just "Gym"), stacked ones in the title itself.
+            var source = workout.title
+            if source.lowercased() == "gym" || source.isEmpty {
+                source = workout.details ?? source
             }
-            focus = focus.trimmingCharacters(in: .whitespaces)
-            if focus.isEmpty || focus.lowercased() == "gym" {
-                return workout.durationDisplay
+            // Strip any "Gym (PM):" / "Gym —" prefix
+            if let prefixRange = source.range(of: #"^.*?Gym(\s*\((?:AM|PM)\))?\s*[:：–—\-]\s*"#, options: .regularExpression) {
+                source = String(source[prefixRange.upperBound...])
+            }
+            // Focus = text before the first space-surrounded dash (or first ";")
+            if let dashRange = source.range(of: #"\s[–—\-]\s"#, options: .regularExpression) {
+                source = String(source[..<dashRange.lowerBound])
+            } else if let semiIdx = source.firstIndex(of: ";") {
+                source = String(source[..<semiIdx])
+            }
+            let focus = source.trimmingCharacters(in: .whitespaces)
+            if focus.isEmpty || focus.lowercased() == "gym" || focus.contains(where: \.isNumber) {
+                return nil   // no honest focus — better nothing than a misleading "3 min"
             }
             return focus
         }

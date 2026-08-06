@@ -277,8 +277,12 @@ struct WorkoutDetailView: View {
                                 value: distanceKm == floor(distanceKm) ? "\(Int(distanceKm))" : String(format: "%.1f", distanceKm),
                                 label: "km"
                             )
+                        } else if isGymWorkout && gymSource.contains(";") {
+                            // Prescription gym session: exercise count is the honest
+                            // headline (the parsed "duration" is just the SkiErg warm-up)
+                            statBlock(value: "\(gymItems.count)", label: "exercises")
                         } else if let duration = workout.durationDisplay {
-                            // Show duration prominently when no distance (gym, cross-training)
+                            // Show duration prominently when no distance (cross-training)
                             statBlock(value: duration, label: "Duration")
                         }
 
