@@ -166,7 +166,8 @@ enum GymSessionModel {
     // MARK: - Stage builders
 
     private static func exerciseStages(_ exercise: ParsedExercise, round: Int, section: String) -> [Stage] {
-        let setLabel = exercise.sets > 1 ? "SET \(round) OF \(exercise.sets)" : nil
+        // No set label — the "Round X of Y" section pill already carries it.
+        let setLabel: String? = nil
         let sides: [String?] = exercise.perSide ? ["LEFT", "RIGHT"] : [nil]
 
         return sides.map { side in

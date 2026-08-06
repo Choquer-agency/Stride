@@ -216,7 +216,7 @@ struct GymWorkoutPlayerView: View {
 
             case .reps(let repsText, let weightKg, let suffix):
                 if !repsText.isEmpty {
-                    Text(repsText)
+                    Text(repsDisplay(repsText))
                         .font(.inter(size: 22, weight: .medium))
                         .foregroundStyle(fgSecondary)
                 }
@@ -234,32 +234,17 @@ struct GymWorkoutPlayerView: View {
 
     private func weightControl(for stage: GymSessionModel.Stage, suffix: String) -> some View {
         let current = currentWeight(for: stage.exerciseName)
-        return VStack(spacing: 6) {
-            Button { adjustWeight(stage.exerciseName, by: 5) } label: {
-                Image(systemName: "chevron.up")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-            }
-            .buttonStyle(.plain)
-
+        return VStack(spacing: 8) {
             Text("\(current == floor(current) ? String(Int(current)) : String(format: "%.1f", current)) \(suffix)")
                 .font(.barlowCondensed(size: 92, weight: .medium))
                 .monospacedDigit()
                 .contentTransition(.numericText())
 
-            Button { adjustWeight(stage.exerciseName, by: -5) } label: {
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .padding(8)
-            }
-            .buttonStyle(.plain)
-
-            Text("slide or tap to adjust · 5 kg steps")
+            Text("slide up or down · 5 kg steps")
                 .font(.inter(size: 11))
                 .foregroundStyle(.tertiary)
         }
+        .padding(.vertical, 16)
         .contentShape(Rectangle())
         .gesture(
             DragGesture()
@@ -328,6 +313,15 @@ struct GymWorkoutPlayerView: View {
         return true
     }
 
+    /// "6" → "6 reps", "8/leg" → "8 per leg", "15/side" → "15 per side"
+    private func repsDisplay(_ text: String) -> String {
+        var s = text
+            .replacingOccurrences(of: "/side", with: " per side")
+            .replacingOccurrences(of: "/leg", with: " per leg")
+        if s.allSatisfy(\.isNumber), !s.isEmpty { s += " reps" }
+        return s
+    }
+
     private func formatCountdown(_ seconds: Int) -> String {
         String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
@@ -378,6 +372,11 @@ struct GymWorkoutPlayerView: View {
         let newValue = max(0, currentWeight(for: exercise) + delta)
         withAnimation(.snappy) { weights[exercise] = newValue }
         UISelectionFeedbackGenerator().selectionChanged()
+        // Persist immediately: whatever number is on screen when the athlete
+        // moves on is the weight they lifted, even if the session is abandoned.
+        var overrides = (UserDefaults.standard.dictionary(forKey: overridesKey) as? [String: Double]) ?? [:]
+        overrides[exercise] = newValue
+        UserDefaults.standard.set(overrides, forKey: overridesKey)
     }
 
     private func prefillWeights() {
