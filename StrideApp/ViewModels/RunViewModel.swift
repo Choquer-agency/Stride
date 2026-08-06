@@ -532,7 +532,10 @@ class RunViewModel: ObservableObject {
                     usingFallbackTimer = true
                     elapsedTime = appElapsedTime
                 }
-            } else if usingFallbackTimer {
+            } else {
+                // Provider sent no elapsed-time field (not all consoles include
+                // it) — drive the clock from the app-side timer so time never
+                // sits frozen at 00:00:00 while data is flowing.
                 elapsedTime = appElapsedTime
             }
         }

@@ -10,6 +10,12 @@ class BluetoothManager: NSObject, ObservableObject {
     @Published var connectionState: String = "Disconnected"
     @Published var isFTMSSupported: Bool = false
 
+    // Data-flow diagnostics: a run screen can tell "connected" from "actually
+    // receiving packets" (connected-but-silent was invisible before).
+    @Published var packetCount: Int = 0
+    @Published var lastPacketAt: Date?
+    @Published var subscriptionState: String = "—"   // "Subscribed" | failure reason
+
     // MARK: - Callback for Parsed Data
     /// Set this closure to receive parsed treadmill samples.
     var onTreadmillData: ((ParsedTreadmillSample) -> Void)?
@@ -213,6 +219,11 @@ extension BluetoothManager: CBCentralManagerDelegate {
         error: Error?
     ) {
         connectionState = "Disconnected"
+        // Reflect reality — a stale connectedDevice let runs start against
+        // a peripheral that was long gone.
+        connectedDevice = nil
+        isFTMSSupported = false
+        subscriptionState = "—"
 
         // Attempt to reconnect automatically
         attemptReconnection()
@@ -236,42 +247,64 @@ extension BluetoothManager: CBPeripheralDelegate {
 
     // Step 1: Services discovered -> look for FTMS (0x1826)
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let services = peripheral.services else { return }
+        guard let services = peripheral.services else {
+            print("🔵 BLE: didDiscoverServices with nil services (error: \(error?.localizedDescription ?? "none"))")
+            return
+        }
+        print("🔵 BLE: services on \(peripheral.name ?? "?"): \(services.map { $0.uuid.uuidString })")
 
         if let ftmsService = services.first(where: { $0.uuid == ftmsServiceUUID }) {
             isFTMSSupported = true
             connectionState = "Connected (FTMS)"
-            // Discover the Treadmill Data characteristic
-            peripheral.discoverCharacteristics([treadmillDataUUID], for: ftmsService)
+            // Discover ALL characteristics so the log shows what this console exposes
+            peripheral.discoverCharacteristics(nil, for: ftmsService)
         } else {
             connectionState = "Connected (No FTMS)"
+            subscriptionState = "No FTMS service — services: \(services.map { $0.uuid.uuidString }.joined(separator: ", "))"
             isFTMSSupported = false
         }
     }
 
-    // Step 2: Characteristics discovered -> subscribe to 0x2ACD notifications
+    // Step 2: Characteristics discovered -> subscribe to 0x2ACD
     func peripheral(
         _ peripheral: CBPeripheral,
         didDiscoverCharacteristicsFor service: CBService,
         error: Error?
     ) {
         guard let characteristics = service.characteristics else { return }
+        print("🔵 BLE: FTMS characteristics: \(characteristics.map { "\($0.uuid.uuidString) props=\($0.properties.rawValue)" })")
 
         if let treadmillChar = characteristics.first(where: { $0.uuid == treadmillDataUUID }) {
             ftmsCharacteristic = treadmillChar
-            if treadmillChar.properties.contains(.notify) {
+            // Some consoles expose Treadmill Data as indicate-only — accept both.
+            if treadmillChar.properties.contains(.notify) || treadmillChar.properties.contains(.indicate) {
                 peripheral.setNotifyValue(true, for: treadmillChar)
+            } else {
+                subscriptionState = "2ACD not notifiable (props=\(treadmillChar.properties.rawValue))"
+                print("🔴 BLE: Treadmill Data characteristic is not notify/indicate capable")
             }
+        } else {
+            subscriptionState = "No Treadmill Data (2ACD) characteristic"
+            print("🔴 BLE: 2ACD missing from FTMS service")
         }
     }
 
-    // Step 3: Notification confirmed
+    // Step 3: Notification confirmed (or failed — pairing/encryption errors land here)
     func peripheral(
         _ peripheral: CBPeripheral,
         didUpdateNotificationStateFor characteristic: CBCharacteristic,
         error: Error?
     ) {
-        // Notifications are now active. Data will arrive via didUpdateValueFor.
+        guard characteristic.uuid == treadmillDataUUID else { return }
+        if let error {
+            subscriptionState = "Subscribe failed: \(error.localizedDescription)"
+            print("🔴 BLE: notification subscribe FAILED: \(error.localizedDescription)")
+        } else if characteristic.isNotifying {
+            subscriptionState = "Subscribed"
+            print("🟢 BLE: subscribed to Treadmill Data — waiting for packets")
+        } else {
+            subscriptionState = "Notifications off"
+        }
     }
 
     // Step 4: DATA ARRIVES HERE -- this fires every time the treadmill pushes a packet
@@ -295,6 +328,11 @@ extension BluetoothManager: CBPeripheralDelegate {
             if now.timeIntervalSince(self.lastUIUpdateTime) >= self.uiUpdateInterval {
                 self.lastUIUpdateTime = now
                 DispatchQueue.main.async {
+                    self.packetCount += 1
+                    self.lastPacketAt = now
+                    if self.packetCount == 1 {
+                        print("🟢 BLE: first packet — hex=\(parsed.rawHex) flags=\(parsed.flags) speed=\(parsed.instantaneousSpeedKmh ?? -1) dist=\(parsed.totalDistanceMeters ?? -1) time=\(parsed.elapsedTime ?? -1)")
+                    }
                     self.onTreadmillData?(parsed)
                 }
             }

@@ -2,11 +2,12 @@ import SwiftUI
 
 struct RunView: View {
     @ObservedObject var viewModel: RunViewModel
+    @EnvironmentObject private var bluetoothManager: BluetoothManager
     var onFinishRun: () -> Void
-    
+
     @State private var showFinishConfirmation = false
     @State private var splitDismissOffset: CGFloat = 0
-    
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ScrollView {
@@ -16,7 +17,12 @@ struct RunView: View {
                         // Header Row
                         headerRow
                             .padding(.top, 30)
-                            .padding(.bottom, 24)
+                            .padding(.bottom, 8)
+
+                        // Treadmill data-flow status — surfaces "connected but
+                        // silent" instead of letting a run record zeros for 40 min
+                        TreadmillDataStatusBanner(bluetoothManager: bluetoothManager)
+                            .padding(.bottom, 16)
 
                         // Lane Guidance Pace Indicator
                         PaceLaneIndicator(
@@ -411,4 +417,59 @@ struct KilometerSplit: Identifiable {
         RunView(viewModel: RunViewModel(), onFinishRun: {})
     }
     .environmentObject(BluetoothManager())
+}
+
+// MARK: - Treadmill Data Status Banner
+
+/// Shows a warning while a treadmill run is receiving no packets, and a brief
+/// diagnostic string when the subscription itself failed. Silent when healthy.
+struct TreadmillDataStatusBanner: View {
+    @ObservedObject var bluetoothManager: BluetoothManager
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let stale: Bool = {
+                guard let last = bluetoothManager.lastPacketAt else { return true }
+                return context.date.timeIntervalSince(last) > 5
+            }()
+
+            if stale {
+                HStack(spacing: 8) {
+                    Image(systemName: "antenna.radiowaves.left.and.right.slash")
+                        .font(.system(size: 13, weight: .semibold))
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(bluetoothManager.packetCount == 0
+                             ? "No data from treadmill"
+                             : "Treadmill signal lost")
+                            .font(.inter(size: 13, weight: .semibold))
+                        Text(statusDetail)
+                            .font(.inter(size: 11, weight: .regular))
+                            .opacity(0.85)
+                            .lineLimit(2)
+                    }
+                    Spacer()
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(Color.stridePrimary)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    private var statusDetail: String {
+        if bluetoothManager.connectedDevice == nil {
+            return "Not connected — check Bluetooth on the console"
+        }
+        switch bluetoothManager.subscriptionState {
+        case "Subscribed":
+            return "Connected and subscribed — start the belt / wake the console"
+        case "—":
+            return "Connected — waiting for the data service"
+        default:
+            return bluetoothManager.subscriptionState
+        }
+    }
 }
