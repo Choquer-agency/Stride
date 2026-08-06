@@ -532,6 +532,7 @@
 		E0E5E8A4D65FA52FEC53571E /* second_s.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E3D0EF5155B12FB2B3E059DD /* second_s.mp3 */; };
 		E18E4F83BC68F9A90B18B0FC /* NutritionLogHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A06B4E62A364CCB237CC49 /* NutritionLogHubView.swift */; };
 		E1E51C53610B11E225DAE7DE /* PlanLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC0623CDA6C862A5CE166B6A /* PlanLogger.swift */; };
+		E23ADE9763A678D53A90E73E /* RunPullService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23437B64B2B21AFAB210DD7F /* RunPullService.swift */; };
 		E26EFEB1AD4F183358B24433 /* mile_63.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 360050FCD981BA1DF869F807 /* mile_63.mp3 */; };
 		E38DE19B83850C7EC69E32A8 /* PauseCoachSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BC7FE4D69CB0B9E1C5A6C8E /* PauseCoachSheet.swift */; };
 		E422BC3F2FB4395A781C7370 /* mile_8.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 98CB867A362ED0F503CEB937 /* mile_8.mp3 */; };
@@ -656,6 +657,7 @@
 		21468A1499003EEBFD3D0205 /* PostRunCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostRunCheckView.swift; sourceTree = "<group>"; };
 		219CF7B92A48A9606739707C /* mile_75.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_75.mp3; sourceTree = "<group>"; };
 		229394FB54F46A6080108D0E /* type_interval.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = type_interval.mp3; sourceTree = "<group>"; };
+		23437B64B2B21AFAB210DD7F /* RunPullService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunPullService.swift; sourceTree = "<group>"; };
 		2391EC7E2A87806A2B1AB43C /* mile_74.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_74.mp3; sourceTree = "<group>"; };
 		2403A009072F27A704EFAC83 /* Inter-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-SemiBold.ttf"; sourceTree = "<group>"; };
 		2405AD27C44613E464817195 /* mile_4.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_4.mp3; sourceTree = "<group>"; };
@@ -1817,6 +1819,7 @@
 				E4DD658178C3DE59E7619821 /* RouteAnalyzer.swift */,
 				7B47BAB58C18DBB3A447461E /* RouteShareService.swift */,
 				F878A84B299521E1EFB9D92E /* RunDataProvider.swift */,
+				23437B64B2B21AFAB210DD7F /* RunPullService.swift */,
 				A7FD1B8C2E01E2199E130253 /* RunSyncService.swift */,
 				19C37F8CCAF01EC66FF249FA /* SimulatedGPSRunDataProvider.swift */,
 				3544FC46D8B898BFE07A3DFE /* SyncService.swift */,
@@ -2528,6 +2531,7 @@
 				74B2921998D119710B64BDEB /* RunIntensity.swift in Sources */,
 				D803C8703977A7ADD9784E4D /* RunLobbyView.swift in Sources */,
 				27D5D17FECC7A4216C8D1900 /* RunLog.swift in Sources */,
+				E23ADE9763A678D53A90E73E /* RunPullService.swift in Sources */,
 				ED231DE6D420D97EF7892620 /* RunScoringService.swift in Sources */,
 				D947164B92B46FF721E7F36C /* RunSummaryView.swift in Sources */,
 				09AEFF61B0A98C51DEEC0172 /* RunSyncService.swift in Sources */,

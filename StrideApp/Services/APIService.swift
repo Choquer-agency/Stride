@@ -2821,3 +2821,67 @@ extension APIService {
         return try JSONDecoder().decode(RemotePlanDTO.self, from: data)
     }
 }
+
+// MARK: - Server Run Pull (server → phone bridge)
+
+/// A run record as stored server-side — including runs logged or corrected
+/// by the coach outside the app.
+struct ServerRunDTO: Codable, Identifiable {
+    let id: String
+    let completedAt: String
+    let distanceKm: Double
+    let durationSeconds: Double
+    let avgPaceSecPerKm: Double
+    let kmSplitsJson: String?
+    let feedbackRating: Int?
+    let notes: String?
+    let plannedWorkoutTitle: String?
+    let plannedWorkoutType: String?
+    let plannedDistanceKm: Double?
+    let completionScore: Int?
+    let planName: String?
+    let weekNumber: Int?
+    let dataSource: String
+    let treadmillBrand: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, notes
+        case completedAt = "completed_at"
+        case distanceKm = "distance_km"
+        case durationSeconds = "duration_seconds"
+        case avgPaceSecPerKm = "avg_pace_sec_per_km"
+        case kmSplitsJson = "km_splits_json"
+        case feedbackRating = "feedback_rating"
+        case plannedWorkoutTitle = "planned_workout_title"
+        case plannedWorkoutType = "planned_workout_type"
+        case plannedDistanceKm = "planned_distance_km"
+        case completionScore = "completion_score"
+        case planName = "plan_name"
+        case weekNumber = "week_number"
+        case dataSource = "data_source"
+        case treadmillBrand = "treadmill_brand"
+    }
+
+    var completedAtDate: Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = withFraction.date(from: completedAt) { return d }
+        let plain = ISO8601DateFormatter()
+        return plain.date(from: completedAt)
+    }
+}
+
+extension APIService {
+    /// Recent server-side runs (default: last 30 days).
+    func fetchServerRuns(limit: Int = 50) async throws -> [ServerRunDTO] {
+        let url = URL(string: "\(baseURL)/api/runs?limit=\(limit)")!
+        var request = URLRequest(url: url)
+        addAuthHeader(to: &request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+        return try JSONDecoder().decode([ServerRunDTO].self, from: data)
+    }
+}

@@ -156,6 +156,7 @@ struct PlanView: View {
         .task {
             if !readOnly {
                 await planSync.reconcile(context: modelContext)
+                await RunPullService.shared.reconcile(context: modelContext)
             }
         }
         .sheet(item: $selectedWorkout) { workout in
