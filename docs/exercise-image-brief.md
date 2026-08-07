@@ -80,11 +80,10 @@ Front view, landmine, standing.
 2. Arms sweeping the bar down toward one hip, hips and torso rotating with it, arms staying long.
 3. Same position mirrored to the other hip — showing the full arc travels side to side.
 
-## 13. Med Ball Rotational Chest Pass — `med_ball_rotational_pass_1/2/3`
-Side-on to a bare wall, rubber medicine ball. IMPORTANT: ball stays at chest height throughout — nothing overhead.
-1. Athlete side-on to the wall, ball held at the chest, hips coiled away from the wall, weight loaded on the back leg.
-2. Mid-throw: hips snapping toward the wall, arms extending, ball just leaving the hands at chest height toward the wall.
-3. Follow-through facing the wall, arms extended, rear heel pivoted, ball in flight at chest height.
+## 13. Med Ball Russian Twist — `med_ball_russian_twist_1/2`
+Front three-quarter view, floor mat, rubber medicine ball. Solo exercise — no wall, no partner, nothing thrown.
+1. Seated on the mat, torso leaned back ~45°, knees bent, heels lightly on the floor, medicine ball held with both hands at the chest, back straight (not rounded).
+2. Torso and ball rotated fully to one side, ball just above the floor beside the hip, eyes following the ball, legs steady — the rotation comes from the trunk, not the arms.
 
 ## 14. Suitcase Carry — `suitcase_carry_1/2`
 Front view, one dumbbell.

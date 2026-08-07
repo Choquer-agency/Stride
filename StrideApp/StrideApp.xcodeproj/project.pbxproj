@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		002BDC66CC0558A828A73A77 /* ConflictResolutionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02619DD7D3A6CE8F7C3A654 /* ConflictResolutionView.swift */; };
 		00998D5BB6F223B90C5A24A8 /* km_2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A5FF79E06BF93599747F409A /* km_2.mp3 */; };
-		00F67D9AE9AE61EBBAD65035 /* med_ball_rotational_pass_2.png in Resources */ = {isa = PBXBuildFile; fileRef = DB9E5DCF7F6985B2A54133F8 /* med_ball_rotational_pass_2.png */; };
 		0147A5BEE9AC7852B59CACA8 /* encourage_halfway.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C1F0CB346B88FBC0A97F110E /* encourage_halfway.mp3 */; };
 		022AAB96A79C13722051F023 /* km_93.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6883A79AF0ECE9F0FE5F72FC /* km_93.mp3 */; };
 		0239C4B27253FBABA89809B0 /* WellnessViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7691D6F9A00360229C9722CD /* WellnessViewModel.swift */; };
@@ -183,7 +182,6 @@
 		419C7E4EAA2A451BB2DFB597 /* ElevationProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C5B7DDD4096BF9741A48F6 /* ElevationProfileView.swift */; };
 		41B919BBE16E0DEB9B692B19 /* average_cadence.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 08229D8FE0CF2FC0107D9753 /* average_cadence.mp3 */; };
 		42026234778B92DCAF571F26 /* db_split_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = A66B5BEEF396269BA73B720D /* db_split_squat_2.png */; };
-		4207D5B8E1422AA31755DCAB /* med_ball_rotational_pass_1.png in Resources */ = {isa = PBXBuildFile; fileRef = DB31824C8FC321B273D08368 /* med_ball_rotational_pass_1.png */; };
 		421E1149FD0A7CCE038FA2FC /* AchievementBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96AA3EE915CD86DF345D8664 /* AchievementBadgeView.swift */; };
 		4298CFD13598C852FC4391B5 /* mile_65.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FB182A89F5C08283078A6732 /* mile_65.mp3 */; };
 		42EDC9546DF7E6B756D74EBE /* mile_71.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C9FF55CE6F1B5C865D31A77C /* mile_71.mp3 */; };
@@ -198,7 +196,6 @@
 		46309B46B65C0DB0FD98ED0D /* mile_62.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4766C232121393F08078CF29 /* mile_62.mp3 */; };
 		468F747C0B27773EE2CBEB19 /* mile_74.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 2391EC7E2A87806A2B1AB43C /* mile_74.mp3 */; };
 		4716159E6EEEBA8C44CE9462 /* StrengthProgressionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42689D050CA9A25EC77CBAA9 /* StrengthProgressionView.swift */; };
-		472CDD6E5129B1A5A5732065 /* med_ball_rotational_pass_3.png in Resources */ = {isa = PBXBuildFile; fileRef = 853B1B1BE8CE9CDAE04BCDA6 /* med_ball_rotational_pass_3.png */; };
 		47F823522925A0F3A32A1A90 /* mile_51.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D3B81AA7B3722122C45364AE /* mile_51.mp3 */; };
 		4819BE8363510B49C6201320 /* one_more_run.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 126AFF22A521AE2AD559CE58 /* one_more_run.mp3 */; };
 		4857884318492D4BB6AFC900 /* Workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9BABC194B98B14B66A3BAC /* Workout.swift */; };
@@ -961,7 +958,6 @@
 		84812E0B3E70AF75BCAA702E /* StrengthSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSet.swift; sourceTree = "<group>"; };
 		8484354CB8FE03A7E99A4939 /* RaceRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceRecapView.swift; sourceTree = "<group>"; };
 		85123FF2BB3F9694ECD1D97A /* mile_55.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_55.mp3; sourceTree = "<group>"; };
-		853B1B1BE8CE9CDAE04BCDA6 /* med_ball_rotational_pass_3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = med_ball_rotational_pass_3.png; sourceTree = "<group>"; };
 		85944D3FE57216B1D6864167 /* WellnessCheckin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellnessCheckin.swift; sourceTree = "<group>"; };
 		85C9E6DEA850668271C278C9 /* num_59.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_59.mp3; sourceTree = "<group>"; };
 		85F8A6A34303BBBF26085A40 /* StrengthSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSummaryView.swift; sourceTree = "<group>"; };
@@ -1156,8 +1152,6 @@
 		D9875F51CCE80F7EE5BEFAFA /* mile_58.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_58.mp3; sourceTree = "<group>"; };
 		DA0737823FAA90539557DE71 /* targetBarCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = targetBarCount.swift; sourceTree = "<group>"; };
 		DA42B0F782F959947EE3D9A1 /* mile_50.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_50.mp3; sourceTree = "<group>"; };
-		DB31824C8FC321B273D08368 /* med_ball_rotational_pass_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = med_ball_rotational_pass_1.png; sourceTree = "<group>"; };
-		DB9E5DCF7F6985B2A54133F8 /* med_ball_rotational_pass_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = med_ball_rotational_pass_2.png; sourceTree = "<group>"; };
 		DBB873260C0DE67A52CB5CA6 /* km_80.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_80.mp3; sourceTree = "<group>"; };
 		DD488E3D65BF840D7B9B9097 /* copenhagen_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = copenhagen_plank_1.png; sourceTree = "<group>"; };
 		DD768F456A730A5322837E5C /* km_14.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_14.mp3; sourceTree = "<group>"; };
@@ -1422,9 +1416,6 @@
 				EC5AF54D05CA83AB3D41F80A /* landmine_rotation_1.png */,
 				8FC28DC30DB7F6C5E2B23535 /* landmine_rotation_2.png */,
 				D53A902445B824F244F4DCE5 /* landmine_rotation_3.png */,
-				DB31824C8FC321B273D08368 /* med_ball_rotational_pass_1.png */,
-				DB9E5DCF7F6985B2A54133F8 /* med_ball_rotational_pass_2.png */,
-				853B1B1BE8CE9CDAE04BCDA6 /* med_ball_rotational_pass_3.png */,
 				185FDA12907A013465F3F6DF /* plank_1.png */,
 				5CED029A9A419806B5ED8D99 /* pull_ups_1.png */,
 				77264BAF18BEEBB2389233AF /* pull_ups_2.png */,
@@ -2343,9 +2334,6 @@
 				827D7123382EFFCF9755C83B /* longest_duration.mp3 in Resources */,
 				9F9E59F89E7D7C1BDD6E2ADC /* longest_run.mp3 in Resources */,
 				F2698A691D2458BCCEC183E4 /* max_heart_rate.mp3 in Resources */,
-				4207D5B8E1422AA31755DCAB /* med_ball_rotational_pass_1.png in Resources */,
-				00F67D9AE9AE61EBBAD65035 /* med_ball_rotational_pass_2.png in Resources */,
-				472CDD6E5129B1A5A5732065 /* med_ball_rotational_pass_3.png in Resources */,
 				9FEE88844A1090030745B107 /* meters.mp3 in Resources */,
 				6F16E26FE5FFF4F0BB6E4A66 /* mile_1.mp3 in Resources */,
 				3DD12FB6B50304F9B2AB207A /* mile_10.mp3 in Resources */,
