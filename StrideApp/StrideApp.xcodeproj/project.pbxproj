@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		002BDC66CC0558A828A73A77 /* ConflictResolutionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D02619DD7D3A6CE8F7C3A654 /* ConflictResolutionView.swift */; };
 		00998D5BB6F223B90C5A24A8 /* km_2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A5FF79E06BF93599747F409A /* km_2.mp3 */; };
+		00F67D9AE9AE61EBBAD65035 /* med_ball_rotational_pass_2.png in Resources */ = {isa = PBXBuildFile; fileRef = DB9E5DCF7F6985B2A54133F8 /* med_ball_rotational_pass_2.png */; };
 		0147A5BEE9AC7852B59CACA8 /* encourage_halfway.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C1F0CB346B88FBC0A97F110E /* encourage_halfway.mp3 */; };
 		022AAB96A79C13722051F023 /* km_93.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6883A79AF0ECE9F0FE5F72FC /* km_93.mp3 */; };
 		0239C4B27253FBABA89809B0 /* WellnessViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7691D6F9A00360229C9722CD /* WellnessViewModel.swift */; };
@@ -31,6 +32,7 @@
 		08F32B8EC8A4BA66E3D0744A /* TempWorkoutEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D569319A5A7EE27281DEA5BB /* TempWorkoutEditView.swift */; };
 		0905E3F5324A55AAB6AD218D /* num_25.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 2B3D517BE92F3C171370693E /* num_25.mp3 */; };
 		092975510DCAE21B702F02CA /* targetBarCount.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0737823FAA90539557DE71 /* targetBarCount.swift */; };
+		09370A953C64D1A6285402FC /* single_leg_glute_bridge_2.png in Resources */ = {isa = PBXBuildFile; fileRef = F56DFDA61467B056449F139B /* single_leg_glute_bridge_2.png */; };
 		0937548E0DD66D06C8FD8647 /* PaceGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D86146F3B33D3FD0DF50DFC /* PaceGraphView.swift */; };
 		09AEFF61B0A98C51DEEC0172 /* RunSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FD1B8C2E01E2199E130253 /* RunSyncService.swift */; };
 		0AF23580D46CB9B856AF4383 /* mile_99.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 62A3454F9B0AD548209BAF7B /* mile_99.mp3 */; };
@@ -44,10 +46,12 @@
 		0C76E65A2CAC8EC71B8E87B7 /* km_97.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 8B22AC0683FE8AC4317776E6 /* km_97.mp3 */; };
 		0D0A45E16345870870369ADF /* num_24.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D65113B0617185464C8DE80B /* num_24.mp3 */; };
 		0DD25B3224EA0635C3450C96 /* DayCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFD5F0DCAB21632E5C504DF /* DayCardView.swift */; };
+		0DF3A4273D89D27C0F38A544 /* box_step_up_3.png in Resources */ = {isa = PBXBuildFile; fileRef = 49EED7550545A4F322398C2F /* box_step_up_3.png */; };
 		0E380FE0C6F6D9FD17D00B58 /* km_95.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 73F8F21BE9D5567D32D60E15 /* km_95.mp3 */; };
 		0EA77A2C18BF3F04DDC044DC /* fastest.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 89DEB31BC1F7CB8ABA7DD3C4 /* fastest.mp3 */; };
 		0EE76B2CA7BF544806B9EA07 /* num_49.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9D4580F80EB8D91923B344A6 /* num_49.mp3 */; };
 		0F9AC12240905974DE7ED16F /* num_51.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 007F8AB6C78789E4EAEB42A3 /* num_51.mp3 */; };
+		0FFA6F5E42EFB029E268EAF3 /* suitcase_carry_2.png in Resources */ = {isa = PBXBuildFile; fileRef = A12485FE17E5E9BCFBCE33E3 /* suitcase_carry_2.png */; };
 		10143AC5EB7956C398B154B5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E32C01B6F36085FA2560AA9F /* ContentView.swift */; };
 		102852B4131E416647A2FCAB /* km_32.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 15A2BB5A39C411EE3319C5BA /* km_32.mp3 */; };
 		11D23C8887DF8EB6E793030C /* km_75.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E3F59EBD65D99C127C4CD356 /* km_75.mp3 */; };
@@ -58,6 +62,7 @@
 		13A3FF8616915FABF905CEEF /* HydrationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDD92F0E4B7BA48899DF3854 /* HydrationLog.swift */; };
 		13AF978A320DB36FC1548144 /* CoachingMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C670E543DEBDD7534CBE0F /* CoachingMessage.swift */; };
 		14CBF81C06D0E1C7A0D10192 /* km_72.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6BDEC8EFC5316E63C4429C6F /* km_72.mp3 */; };
+		1564212511D819701E6FD983 /* plank_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 185FDA12907A013465F3F6DF /* plank_1.png */; };
 		15EF4D0CDD9A7DC9AE73201B /* AddEditShoeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D868388DC8E52DFD7EDED48A /* AddEditShoeView.swift */; };
 		16334A77ED63E3EBD0A6318B /* num_59.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 85C9E6DEA850668271C278C9 /* num_59.mp3 */; };
 		1648AA981E21526819EB8F52 /* new_pr.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9EA5AAE891DF3F89F53538E4 /* new_pr.mp3 */; };
@@ -69,6 +74,7 @@
 		17C530E2AD98F91CBFF48EDD /* DistanceBarChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D88EB8478BA69F3274D7D089 /* DistanceBarChartView.swift */; };
 		17D549727D0735B573B05B2B /* ShoeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9925DB761B38536C94F425B /* ShoeModels.swift */; };
 		1867D85AF69D63100E5576C9 /* WellnessConcernView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF7CC599F484B936047E6932 /* WellnessConcernView.swift */; };
+		1921BDE3022F17D432F22E08 /* barbell_rdl_1.png in Resources */ = {isa = PBXBuildFile; fileRef = B1F9CF07417E6E84D651AED9 /* barbell_rdl_1.png */; };
 		19C4B0B4AB31BD5EE397FEFC /* taper_starts.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 930BEBC24EBF4D06D75EA683 /* taper_starts.mp3 */; };
 		19D9785D3BA1B1C8F53BFD1D /* km_1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 90EB433EC17B78497AFEDA4D /* km_1.mp3 */; };
 		19EA976B59E7C7238836AE90 /* mile_70.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F0012D29046315586E6725F3 /* mile_70.mp3 */; };
@@ -82,6 +88,7 @@
 		1CB7D5778B28D51C6892997F /* pace_back_on.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A7DFB60EA40F7D6D9A611670 /* pace_back_on.mp3 */; };
 		1CCBA8F092A7111996AD8976 /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B670DBC022D2C88882D9CF /* KeychainService.swift */; };
 		1D5D3FE7C053273008A568C1 /* num_18.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9E35F46ECCFA744E9CCE8F6A /* num_18.mp3 */; };
+		1E81FF64B975FE247D1FD09A /* bird_dog_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 91656ED881555AFF480AFBC2 /* bird_dog_2.png */; };
 		1EC9CC743270AE04371146F9 /* compliance_warmup_short.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EDAF3EC30813F7424F8056DE /* compliance_warmup_short.mp3 */; };
 		1F0D3AF7DF5AFBF71476BC51 /* num_48.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6237953C082CDAA7EEC92515 /* num_48.mp3 */; };
 		1FF735C129E858367F65EB73 /* TeamsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D45739DC9D72B2A5B6F1EB /* TeamsView.swift */; };
@@ -89,6 +96,7 @@
 		21080410606BC8EFC851856B /* km_30.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DDA5A95DD9BEBFCCCE02D9DC /* km_30.mp3 */; };
 		211B735B52F0E33C402FC6BE /* km_53.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 98D4C23981D2351E5233BDAD /* km_53.mp3 */; };
 		215C753DAD000DF0EA77C1B1 /* num_56.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4E4A39F4C48A71DBD8A0A295 /* num_56.mp3 */; };
+		215FA6BB3D14C7B8E6AF3FD7 /* box_step_up_2.png in Resources */ = {isa = PBXBuildFile; fileRef = A73B6DB08FA27BAD9A4A2F0C /* box_step_up_2.png */; };
 		21D4202BF51FC91D21C51470 /* km_37.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CA468DC30E77BBB1AA647A78 /* km_37.mp3 */; };
 		2248AEFD83A2F3E3CB7BCBCC /* mile_67.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 121E1D2130ABC729358214CE /* mile_67.mp3 */; };
 		2254C8DD9D622BCDC08F314B /* TrainingCompositionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD9CC12B1C80611018D3AA5E /* TrainingCompositionView.swift */; };
@@ -97,6 +105,7 @@
 		22BC046AC93C6CA3DE12B07B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EB90E244CCD02B0D2F1B2C /* Theme.swift */; };
 		22DFB6F3EED7004A4408A054 /* WeeklyReviewCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62AAE428F878E8ED6EE1C7BF /* WeeklyReviewCardView.swift */; };
 		230C660E2899DC71192100D7 /* SocialModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03FB8FFFD21642ECD33F613 /* SocialModels.swift */; };
+		23B9C9D9C6A9DF98995F3D5A /* bulgarian_split_squat_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 40404DB047940398118752AF /* bulgarian_split_squat_1.png */; };
 		24C184E53136D60D8E61F04F /* km_24.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1F7537539571216D48A95A37 /* km_24.mp3 */; };
 		26710E1C4A33663F87FAF005 /* num_55.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 82C5F6E3A4E88F03AF633162 /* num_55.mp3 */; };
 		2674AFCF371E1C0A8F034A46 /* one_hour.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 53A072F7B736E495CD901918 /* one_hour.mp3 */; };
@@ -104,6 +113,7 @@
 		26CEE42037561920B49A9164 /* km_27.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C7FF449E409372C052E3443A /* km_27.mp3 */; };
 		26F2D575414E1C1E72EBCFA6 /* mile_83.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A9A7FD012A1428E4865F64F3 /* mile_83.mp3 */; };
 		27A2993136E89A3D4E92CE73 /* mile_2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F5B145042ABA3A42D409F89B /* mile_2.mp3 */; };
+		27CE8B6375B883B87D763F8C /* clamshells_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 56628E60A57ED2A3099F98ED /* clamshells_2.png */; };
 		27D5D17FECC7A4216C8D1900 /* RunLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E5259F44CA5A91B7EFC771C /* RunLog.swift */; };
 		2800FE960DF28BD3D4133224 /* km_91.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = AD942939DAFC99B77C3397B5 /* km_91.mp3 */; };
 		288AB2A8AD9A5C1C0923EA45 /* StrengthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0595175E17B53AF45B2E117 /* StrengthSession.swift */; };
@@ -114,6 +124,7 @@
 		2BC40783CC42CD5DEFC6FD22 /* km_82.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9FB5C15C56A946CC4CB6D914 /* km_82.mp3 */; };
 		2C2717A0273B46AE8E019974 /* km_14.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DD768F456A730A5322837E5C /* km_14.mp3 */; };
 		2C436ECDFC6EC9E76B8079DE /* StrengthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2611C30BB04CBBCF72078CD /* StrengthViewModel.swift */; };
+		2CB91AC2AEDC802DB12C9F53 /* copenhagen_plank_1.png in Resources */ = {isa = PBXBuildFile; fileRef = DD488E3D65BF840D7B9B9097 /* copenhagen_plank_1.png */; };
 		2CFAC74F627CE7B256DC6065 /* mile_72.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 41888792B9ACAEDA64328C77 /* mile_72.mp3 */; };
 		2CFFC81155A0A6BB65AB887A /* run_paused.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 86183CB229EDAEFF70446946 /* run_paused.mp3 */; };
 		2D56420B5B71E63365217D35 /* num_14.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 2DE60D50DDAA81AC295B1AF2 /* num_14.mp3 */; };
@@ -171,6 +182,8 @@
 		418977CED08CC53E3095342B /* num_47.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 68612021EDA82E4B06AC1268 /* num_47.mp3 */; };
 		419C7E4EAA2A451BB2DFB597 /* ElevationProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77C5B7DDD4096BF9741A48F6 /* ElevationProfileView.swift */; };
 		41B919BBE16E0DEB9B692B19 /* average_cadence.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 08229D8FE0CF2FC0107D9753 /* average_cadence.mp3 */; };
+		42026234778B92DCAF571F26 /* db_split_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = A66B5BEEF396269BA73B720D /* db_split_squat_2.png */; };
+		4207D5B8E1422AA31755DCAB /* med_ball_rotational_pass_1.png in Resources */ = {isa = PBXBuildFile; fileRef = DB31824C8FC321B273D08368 /* med_ball_rotational_pass_1.png */; };
 		421E1149FD0A7CCE038FA2FC /* AchievementBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96AA3EE915CD86DF345D8664 /* AchievementBadgeView.swift */; };
 		4298CFD13598C852FC4391B5 /* mile_65.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FB182A89F5C08283078A6732 /* mile_65.mp3 */; };
 		42EDC9546DF7E6B756D74EBE /* mile_71.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C9FF55CE6F1B5C865D31A77C /* mile_71.mp3 */; };
@@ -178,14 +191,18 @@
 		43BB06A2B540E6E56D71D9C9 /* OnboardingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D7D1971254E98A8E6A0092A /* OnboardingViewModel.swift */; };
 		43CD7411A83768019C5AA952 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A2DE0138F37155C1405C5C1 /* SettingsView.swift */; };
 		4420149B3C09E448E4F8F4E4 /* PerformanceAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 308899767DAB5C60E329DB3C /* PerformanceAnalysisView.swift */; };
+		44617028DF5FB67B6D0B072F /* suitcase_carry_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 7F2B37C9ABA42EA8C360C7A6 /* suitcase_carry_1.png */; };
 		448E32F9221A354DB6841434 /* TrainingIntensityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F568C1AD0B3BF19624902296 /* TrainingIntensityView.swift */; };
+		44EE1FE3F3D2F0042D86BB1F /* clamshells_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 01C54BE535375DAF70AC7FAD /* clamshells_1.png */; };
 		45802469C328EAA6865F85B0 /* mile_84.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E0911D860189FD190BA59B79 /* mile_84.mp3 */; };
 		46309B46B65C0DB0FD98ED0D /* mile_62.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4766C232121393F08078CF29 /* mile_62.mp3 */; };
 		468F747C0B27773EE2CBEB19 /* mile_74.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 2391EC7E2A87806A2B1AB43C /* mile_74.mp3 */; };
 		4716159E6EEEBA8C44CE9462 /* StrengthProgressionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42689D050CA9A25EC77CBAA9 /* StrengthProgressionView.swift */; };
+		472CDD6E5129B1A5A5732065 /* med_ball_rotational_pass_3.png in Resources */ = {isa = PBXBuildFile; fileRef = 853B1B1BE8CE9CDAE04BCDA6 /* med_ball_rotational_pass_3.png */; };
 		47F823522925A0F3A32A1A90 /* mile_51.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D3B81AA7B3722122C45364AE /* mile_51.mp3 */; };
 		4819BE8363510B49C6201320 /* one_more_run.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 126AFF22A521AE2AD559CE58 /* one_more_run.mp3 */; };
 		4857884318492D4BB6AFC900 /* Workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE9BABC194B98B14B66A3BAC /* Workout.swift */; };
+		4870A814493DFD565BECC8A6 /* landmine_rotation_3.png in Resources */ = {isa = PBXBuildFile; fileRef = D53A902445B824F244F4DCE5 /* landmine_rotation_3.png */; };
 		490338F885FEFF6EE3FB40E0 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9143ED5EA6040FF7FB916AD4 /* ImagePicker.swift */; };
 		4909DF403873E612F82CBE45 /* num_46.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BB597D1C6DD45A4BF3AB1EDE /* num_46.mp3 */; };
 		4981C925E704BB343028769B /* PreRunCheckView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07AC44C4F732BAFD8626E9F3 /* PreRunCheckView.swift */; };
@@ -198,6 +215,7 @@
 		4C06EF977A10A4629FFEE932 /* recovery_earned_it.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 469DCF52AE40E4538CDD5C7B /* recovery_earned_it.mp3 */; };
 		4C29BCAABF83C6F27A1DB2EB /* StrengthLogHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AECBF539DE2DA0629A1DF39 /* StrengthLogHubView.swift */; };
 		4C5111B8DB87BD59CF73586E /* num_38.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E26B4007113A0A2CB2873995 /* num_38.mp3 */; };
+		4D3C2F46E58C1DFDD6598215 /* side_plank_1.png in Resources */ = {isa = PBXBuildFile; fileRef = CA5F74931C1A2B3253CAABAC /* side_plank_1.png */; };
 		4E849BC2AFA11626DEAA2594 /* compliance_tempo_good.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 917EC056DF1B4FB767E8B7F5 /* compliance_tempo_good.mp3 */; };
 		4E98DB43263378FBBEC4BB3E /* StatsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 670673888B3CFAB76CA70992 /* StatsViewModel.swift */; };
 		5043F39D92A7E58637CAC9F2 /* ProgressIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05839BE194623D5E51B51F0 /* ProgressIndicator.swift */; };
@@ -229,6 +247,7 @@
 		5BF88323DCD9FB1FE7F4B2F0 /* ExerciseLibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08EE58DA49292EFDA985DE70 /* ExerciseLibraryView.swift */; };
 		5CB5227B856A48363017DDCB /* PlanViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53DA8DC5D138828DBCBEDBD0 /* PlanViewModel.swift */; };
 		5DD533C6B37DABD24E025D31 /* BluetoothManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ACFBC0E7D1E283734B3557 /* BluetoothManager.swift */; };
+		5DF87B1E82B2C621E710BC39 /* barbell_rdl_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 2B74D723AB2AFA3EB8791CCB /* barbell_rdl_2.png */; };
 		5E174CD6C3598208370E7967 /* PerformanceAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6282822EDE6B5E1C272EEA /* PerformanceAnalysisViewModel.swift */; };
 		5E65A2FB36C7EBABE17CB4BD /* youre_on_a.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 90C3353518C1DB657CE73893 /* youre_on_a.mp3 */; };
 		5EB9C57666467ECBDE9864A0 /* encourage_own_it.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 74234C3067F87B21BD4B4DCE /* encourage_own_it.mp3 */; };
@@ -246,6 +265,7 @@
 		64047A72B12D90EA2BE4708F /* km_58.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5EAFC0CE60A0A5D92AACDAD7 /* km_58.mp3 */; };
 		64C366E1678C872E36645A65 /* km_44.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5A3E9FF054C206226AE58F4C /* km_44.mp3 */; };
 		658948241652D44B48E29728 /* km_17.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7DCDD751A411DA1244338D11 /* km_17.mp3 */; };
+		65A0B6B89A36B56B8B0A78B0 /* side_plank_abduction_2.png in Resources */ = {isa = PBXBuildFile; fileRef = FA751141893180818794BA35 /* side_plank_abduction_2.png */; };
 		668D8F0875AB624E65BDACDF /* mile_45.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 2135B966007244E2BD15FA96 /* mile_45.mp3 */; };
 		66F2C24E2B63BE25BDF58B96 /* mile_90.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E6BF77874B84A40302B16D37 /* mile_90.mp3 */; };
 		6743B4F610D06889F64133DD /* thats.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 73A7F0F0E06E05FACC6831A0 /* thats.mp3 */; };
@@ -262,6 +282,7 @@
 		6A180E434662E4BD52B9CE1A /* num_31.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 694794B532F6CBCC44CF8CB2 /* num_31.mp3 */; };
 		6A22D0914674DD57F59A0D83 /* num_11.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F960FA9CE2F4159E23CB28CC /* num_11.mp3 */; };
 		6A5318827C05A77FD62DB19D /* mile_35.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6141A600D3E33BEED297C41F /* mile_35.mp3 */; };
+		6AD72EE687EBAD78F2540435 /* bird_dog_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 3400BC13A20492FDC9255DCD /* bird_dog_1.png */; };
 		6C00A54BC04E813F937A6FEC /* recovery_easy_day.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 35614C99FDB1538AD5F6EEFC /* recovery_easy_day.mp3 */; };
 		6C884F38FF1E43BE88F52BD8 /* VoiceCoachSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 897E903DDA6D15158F955A34 /* VoiceCoachSettings.swift */; };
 		6CAA384C26D53E858C2825DB /* mile_87.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0607D147B90D037B5767069E /* mile_87.mp3 */; };
@@ -275,12 +296,14 @@
 		6EE6874FCFCCC416D7F18D00 /* minute_s.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 57FDB8508BEEDE2F67CA40B7 /* minute_s.mp3 */; };
 		6F16E26FE5FFF4F0BB6E4A66 /* mile_1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D4132791665D7C7E6CCE754F /* mile_1.mp3 */; };
 		6F5695C8A701A5594186B2E7 /* WellnessCheckinView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69BAE2773F5F95211AF18401 /* WellnessCheckinView.swift */; };
+		713C0BBF2639D6822D789178 /* landmine_press_2.png in Resources */ = {isa = PBXBuildFile; fileRef = C1229CD8FB869044E1F0FC3B /* landmine_press_2.png */; };
 		722FBC3D3D6766362D85C93C /* num_5.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BFC1877BA3F02D897B303571 /* num_5.mp3 */; };
 		72307335DA323FCAB7431C2A /* NutritionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9B882F93F1F6A4A70CB50F /* NutritionLog.swift */; };
 		72E67AEA0F4B588BD2A81006 /* mile_11.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F2EB206886C100ACE45B7686 /* mile_11.mp3 */; };
 		73098179B9B726A3FBC8D485 /* countdown_1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B70F04868F895B3153E03709 /* countdown_1.mp3 */; };
 		732397ED6F0847FE6C308D56 /* mile_18.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E11D0D22BB10B231F2A1563F /* mile_18.mp3 */; };
 		73705E8FC5C5E3177A80FA5A /* num_54.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CDBF9043F6D52AD0E7FF39EE /* num_54.mp3 */; };
+		73D2ABECB4CD56FFD13CC5E7 /* bulgarian_split_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = E4F0501F8BD8F0F815AA448C /* bulgarian_split_squat_2.png */; };
 		7440B4F63BAF9C958B949F07 /* mile_23.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B67CDC37C3768DBCA90936DC /* mile_23.mp3 */; };
 		749B900F4ED1CC82D3E11FF7 /* km_10.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = AE7A79B12C5D16C5CDEE985C /* km_10.mp3 */; };
 		74B2921998D119710B64BDEB /* RunIntensity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC48736D420DF38D1F8E27A /* RunIntensity.swift */; };
@@ -293,6 +316,7 @@
 		779F73C5380333CF264B85B7 /* num_12.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6A0262CDBDCA4F370168734E /* num_12.mp3 */; };
 		77F384EC419E4A24A23C8EB4 /* km_29.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 780A9110A8584C35CF22A6AA /* km_29.mp3 */; };
 		7837C1538DF8356984F81A70 /* RoutePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0337043BF6C25A9034EF156B /* RoutePoint.swift */; };
+		78D6464DB31238EC40D3EDE6 /* single_leg_calf_raise_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 5D5C2EAF76BCCA7DA5436758 /* single_leg_calf_raise_1.png */; };
 		796378BEA689CF26A50978A5 /* km_73.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3FFE4E9519E551B499A3406E /* km_73.mp3 */; };
 		79AE671288F71B13A4BAAB9D /* ProfileSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E0C5A8712B5639DA3A76661 /* ProfileSetupView.swift */; };
 		7A1F3506A740972F75C864C5 /* num_2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9A0FBE25582EC34AEA5B8952 /* num_2.mp3 */; };
@@ -326,9 +350,11 @@
 		84161DE7C3B2A3EA56B9581C /* num_60.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 02EB988C2A54978C546C1B40 /* num_60.mp3 */; };
 		844CB5183D945D5B2FE477FB /* AutoPauseService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F5D0A9F86666462591C985D /* AutoPauseService.swift */; };
 		85113C69DC6415EF0A43CD93 /* CoachChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B6453D04CDCE62B58E80391 /* CoachChatView.swift */; };
+		858D905086CBB27176988CC8 /* landmine_rotation_1.png in Resources */ = {isa = PBXBuildFile; fileRef = EC5AF54D05CA83AB3D41F80A /* landmine_rotation_1.png */; };
 		85C6FF6FAB1204A0E52412EA /* GPSRunDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19E47F643022231E3630DAEA /* GPSRunDataProvider.swift */; };
 		85D050B7FE01398BD19022DF /* RaceFuelingPlanView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06ECB4813761A0D70044A98E /* RaceFuelingPlanView.swift */; };
 		860F3175D6758564A829426B /* km_36.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 25280B2ABB4C740C71ACC3EB /* km_36.mp3 */; };
+		8669E79384F1F683E1ACC2E9 /* goblet_squat_1.png in Resources */ = {isa = PBXBuildFile; fileRef = E4707DF31FD0F0859CC56D9C /* goblet_squat_1.png */; };
 		86B4E60B23683AB3FAD62A27 /* km_8.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 57FE8BCB9F1237FDB305D06B /* km_8.mp3 */; };
 		8777F43787FF06564959F679 /* LeaderboardCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59B1EDE0422C4E9C3FA6860B /* LeaderboardCardView.swift */; };
 		87B1BBDFCE60BD67D573AE89 /* StrengthQuickLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53559A9DEB562A57EA3345F0 /* StrengthQuickLogView.swift */; };
@@ -338,11 +364,13 @@
 		88DAA4B8E6CCF341EDF70F72 /* num_42.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EC8DB88D390A36506005E519 /* num_42.mp3 */; };
 		899D5F4E0461304D8EFD3EE7 /* num_29.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FD7282621A6B5F2D25FA61AD /* num_29.mp3 */; };
 		89AC767C16EFA634F4586EAB /* RecipeTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396D9ECD5D088E9CFE2C2440 /* RecipeTemplate.swift */; };
+		8A453235A61C089F4E8ADD48 /* dead_bug_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 42F29E379F73F96CBEB1B171 /* dead_bug_1.png */; };
 		8B0263F20582EB3356FB0382 /* WeeklyReviewViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10487E94E56A5961E591940B /* WeeklyReviewViewModel.swift */; };
 		8B0FD7D196127373244A74A0 /* compliance_most_on_target.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 818CE11782321FBB6124BBF9 /* compliance_most_on_target.mp3 */; };
 		8B17FBE21F2390DE2F387629 /* Week.swift in Sources */ = {isa = PBXBuildFile; fileRef = C86D64CA1EE9FE32AD9A0471 /* Week.swift */; };
 		8C7464D6B081BA5DB5AEAD38 /* slowest_split.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7C98F393C3B51A24E32E0833 /* slowest_split.mp3 */; };
 		8C7A41A3CB5B2CB0A58B6297 /* ActiveFocusesCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8E4BCDEFA06A4D5F539A699 /* ActiveFocusesCardView.swift */; };
+		8C98F9466739400C68CD954B /* single_leg_balance_reach_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 97DC3B41790F248C426D4D3E /* single_leg_balance_reach_1.png */; };
 		8D6153D5268267CB88A767ED /* km_80.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DBB873260C0DE67A52CB5CA6 /* km_80.mp3 */; };
 		8DBA5A04D97976B6CF8DDCE8 /* km_38.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1567A51F049C16E9F171661C /* km_38.mp3 */; };
 		8E112932FC0EDE751338FF33 /* run_ended.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6E96A89F2B83176041D96748 /* run_ended.mp3 */; };
@@ -360,12 +388,15 @@
 		92763F4C9F0B4E6C35759EE2 /* mile_20.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EC0532F1134F761DB8B6A3C6 /* mile_20.mp3 */; };
 		928A53C40BD2E4EB8981BA96 /* EventDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E06427AF427ECF1BA95A70C5 /* EventDetailView.swift */; };
 		92C07D38DBB5E335B87497BA /* MilestonesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D55A5E63C92007730090DA /* MilestonesView.swift */; };
+		93485863E8BB06C0ADB78124 /* single_leg_glute_bridge_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 5A77994CF9DF04E820781B7C /* single_leg_glute_bridge_1.png */; };
 		934EAA9466C0BA49038E57C7 /* CoachFeedbackRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0BF99987A69B53B5AA44993F /* CoachFeedbackRow.swift */; };
 		94213C1E5D506891034FBC7B /* best_split.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E346A7432384FDE4D6155EE2 /* best_split.mp3 */; };
+		9431A89CD6E35C290F4D8999 /* box_step_up_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 090B36540CA511596DA8D940 /* box_step_up_1.png */; };
 		9479BDFD5B021AA8407BFC3B /* mile_38.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6620F7BF6FCA783FD0A49B01 /* mile_38.mp3 */; };
 		9560771F597566CE22EF32FB /* RaceFinishView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D39D6A0F2300867AEF3D76D /* RaceFinishView.swift */; };
 		959D75BBC18FB63F9568AB16 /* encourage_big_effort.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7559F61DD9B758810CE2F6C4 /* encourage_big_effort.mp3 */; };
 		9617A856881811C015832749 /* second.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FE9F5FC5FEF4F4D7B1EFC7EB /* second.mp3 */; };
+		9761FFAF9C65CA7AA68BADDD /* landmine_press_1.png in Resources */ = {isa = PBXBuildFile; fileRef = C5FF5E6A312FD5965706E63B /* landmine_press_1.png */; };
 		9796BD63EF2D0658CAB2AA93 /* target_distance_today.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A8F0900D8C94F9D6A6C046B5 /* target_distance_today.mp3 */; };
 		98CAACD4561D7A08AEF33C78 /* mile_24.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1BE5CFD40289EB1AB8B8D36B /* mile_24.mp3 */; };
 		98E597B702AA9E5D62946D7C /* RouteMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F51C04366B55BBA16DFEC68E /* RouteMapView.swift */; };
@@ -387,6 +418,7 @@
 		9E22414D7AEFC96B76DB4103 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 034FAAB960EF8EA212E1E74D /* Assets.xcassets */; };
 		9E2B9364EF2B996D8E680EED /* StrengthSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84812E0B3E70AF75BCAA702E /* StrengthSet.swift */; };
 		9EA661162862ACE85D593863 /* target_time_today.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5E61F14FAEC5F619F00B5A4E /* target_time_today.mp3 */; };
+		9F260D2D0F5B133ECFF4ACBB /* side_plank_abduction_1.png in Resources */ = {isa = PBXBuildFile; fileRef = BA1833C3FA03F8B0C86BF715 /* side_plank_abduction_1.png */; };
 		9F9E59F89E7D7C1BDD6E2ADC /* longest_run.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7877BF6AEDB1811AB6790604 /* longest_run.mp3 */; };
 		9FC2DB2B722744110092039F /* EventsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9EACAB8DDF77DBF36B35A1C6 /* EventsViewModel.swift */; };
 		9FEE88844A1090030745B107 /* meters.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 61E11A2606ABBF8E107B789C /* meters.mp3 */; };
@@ -394,6 +426,7 @@
 		A0BC10B61917E37796315F80 /* num_22.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D617AB8D952B90CE1DCD126C /* num_22.mp3 */; };
 		A1AA8E0F108D2D5E7A06E4CC /* km_74.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1D3B481CD3327E7A8E50E7C5 /* km_74.mp3 */; };
 		A1C96D116FFE40FD97FFB94E /* num_6.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6FBCE392A9F8896783D58151 /* num_6.mp3 */; };
+		A22FD1E58AD97F2039EE1C70 /* pull_ups_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 77264BAF18BEEBB2389233AF /* pull_ups_2.png */; };
 		A3177DED027707CF951B9230 /* SimulatedGPSRunDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19C37F8CCAF01EC66FF249FA /* SimulatedGPSRunDataProvider.swift */; };
 		A34F8B6271D43CD571DC3DD6 /* km_50.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1323957375E49FD50F9B72E6 /* km_50.mp3 */; };
 		A4E3B3F3259FCE0A66E839DC /* num_45.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 671DBF59A40AF5C5A45C3BE0 /* num_45.mp3 */; };
@@ -402,6 +435,7 @@
 		A5BC08A78FA270DE1391A28E /* mile_89.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 657C3900E42FB50C9C77060A /* mile_89.mp3 */; };
 		A5EFEB2C72C8FB9B321548C5 /* km_25.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 721886088D3A4DC4DA39B668 /* km_25.mp3 */; };
 		A6944A2A60F22A791F90EF77 /* km_45.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4DF923F80A5BCB500C31571C /* km_45.mp3 */; };
+		A72B409C8FE3C1990FC0BC63 /* dead_bug_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 8626D8EEAA653BBDF030C7B7 /* dead_bug_2.png */; };
 		A76A91AF6724E38BD0909596 /* mile_26.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4789CFFA1638EEF37A34890D /* mile_26.mp3 */; };
 		A7712A449DA1D231BA85E22B /* mile_80.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FC95DB4D4A538E0B0052FCEA /* mile_80.mp3 */; };
 		A7E2A1E5C7E1563433E65BE3 /* average_heart_rate.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4EE8AB8421A62A19898FF4BA /* average_heart_rate.mp3 */; };
@@ -423,6 +457,7 @@
 		B0113782050D3F5CD7DCC3F2 /* PostRunCoachViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BACD7CF373922A136EB99BB /* PostRunCoachViewModel.swift */; };
 		B07DCEE71610124994E6ABC6 /* runs_this_week.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5D075BD3BA524BB1EDA87B6F /* runs_this_week.mp3 */; };
 		B096B07A71F0C6E24CA456C6 /* HistoryStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6DD8C1DACF9E3B02AD5DE8 /* HistoryStepView.swift */; };
+		B18B86FD08D1130B4CE792FD /* goblet_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 148F42A218983175BC3121E7 /* goblet_squat_2.png */; };
 		B1CB311F0AC1CEEFE41B7563 /* fitness_improving.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 983D4AE6768803065FFE7CAC /* fitness_improving.mp3 */; };
 		B1F1609888981DCADDA7610D /* num_9.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9CE6C5494A76F2B4FE699559 /* num_9.mp3 */; };
 		B280B1563A9A6BE419B9F531 /* km_47.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0B6D62F65351CC2AFD560357 /* km_47.mp3 */; };
@@ -437,10 +472,12 @@
 		B648925F113EB26D68760587 /* mile_16.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0B8E197ACF52AF4E534FE8A4 /* mile_16.mp3 */; };
 		B6EAA62D42DBFC9068D535DC /* pace.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 868108E1083A56B79A34FAA6 /* pace.mp3 */; };
 		B7E84880C80BE67F28381EC8 /* countdown_2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9A341E5029809577CDDA5DE6 /* countdown_2.mp3 */; };
+		B820515583D12D9481922D88 /* single_leg_balance_reach_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 0011DE6A3E4A0221F391BF10 /* single_leg_balance_reach_2.png */; };
 		B862E4A401A126A052956EA1 /* mile_43.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1FFC39ADA2C25DEA95731F6B /* mile_43.mp3 */; };
 		B97F64FFD7B704D950CC9926 /* RouteAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4DD658178C3DE59E7619821 /* RouteAnalyzer.swift */; };
 		B9B3860C58A07954FC488CCF /* TeamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3D6605E0EB286AE3CB341D /* TeamDetailView.swift */; };
 		B9DA6DE05D6198CCB5C8E566 /* weeks_to_race.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7CCF2C6ECCF6B18A1D42B78D /* weeks_to_race.mp3 */; };
+		B9E100439B5FFD189F8E59D1 /* db_split_squat_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 11DFDCBDD3ED8761196C6E07 /* db_split_squat_1.png */; };
 		BA5F94A32E669E7263DEEB24 /* mile_79.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 58A595EE2D79B26D0BA4F0D0 /* mile_79.mp3 */; };
 		BA802A546C09034C7D28910E /* mile_32.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 982E756F854FB0CCEF179C78 /* mile_32.mp3 */; };
 		BAA06B210999B06D0E08A26F /* type_tempo.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4FEE33A1F161464EFEA1D5F9 /* type_tempo.mp3 */; };
@@ -470,6 +507,7 @@
 		C281A005AFF4D227617CB330 /* Inter-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = B6F869B9E012FA4FAF212E39 /* Inter-Bold.ttf */; };
 		C3B2DF266EAFB06FACBC12B3 /* km_4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 36F6DE956CA96642056BBD26 /* km_4.mp3 */; };
 		C3E7F85DF14D3A7B40BD6381 /* num_17.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CD0821FF26BA33EAFF180234 /* num_17.mp3 */; };
+		C408D950D8DBCE0AFB75F3C3 /* back_squat_3.png in Resources */ = {isa = PBXBuildFile; fileRef = EA4277C93128A94EC46E64EC /* back_squat_3.png */; };
 		C48FA35FA1C20765541F3F4E /* mile_92.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D1C7FCDD63A2B8ABBAAD44D2 /* mile_92.mp3 */; };
 		C5CDFEB33FD79FFCCA5056C8 /* StrideIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3FF22135B7559683C3C518A /* StrideIcons.swift */; };
 		C5EDAFCF706C9C69593E4FEF /* MidRunCoachingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD92622443C74D7E5159BF01 /* MidRunCoachingService.swift */; };
@@ -498,6 +536,7 @@
 		CDC8663A2F25D5CBD2361500 /* num_7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C74F6C72F34099FFA7274AC1 /* num_7.mp3 */; };
 		CDC8E667389F1E36BDB88AFC /* VoiceCoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374E18297DEF111FB499E384 /* VoiceCoachService.swift */; };
 		D0625601AF045F765059D5C5 /* km_35.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 749F229A58B12D30B47307B4 /* km_35.mp3 */; };
+		D0DDAC56BFB54524143C5EA3 /* hip_flexor_stretch_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */; };
 		D0E07D593E78C5B72766780D /* AdherenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C507C81F068AF03CB84A826 /* AdherenceView.swift */; };
 		D1D704D45D6FE3F093720881 /* RaceLogisticsChecklist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAC513E6E38195C92957427 /* RaceLogisticsChecklist.swift */; };
 		D2337D86584C27D2518C2C3A /* mile_30.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B6B74EA738C4712B3B4250B0 /* mile_30.mp3 */; };
@@ -514,6 +553,7 @@
 		D6F2296E0B2FB564963D1F7E /* of_your_plan.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 8C5661F355C42D9BA8CE0CD7 /* of_your_plan.mp3 */; };
 		D721204F24622A4CAAB9C5D0 /* mile_91.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F21F5864BB3AAD3932A04A44 /* mile_91.mp3 */; };
 		D79FA2786495C44E28BB3424 /* km_42.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B5EE042DA2126C580C32F40F /* km_42.mp3 */; };
+		D7B8F7EF2E7BCBF9BBE73979 /* landmine_rotation_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 8FC28DC30DB7F6C5E2B23535 /* landmine_rotation_2.png */; };
 		D803C8703977A7ADD9784E4D /* RunLobbyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D61CC68A899445D3229F8C /* RunLobbyView.swift */; };
 		D830F2F63D0730CB68F5EB82 /* compliance_nailed.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EA322522B2106D2A044B813F /* compliance_nailed.mp3 */; };
 		D8D8E890053AB5306CB5F7FA /* SyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3544FC46D8B898BFE07A3DFE /* SyncService.swift */; };
@@ -545,7 +585,9 @@
 		E791FE5EAC84546E159F77B5 /* num_32.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 42D43A71ADB34C874DF9EF13 /* num_32.mp3 */; };
 		E7C629338618EFB5F0D9D002 /* km_26.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D1BD45068A461CD4D3116935 /* km_26.mp3 */; };
 		E8A6DB5A2C6E979BF5FEDF9C /* km_77.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 30A6878532777943DFDBDD14 /* km_77.mp3 */; };
+		E918715C59CD8E332E1029AC /* single_leg_calf_raise_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 8C005FEE683B77F5AA839478 /* single_leg_calf_raise_2.png */; };
 		EA8E7A91989DE25C7994945A /* mile_46.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C319BCBB2D34ED9AE0444502 /* mile_46.mp3 */; };
+		EB88D0DD474FBDC662EFE1F4 /* pull_ups_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 5CED029A9A419806B5ED8D99 /* pull_ups_1.png */; };
 		EBF85CB1DF2FF23265736C36 /* mile_40.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3C6DCB50A47743AE27A76C17 /* mile_40.mp3 */; };
 		ECC9032576B6E9B6AC4D6B36 /* pace_on_target.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6C05C2774981D46A6D9320FC /* pace_on_target.mp3 */; };
 		ED0AACA59115F116C2409028 /* type_progression.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E6FB78280E5EBF7B0C77D5B3 /* type_progression.mp3 */; };
@@ -557,6 +599,7 @@
 		EF017E18F600FB71AD59E943 /* RaceFuelingPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = F05DAED0866141337228D4BB /* RaceFuelingPlan.swift */; };
 		EF950646829FEA3CCD0A7575 /* mile_22.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 826B3F3C0FBFB805DB39B97C /* mile_22.mp3 */; };
 		EFA1F43809BD5DE416142938 /* mile_7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 969225E4BB42048B6435D77F /* mile_7.mp3 */; };
+		F02FD48A063E8104D70AEAE1 /* back_squat_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 9E4EAE68C4F5DB7BCB7DB2FB /* back_squat_1.png */; };
 		F050BAF021789952F02EE135 /* ArchivedPlansView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B0E0B9BC3146701C64DFE78 /* ArchivedPlansView.swift */; };
 		F075C224973C73D7B5D5341D /* mile_42.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 13E8680955E773A1DCA33C50 /* mile_42.mp3 */; };
 		F1853621159A5926410523A1 /* UserProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41E59EACEDE2CC5C5D4AE71F /* UserProfileView.swift */; };
@@ -574,6 +617,7 @@
 		FB3E2D58D5B70B8EADD4E87E /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D5B87387F80AC80A84B6B95 /* EditProfileView.swift */; };
 		FB700000478026EE32BD1805 /* km_69.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 0BA2B33FCB2C49E486FF4F4E /* km_69.mp3 */; };
 		FBB81328D1DCE55B4BF897CD /* km_83.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 99214D23BA5F2F3D7615C90D /* km_83.mp3 */; };
+		FC7348A294CA1C43B32C7D39 /* back_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = AA42CDFC15B04C975147D156 /* back_squat_2.png */; };
 		FCC6F8B5FDC8CFB54B20E37D /* beats_per_minute.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 24E472CF3207CA0A1029B9D7 /* beats_per_minute.mp3 */; };
 		FD7107B5EEFFC061CD64BCE5 /* mile_3.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CE63EA47B01DE7A938833D08 /* mile_3.mp3 */; };
 		FD95056D636196A19E60D7A7 /* kilometers_away.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 38366866D76E0C376FA2B89C /* kilometers_away.mp3 */; };
@@ -586,7 +630,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0011DE6A3E4A0221F391BF10 /* single_leg_balance_reach_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_balance_reach_2.png; sourceTree = "<group>"; };
 		007F8AB6C78789E4EAEB42A3 /* num_51.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_51.mp3; sourceTree = "<group>"; };
+		01C54BE535375DAF70AC7FAD /* clamshells_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = clamshells_1.png; sourceTree = "<group>"; };
 		02138EE294E4FCE4C62270F6 /* mile_86.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_86.mp3; sourceTree = "<group>"; };
 		02EB988C2A54978C546C1B40 /* num_60.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_60.mp3; sourceTree = "<group>"; };
 		0337043BF6C25A9034EF156B /* RoutePoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutePoint.swift; sourceTree = "<group>"; };
@@ -596,12 +642,14 @@
 		056700E364DC09F7C33BC82C /* ChallengeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeDetailView.swift; sourceTree = "<group>"; };
 		05BEE2BA356E948508CFF7CB /* mile_88.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_88.mp3; sourceTree = "<group>"; };
 		0607D147B90D037B5767069E /* mile_87.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_87.mp3; sourceTree = "<group>"; };
+		069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = hip_flexor_stretch_1.png; sourceTree = "<group>"; };
 		06ECB4813761A0D70044A98E /* RaceFuelingPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceFuelingPlanView.swift; sourceTree = "<group>"; };
 		0775AFFAD6BF83F503C460FA /* EventModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventModels.swift; sourceTree = "<group>"; };
 		07AC44C4F732BAFD8626E9F3 /* PreRunCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreRunCheckView.swift; sourceTree = "<group>"; };
 		07E5190B5884DA2FCD2AF8B0 /* mile_64.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_64.mp3; sourceTree = "<group>"; };
 		08229D8FE0CF2FC0107D9753 /* average_cadence.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = average_cadence.mp3; sourceTree = "<group>"; };
 		08EE58DA49292EFDA985DE70 /* ExerciseLibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExerciseLibraryView.swift; sourceTree = "<group>"; };
+		090B36540CA511596DA8D940 /* box_step_up_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = box_step_up_1.png; sourceTree = "<group>"; };
 		09190DC8E7F25D464326A76B /* num_36.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_36.mp3; sourceTree = "<group>"; };
 		0B3EAD0E851B648F7FBD8EC0 /* mile_61.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_61.mp3; sourceTree = "<group>"; };
 		0B6D62F65351CC2AFD560357 /* km_47.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_47.mp3; sourceTree = "<group>"; };
@@ -615,12 +663,14 @@
 		0E9FC00211E41BFCA3AE0FCE /* PlanParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanParser.swift; sourceTree = "<group>"; };
 		0F19298C71AB6A1C4C0EAECA /* TeamsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamsViewModel.swift; sourceTree = "<group>"; };
 		10487E94E56A5961E591940B /* WeeklyReviewViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReviewViewModel.swift; sourceTree = "<group>"; };
+		11DFDCBDD3ED8761196C6E07 /* db_split_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = db_split_squat_1.png; sourceTree = "<group>"; };
 		11F1AD6F3BCC219C56A52E3A /* mile_41.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_41.mp3; sourceTree = "<group>"; };
 		121325A8C63A76E604327049 /* km_90.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_90.mp3; sourceTree = "<group>"; };
 		121E1D2130ABC729358214CE /* mile_67.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_67.mp3; sourceTree = "<group>"; };
 		126AFF22A521AE2AD559CE58 /* one_more_run.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = one_more_run.mp3; sourceTree = "<group>"; };
 		1323957375E49FD50F9B72E6 /* km_50.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_50.mp3; sourceTree = "<group>"; };
 		13E8680955E773A1DCA33C50 /* mile_42.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_42.mp3; sourceTree = "<group>"; };
+		148F42A218983175BC3121E7 /* goblet_squat_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = goblet_squat_2.png; sourceTree = "<group>"; };
 		14EB42E37B593BC8EE810C43 /* total_distance.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = total_distance.mp3; sourceTree = "<group>"; };
 		1515FC3BAF1C3AEC6794CC4F /* num_34.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_34.mp3; sourceTree = "<group>"; };
 		1567A51F049C16E9F171661C /* km_38.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_38.mp3; sourceTree = "<group>"; };
@@ -629,6 +679,7 @@
 		175BA5D3DDE0C3991D37F21B /* mile_60.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_60.mp3; sourceTree = "<group>"; };
 		17DE1203CE501D17A739A7B6 /* num_19.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_19.mp3; sourceTree = "<group>"; };
 		183AA6B486E8C14CE99123B6 /* num_40.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_40.mp3; sourceTree = "<group>"; };
+		185FDA12907A013465F3F6DF /* plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = plank_1.png; sourceTree = "<group>"; };
 		187198117EF6BC750D0CC523 /* km_18.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_18.mp3; sourceTree = "<group>"; };
 		18DFBEE0AB4C282FA726EB35 /* km_66.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_66.mp3; sourceTree = "<group>"; };
 		19471137A4AF18EA6C4F445B /* solid_consistency.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = solid_consistency.mp3; sourceTree = "<group>"; };
@@ -675,6 +726,7 @@
 		2B6282822EDE6B5E1C272EEA /* PerformanceAnalysisViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceAnalysisViewModel.swift; sourceTree = "<group>"; };
 		2B6453D04CDCE62B58E80391 /* CoachChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachChatView.swift; sourceTree = "<group>"; };
 		2B719F0EBDBED2CE4E43BF3D /* ConnectGarminView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectGarminView.swift; sourceTree = "<group>"; };
+		2B74D723AB2AFA3EB8791CCB /* barbell_rdl_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = barbell_rdl_2.png; sourceTree = "<group>"; };
 		2D0DEC51B0534231401D01BD /* UserSearchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSearchViewModel.swift; sourceTree = "<group>"; };
 		2D654C0CA1D177B63F61EFFB /* km_19.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_19.mp3; sourceTree = "<group>"; };
 		2DE60D50DDAA81AC295B1AF2 /* num_14.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_14.mp3; sourceTree = "<group>"; };
@@ -691,6 +743,7 @@
 		323E8BF49026C7D23F513305 /* km_88.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_88.mp3; sourceTree = "<group>"; };
 		3286EA82271170180144A345 /* slower_than_last.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = slower_than_last.mp3; sourceTree = "<group>"; };
 		335F9CB11B6DD28D035E56B7 /* TTSUsageLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TTSUsageLog.swift; sourceTree = "<group>"; };
+		3400BC13A20492FDC9255DCD /* bird_dog_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = bird_dog_1.png; sourceTree = "<group>"; };
 		3544FC46D8B898BFE07A3DFE /* SyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncService.swift; sourceTree = "<group>"; };
 		35614C99FDB1538AD5F6EEFC /* recovery_easy_day.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = recovery_easy_day.mp3; sourceTree = "<group>"; };
 		360050FCD981BA1DF869F807 /* mile_63.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_63.mp3; sourceTree = "<group>"; };
@@ -718,6 +771,7 @@
 		3DB2AEA66627F72514AC8D18 /* km_54.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_54.mp3; sourceTree = "<group>"; };
 		3DE8DCA5298BE9147D55B5A5 /* StreamingTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingTextView.swift; sourceTree = "<group>"; };
 		3FFE4E9519E551B499A3406E /* km_73.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_73.mp3; sourceTree = "<group>"; };
+		40404DB047940398118752AF /* bulgarian_split_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = bulgarian_split_squat_1.png; sourceTree = "<group>"; };
 		40DF4219CC087849690EA0DB /* this_month.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = this_month.mp3; sourceTree = "<group>"; };
 		411D2632A90B6AB60F2B11EB /* mile_66.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_66.mp3; sourceTree = "<group>"; };
 		4127D688F75958E84EEB9DE2 /* week_label.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = week_label.mp3; sourceTree = "<group>"; };
@@ -729,6 +783,7 @@
 		41FD96CBD274AFBF97D7566F /* mile_100.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_100.mp3; sourceTree = "<group>"; };
 		42689D050CA9A25EC77CBAA9 /* StrengthProgressionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthProgressionView.swift; sourceTree = "<group>"; };
 		42D43A71ADB34C874DF9EF13 /* num_32.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_32.mp3; sourceTree = "<group>"; };
+		42F29E379F73F96CBEB1B171 /* dead_bug_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dead_bug_1.png; sourceTree = "<group>"; };
 		42FC88A41F2D3167F8115E3B /* mile_56.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_56.mp3; sourceTree = "<group>"; };
 		43322979A85F21CB82B4516F /* num_52.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_52.mp3; sourceTree = "<group>"; };
 		438D5AF2ADAEB741A0C6F564 /* mile_98.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_98.mp3; sourceTree = "<group>"; };
@@ -746,6 +801,7 @@
 		49186CEF891B3EFBBCEDDD23 /* km_86.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_86.mp3; sourceTree = "<group>"; };
 		493383E84632D781F54BB153 /* km_61.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_61.mp3; sourceTree = "<group>"; };
 		49B38A880F81033D06BD9FE9 /* mile_13.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_13.mp3; sourceTree = "<group>"; };
+		49EED7550545A4F322398C2F /* box_step_up_3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = box_step_up_3.png; sourceTree = "<group>"; };
 		49F41395A768E39642797E30 /* WeekAccordionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekAccordionView.swift; sourceTree = "<group>"; };
 		4AF5141F86ABE9DE25232F5C /* mile_27.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_27.mp3; sourceTree = "<group>"; };
 		4B022E82B8C54FB0B637C6B2 /* mile_21.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_21.mp3; sourceTree = "<group>"; };
@@ -774,6 +830,7 @@
 		53DA8DC5D138828DBCBEDBD0 /* PlanViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanViewModel.swift; sourceTree = "<group>"; };
 		53E91CD6F12AC2D8342D14AA /* km_6.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_6.mp3; sourceTree = "<group>"; };
 		55369B9922C11340EA27E712 /* km_52.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_52.mp3; sourceTree = "<group>"; };
+		56628E60A57ED2A3099F98ED /* clamshells_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = clamshells_2.png; sourceTree = "<group>"; };
 		56E878BA3D7ACDD9B4E5075A /* mile_44.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_44.mp3; sourceTree = "<group>"; };
 		573FADDC0EF1037127CBA9BC /* AuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthView.swift; sourceTree = "<group>"; };
 		57D55A5E63C92007730090DA /* MilestonesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MilestonesView.swift; sourceTree = "<group>"; };
@@ -787,12 +844,15 @@
 		592791B4F07A5D9F0B9C07B9 /* km_43.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_43.mp3; sourceTree = "<group>"; };
 		59B1EDE0422C4E9C3FA6860B /* LeaderboardCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LeaderboardCardView.swift; sourceTree = "<group>"; };
 		5A3E9FF054C206226AE58F4C /* km_44.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_44.mp3; sourceTree = "<group>"; };
+		5A77994CF9DF04E820781B7C /* single_leg_glute_bridge_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_glute_bridge_1.png; sourceTree = "<group>"; };
 		5B910AB57DF2D3765336ED56 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		5B91CE0306CD482F820AC03E /* mile_48.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_48.mp3; sourceTree = "<group>"; };
 		5BE53CB66115831BD7E2600C /* km_15.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_15.mp3; sourceTree = "<group>"; };
 		5CD29FC80BC11BAA80D8B08E /* ManualEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntryView.swift; sourceTree = "<group>"; };
+		5CED029A9A419806B5ED8D99 /* pull_ups_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = pull_ups_1.png; sourceTree = "<group>"; };
 		5D075BD3BA524BB1EDA87B6F /* runs_this_week.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = runs_this_week.mp3; sourceTree = "<group>"; };
 		5D49042AA3C9B8D3AE980876 /* km_48.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_48.mp3; sourceTree = "<group>"; };
+		5D5C2EAF76BCCA7DA5436758 /* single_leg_calf_raise_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_calf_raise_1.png; sourceTree = "<group>"; };
 		5DE5C7434609AACF1191648D /* mile_29.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_29.mp3; sourceTree = "<group>"; };
 		5E36BA70B03EE06AB838B72E /* PlanAdjustmentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanAdjustmentViewModel.swift; sourceTree = "<group>"; };
 		5E61F14FAEC5F619F00B5A4E /* target_time_today.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = target_time_today.mp3; sourceTree = "<group>"; };
@@ -860,6 +920,7 @@
 		7559F61DD9B758810CE2F6C4 /* encourage_big_effort.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = encourage_big_effort.mp3; sourceTree = "<group>"; };
 		76578B3549AA89E9FDD90155 /* run_resumed.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = run_resumed.mp3; sourceTree = "<group>"; };
 		7691D6F9A00360229C9722CD /* WellnessViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellnessViewModel.swift; sourceTree = "<group>"; };
+		77264BAF18BEEBB2389233AF /* pull_ups_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = pull_ups_2.png; sourceTree = "<group>"; };
 		7739AAEE276CAA23D8F2F4C7 /* km_60.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_60.mp3; sourceTree = "<group>"; };
 		779883292E35F89EF882C865 /* km_100.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_100.mp3; sourceTree = "<group>"; };
 		77BD849CC9DF7514C6986EB9 /* mile_73.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_73.mp3; sourceTree = "<group>"; };
@@ -880,6 +941,7 @@
 		7CCF2C6ECCF6B18A1D42B78D /* weeks_to_race.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = weeks_to_race.mp3; sourceTree = "<group>"; };
 		7DAAD86DED6390C4927313EA /* type_recovery.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = type_recovery.mp3; sourceTree = "<group>"; };
 		7DCDD751A411DA1244338D11 /* km_17.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_17.mp3; sourceTree = "<group>"; };
+		7F2B37C9ABA42EA8C360C7A6 /* suitcase_carry_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = suitcase_carry_1.png; sourceTree = "<group>"; };
 		7F57DA1A2B3A790232CC417F /* TodayNutritionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayNutritionView.swift; sourceTree = "<group>"; };
 		7F9B882F93F1F6A4A70CB50F /* NutritionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionLog.swift; sourceTree = "<group>"; };
 		7FC1A4A9A68DB94AD8ADCFB3 /* km_40.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_40.mp3; sourceTree = "<group>"; };
@@ -899,11 +961,13 @@
 		84812E0B3E70AF75BCAA702E /* StrengthSet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSet.swift; sourceTree = "<group>"; };
 		8484354CB8FE03A7E99A4939 /* RaceRecapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceRecapView.swift; sourceTree = "<group>"; };
 		85123FF2BB3F9694ECD1D97A /* mile_55.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_55.mp3; sourceTree = "<group>"; };
+		853B1B1BE8CE9CDAE04BCDA6 /* med_ball_rotational_pass_3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = med_ball_rotational_pass_3.png; sourceTree = "<group>"; };
 		85944D3FE57216B1D6864167 /* WellnessCheckin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellnessCheckin.swift; sourceTree = "<group>"; };
 		85C9E6DEA850668271C278C9 /* num_59.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_59.mp3; sourceTree = "<group>"; };
 		85F8A6A34303BBBF26085A40 /* StrengthSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSummaryView.swift; sourceTree = "<group>"; };
 		86066CA0176F47E1CD6876CB /* mile_28.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_28.mp3; sourceTree = "<group>"; };
 		86183CB229EDAEFF70446946 /* run_paused.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = run_paused.mp3; sourceTree = "<group>"; };
+		8626D8EEAA653BBDF030C7B7 /* dead_bug_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = dead_bug_2.png; sourceTree = "<group>"; };
 		867FCCFAA9079787805ACC4A /* km_89.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_89.mp3; sourceTree = "<group>"; };
 		868108E1083A56B79A34FAA6 /* pace.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = pace.mp3; sourceTree = "<group>"; };
 		876C26AC0392CC90ABC72049 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
@@ -913,6 +977,7 @@
 		89DEB31BC1F7CB8ABA7DD3C4 /* fastest.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = fastest.mp3; sourceTree = "<group>"; };
 		8B0E0B9BC3146701C64DFE78 /* ArchivedPlansView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchivedPlansView.swift; sourceTree = "<group>"; };
 		8B22AC0683FE8AC4317776E6 /* km_97.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_97.mp3; sourceTree = "<group>"; };
+		8C005FEE683B77F5AA839478 /* single_leg_calf_raise_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_calf_raise_2.png; sourceTree = "<group>"; };
 		8C5661F355C42D9BA8CE0CD7 /* of_your_plan.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = of_your_plan.mp3; sourceTree = "<group>"; };
 		8D39D6A0F2300867AEF3D76D /* RaceFinishView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceFinishView.swift; sourceTree = "<group>"; };
 		8D547987F61B9933211DA554 /* mile_9.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_9.mp3; sourceTree = "<group>"; };
@@ -921,12 +986,14 @@
 		8E0C5A8712B5639DA3A76661 /* ProfileSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSetupView.swift; sourceTree = "<group>"; };
 		8E8559A8B205113303CCF25F /* recovery_ready.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = recovery_ready.mp3; sourceTree = "<group>"; };
 		8EA637877569DA048D1ED045 /* CheckinInviteCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckinInviteCardView.swift; sourceTree = "<group>"; };
+		8FC28DC30DB7F6C5E2B23535 /* landmine_rotation_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = landmine_rotation_2.png; sourceTree = "<group>"; };
 		90311715AFC67C268CC6F6AB /* faster_than_last.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = faster_than_last.mp3; sourceTree = "<group>"; };
 		90C3353518C1DB657CE73893 /* youre_on_a.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = youre_on_a.mp3; sourceTree = "<group>"; };
 		90C6CAD8F7B8A0AA2539306C /* recovery_stretch.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = recovery_stretch.mp3; sourceTree = "<group>"; };
 		90EB433EC17B78497AFEDA4D /* km_1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_1.mp3; sourceTree = "<group>"; };
 		9143ED5EA6040FF7FB916AD4 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		9164DC5F875B11291977C8E2 /* num_39.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_39.mp3; sourceTree = "<group>"; };
+		91656ED881555AFF480AFBC2 /* bird_dog_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = bird_dog_2.png; sourceTree = "<group>"; };
 		917EC056DF1B4FB767E8B7F5 /* compliance_tempo_good.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = compliance_tempo_good.mp3; sourceTree = "<group>"; };
 		918F697D9011627CB375233E /* km_87.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_87.mp3; sourceTree = "<group>"; };
 		91A39BAF429C5E1B18997248 /* TrainingPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingPlan.swift; sourceTree = "<group>"; };
@@ -946,6 +1013,7 @@
 		96AA3EE915CD86DF345D8664 /* AchievementBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementBadgeView.swift; sourceTree = "<group>"; };
 		96D16082297CA07A5B8871D1 /* IntegrationsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationsSection.swift; sourceTree = "<group>"; };
 		96FB6920F564600AC6B167A5 /* num_10.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_10.mp3; sourceTree = "<group>"; };
+		97DC3B41790F248C426D4D3E /* single_leg_balance_reach_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_balance_reach_1.png; sourceTree = "<group>"; };
 		9819223C986F6DA1725410AD /* GymWorkoutPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymWorkoutPlayerView.swift; sourceTree = "<group>"; };
 		982E756F854FB0CCEF179C78 /* mile_32.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_32.mp3; sourceTree = "<group>"; };
 		983D4AE6768803065FFE7CAC /* fitness_improving.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = fitness_improving.mp3; sourceTree = "<group>"; };
@@ -964,25 +1032,30 @@
 		9CE6C5494A76F2B4FE699559 /* num_9.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_9.mp3; sourceTree = "<group>"; };
 		9D4580F80EB8D91923B344A6 /* num_49.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_49.mp3; sourceTree = "<group>"; };
 		9E35F46ECCFA744E9CCE8F6A /* num_18.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_18.mp3; sourceTree = "<group>"; };
+		9E4EAE68C4F5DB7BCB7DB2FB /* back_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = back_squat_1.png; sourceTree = "<group>"; };
 		9EA5AAE891DF3F89F53538E4 /* new_pr.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = new_pr.mp3; sourceTree = "<group>"; };
 		9EACAB8DDF77DBF36B35A1C6 /* EventsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventsViewModel.swift; sourceTree = "<group>"; };
 		9ECEB8F7837D996B323342E9 /* per_kilometer.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = per_kilometer.mp3; sourceTree = "<group>"; };
 		9FB5C15C56A946CC4CB6D914 /* km_82.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_82.mp3; sourceTree = "<group>"; };
 		A061ABB98AC083C666101C2C /* num_1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_1.mp3; sourceTree = "<group>"; };
+		A12485FE17E5E9BCFBCE33E3 /* suitcase_carry_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = suitcase_carry_2.png; sourceTree = "<group>"; };
 		A13F5061C68F794F8D7906A1 /* total_elevation.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = total_elevation.mp3; sourceTree = "<group>"; };
 		A391C8C447B46CA41A0D9796 /* type_long_run.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = type_long_run.mp3; sourceTree = "<group>"; };
 		A3DC31741A6EC9A838DF5991 /* km_76.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_76.mp3; sourceTree = "<group>"; };
 		A4F3EB038732B61B830349E4 /* AchievementsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AchievementsViewModel.swift; sourceTree = "<group>"; };
 		A5FF79E06BF93599747F409A /* km_2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_2.mp3; sourceTree = "<group>"; };
 		A622F66054935972CEC1F85F /* num_30.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_30.mp3; sourceTree = "<group>"; };
+		A66B5BEEF396269BA73B720D /* db_split_squat_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = db_split_squat_2.png; sourceTree = "<group>"; };
 		A6CC2C1B30A16BFCBD530785 /* km_46.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_46.mp3; sourceTree = "<group>"; };
 		A73023D5347E1D04F50F464C /* thirty_minutes.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = thirty_minutes.mp3; sourceTree = "<group>"; };
+		A73B6DB08FA27BAD9A4A2F0C /* box_step_up_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = box_step_up_2.png; sourceTree = "<group>"; };
 		A7DFB60EA40F7D6D9A611670 /* pace_back_on.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = pace_back_on.mp3; sourceTree = "<group>"; };
 		A7FD1B8C2E01E2199E130253 /* RunSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunSyncService.swift; sourceTree = "<group>"; };
 		A8A82D23EB41A17E6D9EF6DA /* num_27.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_27.mp3; sourceTree = "<group>"; };
 		A8F0900D8C94F9D6A6C046B5 /* target_distance_today.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = target_distance_today.mp3; sourceTree = "<group>"; };
 		A93310B240DB0CF2A8C9C678 /* mile_54.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_54.mp3; sourceTree = "<group>"; };
 		A9A7FD012A1428E4865F64F3 /* mile_83.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_83.mp3; sourceTree = "<group>"; };
+		AA42CDFC15B04C975147D156 /* back_squat_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = back_squat_2.png; sourceTree = "<group>"; };
 		ABACC1DCB30412860D164370 /* km_70.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_70.mp3; sourceTree = "<group>"; };
 		ACA092574A13FD2B4ADFB296 /* km_78.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_78.mp3; sourceTree = "<group>"; };
 		AD92622443C74D7E5159BF01 /* MidRunCoachingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MidRunCoachingService.swift; sourceTree = "<group>"; };
@@ -995,6 +1068,7 @@
 		B14FB28B2800888B2A3389CE /* km_68.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_68.mp3; sourceTree = "<group>"; };
 		B1AB1202FAF5CA52ED741430 /* IconBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconBadge.swift; sourceTree = "<group>"; };
 		B1CEE38FAF1FA741B32B42A6 /* ElevenLabsTTSService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElevenLabsTTSService.swift; sourceTree = "<group>"; };
+		B1F9CF07417E6E84D651AED9 /* barbell_rdl_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = barbell_rdl_1.png; sourceTree = "<group>"; };
 		B25FEAED9F4AD3DAF1877DAE /* new_monthly_record.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = new_monthly_record.mp3; sourceTree = "<group>"; };
 		B2611C30BB04CBBCF72078CD /* StrengthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthViewModel.swift; sourceTree = "<group>"; };
 		B293E10EA0515FA169AB4FDB /* AILoaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AILoaderView.swift; sourceTree = "<group>"; };
@@ -1009,6 +1083,7 @@
 		B70F04868F895B3153E03709 /* countdown_1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = countdown_1.mp3; sourceTree = "<group>"; };
 		B866177B67945A1A8BF96709 /* mile_6.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_6.mp3; sourceTree = "<group>"; };
 		B9925DB761B38536C94F425B /* ShoeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoeModels.swift; sourceTree = "<group>"; };
+		BA1833C3FA03F8B0C86BF715 /* side_plank_abduction_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = side_plank_abduction_1.png; sourceTree = "<group>"; };
 		BA6775D3CA4056247D8585B3 /* mile_77.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_77.mp3; sourceTree = "<group>"; };
 		BB597D1C6DD45A4BF3AB1EDE /* num_46.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_46.mp3; sourceTree = "<group>"; };
 		BBAA0E068E067C57CB1F3A7A /* EmailAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAuthView.swift; sourceTree = "<group>"; };
@@ -1025,6 +1100,7 @@
 		BFD24D017D1EDABF7A7BF7C0 /* km_51.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_51.mp3; sourceTree = "<group>"; };
 		C01FF05B50F31A139D013CB8 /* SyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModels.swift; sourceTree = "<group>"; };
 		C0595175E17B53AF45B2E117 /* StrengthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSession.swift; sourceTree = "<group>"; };
+		C1229CD8FB869044E1F0FC3B /* landmine_press_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = landmine_press_2.png; sourceTree = "<group>"; };
 		C185332FF06AEA3241BDAB30 /* km_3.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_3.mp3; sourceTree = "<group>"; };
 		C1E4810343AEBCA6AF5FD2BF /* encourage_negative_split.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = encourage_negative_split.mp3; sourceTree = "<group>"; };
 		C1F0CB346B88FBC0A97F110E /* encourage_halfway.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = encourage_halfway.mp3; sourceTree = "<group>"; };
@@ -1032,6 +1108,7 @@
 		C3FF22135B7559683C3C518A /* StrideIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrideIcons.swift; sourceTree = "<group>"; };
 		C565B695627C8DAB71312497 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
 		C5CDD09680C6CEF35A721B1C /* km_98.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_98.mp3; sourceTree = "<group>"; };
+		C5FF5E6A312FD5965706E63B /* landmine_press_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = landmine_press_1.png; sourceTree = "<group>"; };
 		C74F6C72F34099FFA7274AC1 /* num_7.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_7.mp3; sourceTree = "<group>"; };
 		C7576DD31C214FF91FD45656 /* mile_33.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_33.mp3; sourceTree = "<group>"; };
 		C790BBD2AE81268A5FA5A8A1 /* num_21.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_21.mp3; sourceTree = "<group>"; };
@@ -1041,6 +1118,7 @@
 		C86D64CA1EE9FE32AD9A0471 /* Week.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Week.swift; sourceTree = "<group>"; };
 		C9FF55CE6F1B5C865D31A77C /* mile_71.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_71.mp3; sourceTree = "<group>"; };
 		CA468DC30E77BBB1AA647A78 /* km_37.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_37.mp3; sourceTree = "<group>"; };
+		CA5F74931C1A2B3253CAABAC /* side_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = side_plank_1.png; sourceTree = "<group>"; };
 		CA8720CE92C1E0587A35DC7A /* FitnessStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitnessStepView.swift; sourceTree = "<group>"; };
 		CB5F912BC2906EC770B04661 /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthService.swift; sourceTree = "<group>"; };
 		CB663062BD59E5FD1B802EA0 /* km_79.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_79.mp3; sourceTree = "<group>"; };
@@ -1067,6 +1145,7 @@
 		D3EECF36823171F4646164B7 /* PlanEditViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanEditViewModel.swift; sourceTree = "<group>"; };
 		D3F09B960C6A3133CA822436 /* num_23.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_23.mp3; sourceTree = "<group>"; };
 		D4132791665D7C7E6CCE754F /* mile_1.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_1.mp3; sourceTree = "<group>"; };
+		D53A902445B824F244F4DCE5 /* landmine_rotation_3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = landmine_rotation_3.png; sourceTree = "<group>"; };
 		D569319A5A7EE27281DEA5BB /* TempWorkoutEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TempWorkoutEditView.swift; sourceTree = "<group>"; };
 		D589D00F9F2F10207BA35DEA /* ShoesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoesView.swift; sourceTree = "<group>"; };
 		D5A47DF71A4C5B7CA1EF6E05 /* CommunityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityView.swift; sourceTree = "<group>"; };
@@ -1077,7 +1156,10 @@
 		D9875F51CCE80F7EE5BEFAFA /* mile_58.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_58.mp3; sourceTree = "<group>"; };
 		DA0737823FAA90539557DE71 /* targetBarCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = targetBarCount.swift; sourceTree = "<group>"; };
 		DA42B0F782F959947EE3D9A1 /* mile_50.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_50.mp3; sourceTree = "<group>"; };
+		DB31824C8FC321B273D08368 /* med_ball_rotational_pass_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = med_ball_rotational_pass_1.png; sourceTree = "<group>"; };
+		DB9E5DCF7F6985B2A54133F8 /* med_ball_rotational_pass_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = med_ball_rotational_pass_2.png; sourceTree = "<group>"; };
 		DBB873260C0DE67A52CB5CA6 /* km_80.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_80.mp3; sourceTree = "<group>"; };
+		DD488E3D65BF840D7B9B9097 /* copenhagen_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = copenhagen_plank_1.png; sourceTree = "<group>"; };
 		DD768F456A730A5322837E5C /* km_14.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_14.mp3; sourceTree = "<group>"; };
 		DDA5A95DD9BEBFCCCE02D9DC /* km_30.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_30.mp3; sourceTree = "<group>"; };
 		DE39D8BD51D04F3D37236785 /* km_22.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_22.mp3; sourceTree = "<group>"; };
@@ -1102,8 +1184,10 @@
 		E3F59EBD65D99C127C4CD356 /* km_75.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_75.mp3; sourceTree = "<group>"; };
 		E3FA2C512DBAC02313C9D63E /* mile_85.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_85.mp3; sourceTree = "<group>"; };
 		E41122A1C1DF8B57140E850B /* day_running_streak.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = day_running_streak.mp3; sourceTree = "<group>"; };
+		E4707DF31FD0F0859CC56D9C /* goblet_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = goblet_squat_1.png; sourceTree = "<group>"; };
 		E480B711B955D9379D95BA4E /* AuthModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthModels.swift; sourceTree = "<group>"; };
 		E4DD658178C3DE59E7619821 /* RouteAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteAnalyzer.swift; sourceTree = "<group>"; };
+		E4F0501F8BD8F0F815AA448C /* bulgarian_split_squat_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = bulgarian_split_squat_2.png; sourceTree = "<group>"; };
 		E51BA7A68DA682181845EC5C /* BarlowCondensed-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BarlowCondensed-Bold.ttf"; sourceTree = "<group>"; };
 		E63713D982D9E42004420887 /* hour.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = hour.mp3; sourceTree = "<group>"; };
 		E6BF77874B84A40302B16D37 /* mile_90.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_90.mp3; sourceTree = "<group>"; };
@@ -1114,12 +1198,14 @@
 		EA02977800966C645D5C6A74 /* pace_sped_up.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = pace_sped_up.mp3; sourceTree = "<group>"; };
 		EA212CEF79EF207961B03D34 /* heres_the_plan.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = heres_the_plan.mp3; sourceTree = "<group>"; };
 		EA322522B2106D2A044B813F /* compliance_nailed.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = compliance_nailed.mp3; sourceTree = "<group>"; };
+		EA4277C93128A94EC46E64EC /* back_squat_3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = back_squat_3.png; sourceTree = "<group>"; };
 		EA7A84FEB8E3C7C815AFEAC0 /* km_41.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_41.mp3; sourceTree = "<group>"; };
 		EABAA15F6A476B18E2882232 /* seconds_label.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = seconds_label.mp3; sourceTree = "<group>"; };
 		EB25872F211E340A9CC9AFB1 /* km_7.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_7.mp3; sourceTree = "<group>"; };
 		EB46A9A61F08082A4F9F08EC /* DailyRunLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyRunLogView.swift; sourceTree = "<group>"; };
 		EC0532F1134F761DB8B6A3C6 /* mile_20.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_20.mp3; sourceTree = "<group>"; };
 		EC0623CDA6C862A5CE166B6A /* PlanLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanLogger.swift; sourceTree = "<group>"; };
+		EC5AF54D05CA83AB3D41F80A /* landmine_rotation_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = landmine_rotation_1.png; sourceTree = "<group>"; };
 		EC8DB88D390A36506005E519 /* num_42.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_42.mp3; sourceTree = "<group>"; };
 		ECA49B5DFAFBEF8B31BC12CB /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
 		ED89DB041DD80F82332913EC /* pace_too_fast.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = pace_too_fast.mp3; sourceTree = "<group>"; };
@@ -1140,6 +1226,7 @@
 		F51C04366B55BBA16DFEC68E /* RouteMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteMapView.swift; sourceTree = "<group>"; };
 		F5371B11FAA1D16806E4E9A5 /* GymSessionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GymSessionModel.swift; sourceTree = "<group>"; };
 		F568C1AD0B3BF19624902296 /* TrainingIntensityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingIntensityView.swift; sourceTree = "<group>"; };
+		F56DFDA61467B056449F139B /* single_leg_glute_bridge_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_glute_bridge_2.png; sourceTree = "<group>"; };
 		F5B145042ABA3A42D409F89B /* mile_2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_2.mp3; sourceTree = "<group>"; };
 		F61EBF889EE98DF873BAD46A /* RacePrepChecklistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RacePrepChecklistView.swift; sourceTree = "<group>"; };
 		F878A84B299521E1EFB9D92E /* RunDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunDataProvider.swift; sourceTree = "<group>"; };
@@ -1148,6 +1235,7 @@
 		F960FA9CE2F4159E23CB28CC /* num_11.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_11.mp3; sourceTree = "<group>"; };
 		F968FAEFE528D676AF1B42BF /* more_distance_today.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = more_distance_today.mp3; sourceTree = "<group>"; };
 		F9EB90E244CCD02B0D2F1B2C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		FA751141893180818794BA35 /* side_plank_abduction_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = side_plank_abduction_2.png; sourceTree = "<group>"; };
 		FB182A89F5C08283078A6732 /* mile_65.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_65.mp3; sourceTree = "<group>"; };
 		FBD4A995F803E34EE2D34C57 /* mile_14.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_14.mp3; sourceTree = "<group>"; };
 		FC95DB4D4A538E0B0052FCEA /* mile_80.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_80.mp3; sourceTree = "<group>"; };
@@ -1200,6 +1288,7 @@
 				3658386F4CA1474CCEC1DDBF /* LaunchScreen.storyboard */,
 				6771747F1D5668589422D030 /* App */,
 				7E20A628D73A0BF965ECB951 /* Audio */,
+				5189DB8D3D9DDB6CDF4CEB7D /* ExerciseImages */,
 				A9988D876A924D10DB482276 /* Fonts */,
 				FDE81F1FC1EADBA92FD45F6F /* Models */,
 				C3425137E7157B4FB569CF23 /* Services */,
@@ -1301,6 +1390,57 @@
 				F51C04366B55BBA16DFEC68E /* RouteMapView.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		5189DB8D3D9DDB6CDF4CEB7D /* ExerciseImages */ = {
+			isa = PBXGroup;
+			children = (
+				9E4EAE68C4F5DB7BCB7DB2FB /* back_squat_1.png */,
+				AA42CDFC15B04C975147D156 /* back_squat_2.png */,
+				EA4277C93128A94EC46E64EC /* back_squat_3.png */,
+				B1F9CF07417E6E84D651AED9 /* barbell_rdl_1.png */,
+				2B74D723AB2AFA3EB8791CCB /* barbell_rdl_2.png */,
+				3400BC13A20492FDC9255DCD /* bird_dog_1.png */,
+				91656ED881555AFF480AFBC2 /* bird_dog_2.png */,
+				090B36540CA511596DA8D940 /* box_step_up_1.png */,
+				A73B6DB08FA27BAD9A4A2F0C /* box_step_up_2.png */,
+				49EED7550545A4F322398C2F /* box_step_up_3.png */,
+				40404DB047940398118752AF /* bulgarian_split_squat_1.png */,
+				E4F0501F8BD8F0F815AA448C /* bulgarian_split_squat_2.png */,
+				01C54BE535375DAF70AC7FAD /* clamshells_1.png */,
+				56628E60A57ED2A3099F98ED /* clamshells_2.png */,
+				DD488E3D65BF840D7B9B9097 /* copenhagen_plank_1.png */,
+				11DFDCBDD3ED8761196C6E07 /* db_split_squat_1.png */,
+				A66B5BEEF396269BA73B720D /* db_split_squat_2.png */,
+				42F29E379F73F96CBEB1B171 /* dead_bug_1.png */,
+				8626D8EEAA653BBDF030C7B7 /* dead_bug_2.png */,
+				E4707DF31FD0F0859CC56D9C /* goblet_squat_1.png */,
+				148F42A218983175BC3121E7 /* goblet_squat_2.png */,
+				069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */,
+				C5FF5E6A312FD5965706E63B /* landmine_press_1.png */,
+				C1229CD8FB869044E1F0FC3B /* landmine_press_2.png */,
+				EC5AF54D05CA83AB3D41F80A /* landmine_rotation_1.png */,
+				8FC28DC30DB7F6C5E2B23535 /* landmine_rotation_2.png */,
+				D53A902445B824F244F4DCE5 /* landmine_rotation_3.png */,
+				DB31824C8FC321B273D08368 /* med_ball_rotational_pass_1.png */,
+				DB9E5DCF7F6985B2A54133F8 /* med_ball_rotational_pass_2.png */,
+				853B1B1BE8CE9CDAE04BCDA6 /* med_ball_rotational_pass_3.png */,
+				185FDA12907A013465F3F6DF /* plank_1.png */,
+				5CED029A9A419806B5ED8D99 /* pull_ups_1.png */,
+				77264BAF18BEEBB2389233AF /* pull_ups_2.png */,
+				CA5F74931C1A2B3253CAABAC /* side_plank_1.png */,
+				BA1833C3FA03F8B0C86BF715 /* side_plank_abduction_1.png */,
+				FA751141893180818794BA35 /* side_plank_abduction_2.png */,
+				97DC3B41790F248C426D4D3E /* single_leg_balance_reach_1.png */,
+				0011DE6A3E4A0221F391BF10 /* single_leg_balance_reach_2.png */,
+				5D5C2EAF76BCCA7DA5436758 /* single_leg_calf_raise_1.png */,
+				8C005FEE683B77F5AA839478 /* single_leg_calf_raise_2.png */,
+				5A77994CF9DF04E820781B7C /* single_leg_glute_bridge_1.png */,
+				F56DFDA61467B056449F139B /* single_leg_glute_bridge_2.png */,
+				7F2B37C9ABA42EA8C360C7A6 /* suitcase_carry_1.png */,
+				A12485FE17E5E9BCFBCE33E3 /* suitcase_carry_2.png */,
+			);
+			path = ExerciseImages;
 			sourceTree = "<group>";
 		};
 		62DA07468AB5549D6BEC6A54 /* Components */ = {
@@ -2039,18 +2179,37 @@
 				41B919BBE16E0DEB9B692B19 /* average_cadence.mp3 in Resources */,
 				A7E2A1E5C7E1563433E65BE3 /* average_heart_rate.mp3 in Resources */,
 				82AB8C50D283CDADB33F76B5 /* average_pace.mp3 in Resources */,
+				F02FD48A063E8104D70AEAE1 /* back_squat_1.png in Resources */,
+				FC7348A294CA1C43B32C7D39 /* back_squat_2.png in Resources */,
+				C408D950D8DBCE0AFB75F3C3 /* back_squat_3.png in Resources */,
+				1921BDE3022F17D432F22E08 /* barbell_rdl_1.png in Resources */,
+				5DF87B1E82B2C621E710BC39 /* barbell_rdl_2.png in Resources */,
 				FCC6F8B5FDC8CFB54B20E37D /* beats_per_minute.mp3 in Resources */,
 				94213C1E5D506891034FBC7B /* best_split.mp3 in Resources */,
+				6AD72EE687EBAD78F2540435 /* bird_dog_1.png in Resources */,
+				1E81FF64B975FE247D1FD09A /* bird_dog_2.png in Resources */,
+				9431A89CD6E35C290F4D8999 /* box_step_up_1.png in Resources */,
+				215FA6BB3D14C7B8E6AF3FD7 /* box_step_up_2.png in Resources */,
+				0DF3A4273D89D27C0F38A544 /* box_step_up_3.png in Resources */,
+				23B9C9D9C6A9DF98995F3D5A /* bulgarian_split_squat_1.png in Resources */,
+				73D2ABECB4CD56FFD13CC5E7 /* bulgarian_split_squat_2.png in Resources */,
 				BD25C1F4BF22CFF29A7A604C /* calories_burned.mp3 in Resources */,
+				44EE1FE3F3D2F0042D86BB1F /* clamshells_1.png in Resources */,
+				27CE8B6375B883B87D763F8C /* clamshells_2.png in Resources */,
 				6E6E9A0E5B2EF4AC71732304 /* compliance_cooldown.mp3 in Resources */,
 				8B0FD7D196127373244A74A0 /* compliance_most_on_target.mp3 in Resources */,
 				D830F2F63D0730CB68F5EB82 /* compliance_nailed.mp3 in Resources */,
 				54997EDB2E7574EDAD340FC7 /* compliance_recovery_fast.mp3 in Resources */,
 				4E849BC2AFA11626DEAA2594 /* compliance_tempo_good.mp3 in Resources */,
 				1EC9CC743270AE04371146F9 /* compliance_warmup_short.mp3 in Resources */,
+				2CB91AC2AEDC802DB12C9F53 /* copenhagen_plank_1.png in Resources */,
 				73098179B9B726A3FBC8D485 /* countdown_1.mp3 in Resources */,
 				B7E84880C80BE67F28381EC8 /* countdown_2.mp3 in Resources */,
 				4A71D2940F33A75010800935 /* day_running_streak.mp3 in Resources */,
+				B9E100439B5FFD189F8E59D1 /* db_split_squat_1.png in Resources */,
+				42026234778B92DCAF571F26 /* db_split_squat_2.png in Resources */,
+				8A453235A61C089F4E8ADD48 /* dead_bug_1.png in Resources */,
+				A72B409C8FE3C1990FC0BC63 /* dead_bug_2.png in Resources */,
 				959D75BBC18FB63F9568AB16 /* encourage_big_effort.mp3 in Resources */,
 				516BF7FA4B31CFF37A6143E7 /* encourage_consistent.mp3 in Resources */,
 				B45518490D3DC8A12BB1C330 /* encourage_grinding.mp3 in Resources */,
@@ -2065,8 +2224,11 @@
 				CA77E216587F2DAA09B3B63B /* fastest_split.mp3 in Resources */,
 				F5EF64C27DDF44A5D65FFDC7 /* fastest_this_year.mp3 in Resources */,
 				B1CB311F0AC1CEEFE41B7563 /* fitness_improving.mp3 in Resources */,
+				8669E79384F1F683E1ACC2E9 /* goblet_squat_1.png in Resources */,
+				B18B86FD08D1130B4CE792FD /* goblet_squat_2.png in Resources */,
 				F4B67F1AC82FCF07636A1DDA /* halfway_there.mp3 in Resources */,
 				3132C2CC9CCCDF3768224467 /* heres_the_plan.mp3 in Resources */,
+				D0DDAC56BFB54524143C5EA3 /* hip_flexor_stretch_1.png in Resources */,
 				17261407AF6F5CB6B4FF8271 /* hour.mp3 in Resources */,
 				DC855FD8B1F6E44CB2D80473 /* hour_s.mp3 in Resources */,
 				BB639D92B2A6BAB041EC8A7C /* impressive_consistency.mp3 in Resources */,
@@ -2173,9 +2335,17 @@
 				0C76E65A2CAC8EC71B8E87B7 /* km_97.mp3 in Resources */,
 				39313A89C5AC9B5C470B8671 /* km_98.mp3 in Resources */,
 				55BA742385432EBB2095554D /* km_99.mp3 in Resources */,
+				9761FFAF9C65CA7AA68BADDD /* landmine_press_1.png in Resources */,
+				713C0BBF2639D6822D789178 /* landmine_press_2.png in Resources */,
+				858D905086CBB27176988CC8 /* landmine_rotation_1.png in Resources */,
+				D7B8F7EF2E7BCBF9BBE73979 /* landmine_rotation_2.png in Resources */,
+				4870A814493DFD565BECC8A6 /* landmine_rotation_3.png in Resources */,
 				827D7123382EFFCF9755C83B /* longest_duration.mp3 in Resources */,
 				9F9E59F89E7D7C1BDD6E2ADC /* longest_run.mp3 in Resources */,
 				F2698A691D2458BCCEC183E4 /* max_heart_rate.mp3 in Resources */,
+				4207D5B8E1422AA31755DCAB /* med_ball_rotational_pass_1.png in Resources */,
+				00F67D9AE9AE61EBBAD65035 /* med_ball_rotational_pass_2.png in Resources */,
+				472CDD6E5129B1A5A5732065 /* med_ball_rotational_pass_3.png in Resources */,
 				9FEE88844A1090030745B107 /* meters.mp3 in Resources */,
 				6F16E26FE5FFF4F0BB6E4A66 /* mile_1.mp3 in Resources */,
 				3DD12FB6B50304F9B2AB207A /* mile_10.mp3 in Resources */,
@@ -2360,6 +2530,9 @@
 				FDE1D5DAD5F5087AE200B95C /* paused_reminder.mp3 in Resources */,
 				11FDFC65D9E31D6829C58709 /* per_kilometer.mp3 in Resources */,
 				1725274969E7EDD4D2527C61 /* per_mile.mp3 in Resources */,
+				1564212511D819701E6FD983 /* plank_1.png in Resources */,
+				EB88D0DD474FBDC662EFE1F4 /* pull_ups_1.png in Resources */,
+				A22FD1E58AD97F2039EE1C70 /* pull_ups_2.png in Resources */,
 				4C06EF977A10A4629FFEE932 /* recovery_earned_it.mp3 in Resources */,
 				6C00A54BC04E813F937A6FEC /* recovery_easy_day.mp3 in Resources */,
 				4132DFFC09C8BE1B953D1C2F /* recovery_hydrate.mp3 in Resources */,
@@ -2375,10 +2548,21 @@
 				9617A856881811C015832749 /* second.mp3 in Resources */,
 				E0E5E8A4D65FA52FEC53571E /* second_s.mp3 in Resources */,
 				B2E8B0670EE96B5C6857F132 /* seconds_label.mp3 in Resources */,
+				4D3C2F46E58C1DFDD6598215 /* side_plank_1.png in Resources */,
+				9F260D2D0F5B133ECFF4ACBB /* side_plank_abduction_1.png in Resources */,
+				65A0B6B89A36B56B8B0A78B0 /* side_plank_abduction_2.png in Resources */,
+				8C98F9466739400C68CD954B /* single_leg_balance_reach_1.png in Resources */,
+				B820515583D12D9481922D88 /* single_leg_balance_reach_2.png in Resources */,
+				78D6464DB31238EC40D3EDE6 /* single_leg_calf_raise_1.png in Resources */,
+				E918715C59CD8E332E1029AC /* single_leg_calf_raise_2.png in Resources */,
+				93485863E8BB06C0ADB78124 /* single_leg_glute_bridge_1.png in Resources */,
+				09370A953C64D1A6285402FC /* single_leg_glute_bridge_2.png in Resources */,
 				12B1949ACC66A801D3EA184E /* slower_than_last.mp3 in Resources */,
 				8C7464D6B081BA5DB5AEAD38 /* slowest_split.mp3 in Resources */,
 				03960AF6BCF5E42493AEE117 /* solid_consistency.mp3 in Resources */,
 				2BAFA7084EA9141C7945FF36 /* steps_per_minute.mp3 in Resources */,
+				44617028DF5FB67B6D0B072F /* suitcase_carry_1.png in Resources */,
+				0FFA6F5E42EFB029E268EAF3 /* suitcase_carry_2.png in Resources */,
 				FA0B407206BD81D46FA711B2 /* summary_intro.mp3 in Resources */,
 				19C4B0B4AB31BD5EE397FEFC /* taper_starts.mp3 in Resources */,
 				9796BD63EF2D0658CAB2AA93 /* target_distance_today.mp3 in Resources */,

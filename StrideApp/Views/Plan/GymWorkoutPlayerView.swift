@@ -229,7 +229,73 @@ struct GymWorkoutPlayerView: View {
                         .padding(.top, 8)
                 }
             }
+
+            guideStrip(for: stage.exerciseName)
         }
+    }
+
+    /// How-to photo sequence for the current exercise, shown above the button.
+    @ViewBuilder
+    private func guideStrip(for exercise: String) -> some View {
+        let guides = Self.guideImages(for: exercise)
+        if !guides.isEmpty {
+            HStack(spacing: 10) {
+                ForEach(Array(guides.enumerated()), id: \.offset) { _, image in
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: guides.count == 1 ? 190 : 135)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 10)
+        }
+    }
+
+    private static func guideImages(for exercise: String) -> [UIImage] {
+        guard let slug = imageSlug(for: exercise) else { return [] }
+        var images: [UIImage] = []
+        for step in 1...4 {
+            guard let image = UIImage(named: "\(slug)_\(step)") else { break }
+            images.append(image)
+        }
+        return images
+    }
+
+    /// Maps a parsed exercise name to its guide-image slug. Contains-based,
+    /// checked in specificity order (e.g. "hip abduction" before "side plank").
+    private static func imageSlug(for exercise: String) -> String? {
+        let n = exercise.lowercased()
+        let rules: [(String, String)] = [
+            ("hip abduction", "side_plank_abduction"),
+            ("copenhagen", "copenhagen_plank"),
+            ("side plank", "side_plank"),
+            ("plank", "plank"),
+            ("bulgarian", "bulgarian_split_squat"),
+            ("split squat", "db_split_squat"),
+            ("goblet", "goblet_squat"),
+            ("back squat", "back_squat"),
+            ("rdl", "barbell_rdl"),
+            ("step-up", "box_step_up"),
+            ("step up", "box_step_up"),
+            ("glute bridge", "single_leg_glute_bridge"),
+            ("calf raise", "single_leg_calf_raise"),
+            ("balance reach", "single_leg_balance_reach"),
+            ("pull-up", "pull_ups"),
+            ("pull up", "pull_ups"),
+            ("landmine press", "landmine_press"),
+            ("landmine rotation", "landmine_rotation"),
+            ("med ball", "med_ball_rotational_pass"),
+            ("medicine ball", "med_ball_rotational_pass"),
+            ("suitcase", "suitcase_carry"),
+            ("dead bug", "dead_bug"),
+            ("bird dog", "bird_dog"),
+            ("clamshell", "clamshells"),
+            ("hip flexor", "hip_flexor_stretch"),
+        ]
+        return rules.first { n.contains($0.0) }?.1
     }
 
     private func weightControl(for stage: GymSessionModel.Stage, suffix: String) -> some View {

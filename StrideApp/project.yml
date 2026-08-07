@@ -35,6 +35,8 @@ targets:
         buildPhase: resources
       - path: Audio
         buildPhase: resources
+      - path: ExerciseImages
+        buildPhase: resources
       - path: LaunchScreen.storyboard
         buildPhase: resources
     settings:
