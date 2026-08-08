@@ -4,6 +4,7 @@ import SwiftUI
 /// Designed to be composed inside ProfileView's List.
 struct SettingsSectionsView: View {
     @AppStorage("hapticFeedback") private var hapticFeedback = true
+    @AppStorage("coach_style") private var coachStyle = "male"
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @EnvironmentObject private var bluetoothManager: BluetoothManager
     @State private var scanTimer: Timer?
@@ -101,6 +102,20 @@ struct SettingsSectionsView: View {
             }
         } header: {
             Text("Gear")
+        }
+
+        // Coach appearance — which demonstrator appears in gym exercise photos
+        Section {
+            Picker("Coach", selection: $coachStyle) {
+                Text("Male").tag("male")
+                Text("Female").tag("female")
+                Text("Robot").tag("robot")
+            }
+            .pickerStyle(.segmented)
+        } header: {
+            Text("Coach")
+        } footer: {
+            Text("Who demonstrates the exercises in your gym workouts.")
         }
 
         // Voice Coaching Section

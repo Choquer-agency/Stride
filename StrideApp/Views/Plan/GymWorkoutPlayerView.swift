@@ -256,9 +256,15 @@ struct GymWorkoutPlayerView: View {
 
     private static func guideImages(for exercise: String) -> [UIImage] {
         guard let slug = imageSlug(for: exercise) else { return [] }
+        // Coach setting picks the catalog: male images are unprefixed,
+        // female/robot are "female_<slug>_N" / "robot_<slug>_N".
+        // Fall back to the male image when a catalog is incomplete.
+        let style = UserDefaults.standard.string(forKey: "coach_style") ?? "male"
+        let prefix = style == "male" ? "" : "\(style)_"
         var images: [UIImage] = []
         for step in 1...4 {
-            guard let image = UIImage(named: "\(slug)_\(step)") else { break }
+            guard let image = UIImage(named: "\(prefix)\(slug)_\(step)")
+                ?? UIImage(named: "\(slug)_\(step)") else { break }
             images.append(image)
         }
         return images

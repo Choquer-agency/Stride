@@ -15,6 +15,16 @@ You are generating instructional photo sequences for a running app's guided gym 
 
 Save each image as PNG into the repo at `StrideApp/ExerciseImages/` using the exact filename given, e.g. `back_squat_1.png`. Do not rename or add suffixes — the app will load these by name.
 
+## Coach catalogs
+
+The app has a "Coach" setting: Male, Female, or Robot. Each is a full copy of this image set with a different demonstrator — same gym, same equipment, same framing, same positions per the sections below. Only the character changes.
+
+- **Male** (the default set): filenames exactly as written below (`back_squat_1.png`). Athlete as described in the global style.
+- **Female**: every filename prefixed `female_` (e.g. `female_back_squat_1.png`). Athlete: female, early 30s, average athletic build, dark brown hair in a ponytail, heather-gray t-shirt, black leggings, gray running shoes. Same person, same outfit, all images.
+- **Robot**: every filename prefixed `robot_` (e.g. `robot_back_squat_1.png`). Character: friendly humanoid robot with human proportions — matte white and light-gray body panels, subtle red accent lines at the joints, articulated hands, simple neutral head with no facial screen or text. Executes every movement with textbook form. Same gym, same equipment, same lighting.
+
+Within a catalog, keep the demonstrator perfectly consistent across all images (generate the catalog's Back Squat step 1 first and reference it for the rest).
+
 ---
 
 ## 1. Back Squat — `back_squat_1/2/3`
