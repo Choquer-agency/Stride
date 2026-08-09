@@ -58,6 +58,25 @@ final class RunPullService {
                 continue
             }
 
+            // Timestamp healing: the server is authoritative for WHEN a run
+            // happened (coach corrections). The same run — distance match
+            // within ±36 h — sitting on a different calendar day locally gets
+            // moved to the server time. Also before the ledger guard: the run
+            // may have been applied back when its timestamp was still wrong.
+            if let misdated = localLogs.first(where: { log in
+                abs(log.completedAt.timeIntervalSince(runDate)) < 36 * 3600
+                    && !calendar.isDate(log.completedAt, inSameDayAs: runDate)
+                    && abs(log.distanceKm - run.distanceKm) < 0.2
+            }) {
+                misdated.completedAt = runDate
+                if let workoutId = misdated.plannedWorkoutId {
+                    refreshWorkoutActuals(workoutId: workoutId, from: misdated, context: context)
+                }
+                applied.insert(run.id)
+                changed = true
+                continue
+            }
+
             guard !applied.contains(run.id) else { continue }
 
             // Dedupe against runs that originated on this phone (or were
