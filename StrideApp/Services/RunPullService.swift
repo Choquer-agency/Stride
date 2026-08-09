@@ -29,7 +29,36 @@ final class RunPullService {
         var changed = false
 
         for run in serverRuns {
-            guard !applied.contains(run.id), let runDate = run.completedAtDate else { continue }
+            guard let runDate = run.completedAtDate else { continue }
+
+            // Absorb corrections: a same-day local log with ~zero distance is a
+            // dead tracking run (BLE failure) whose server row was fixed by the
+            // coach — update it in place rather than duplicating it. Checked
+            // BEFORE the applied-ids guard: the zero run's own id is usually
+            // already in the ledger from the pull that deduped it. Idempotent —
+            // once absorbed, no same-day zero log remains.
+            if run.distanceKm >= 0.2,
+               let dead = localLogs.first(where: { log in
+                   calendar.isDate(log.completedAt, inSameDayAs: runDate) && log.distanceKm < 0.2
+               }) {
+                dead.distanceKm = run.distanceKm
+                dead.durationSeconds = run.durationSeconds
+                dead.avgPaceSecPerKm = run.avgPaceSecPerKm
+                dead.completionScore = run.completionScore
+                dead.kmSplitsJSON = run.kmSplitsJson ?? dead.kmSplitsJSON
+                if dead.plannedWorkoutTitle == nil { dead.plannedWorkoutTitle = run.plannedWorkoutTitle }
+                dead.syncedToServer = true
+                // The zero run may already have checked off its workout with
+                // zero actuals — refresh them.
+                if let workoutId = dead.plannedWorkoutId {
+                    refreshWorkoutActuals(workoutId: workoutId, from: dead, context: context)
+                }
+                applied.insert(run.id)
+                changed = true
+                continue
+            }
+
+            guard !applied.contains(run.id) else { continue }
 
             // Dedupe against runs that originated on this phone (or were
             // already pulled before the applied-ids ledger existed).
@@ -112,6 +141,23 @@ final class RunPullService {
             didChange = true
         }
         if didChange { try? context.save() }
+    }
+
+    /// Overwrite a completed workout's actuals after its RunLog was corrected.
+    private func refreshWorkoutActuals(workoutId: UUID, from log: RunLog, context: ModelContext) {
+        let descriptor = FetchDescriptor<TrainingPlan>(
+            predicate: #Predicate<TrainingPlan> { !$0.isArchived },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        guard let plan = (try? context.fetch(descriptor))?.first,
+              let workout = plan.weeks.flatMap({ $0.workouts }).first(where: { $0.id == workoutId })
+        else { return }
+        workout.isCompleted = true
+        workout.completedAt = log.completedAt
+        workout.actualDistanceKm = log.distanceKm
+        workout.actualDurationSeconds = log.durationSeconds
+        workout.actualAvgPaceSecPerKm = log.avgPaceSecPerKm
+        workout.completionScore = log.completionScore
     }
 
     private func bestWorkoutMatch(
