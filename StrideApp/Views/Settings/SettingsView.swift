@@ -76,6 +76,12 @@ struct SettingsSectionsView: View {
                     }
                 }
             }
+            NavigationLink {
+                TreadmillDiagnosticsView()
+            } label: {
+                Label("Treadmill Diagnostics", systemImage: "waveform.path.ecg")
+                    .foregroundStyle(Color.primary, Color.stridePrimary)
+            }
         } header: {
             Text("Treadmill")
         }

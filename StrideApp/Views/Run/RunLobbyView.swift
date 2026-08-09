@@ -596,7 +596,14 @@ struct RunLobbyView: View {
             return isGPSReady ? "Ready" : "GPS Unavailable"
         } else {
             if isConnected {
-                return "Connected - \(bluetoothManager.connectedDevice?.name ?? "Treadmill")"
+                // "Connected" alone can lie — show whether data actually flows.
+                if bluetoothManager.packetCount > 0 {
+                    return "Connected - \(bluetoothManager.connectedDevice?.name ?? "Treadmill")"
+                } else if bluetoothManager.subscriptionState == "Subscribed" {
+                    return "Connected — waiting for data (start the belt)"
+                } else {
+                    return "Connected — no data: \(bluetoothManager.subscriptionState)"
+                }
             } else if isConnecting {
                 return "Connecting..."
             } else {

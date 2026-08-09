@@ -51,6 +51,18 @@ class BluetoothManager: NSObject, ObservableObject {
     // Persist last connected device UUID for instant reconnection
     private let lastDeviceUUIDKey = "LastConnectedAssaultRunnerUUID"
 
+    // Persistent event log — readable in Settings → Treadmill Diagnostics
+    private let diag = BLEDiagnosticsLog.shared
+
+    // Connect-attempt timeout: CoreBluetooth's connect() never times out on its
+    // own; a stale saved identifier would leave us in "Connecting..." forever.
+    private var connectTimeoutTimer: Timer?
+    private let connectTimeout: TimeInterval = 12
+
+    // Data watchdog: "Subscribed" but silent is a dead link in disguise.
+    private var watchdogTimer: Timer?
+    private var recoveryStage = 0   // 0 fine, 1 resubscribed, 2 reconnected, 3 fresh-scanned
+
     // MARK: - Init
 
     override init() {
@@ -73,22 +85,58 @@ class BluetoothManager: NSObject, ObservableObject {
            let uuid = UUID(uuidString: savedUUID) {
             let peripherals = centralManager.retrievePeripherals(withIdentifiers: [uuid])
             if let peripheral = peripherals.first {
+                diag.log("connect via saved UUID → \(peripheral.name ?? "unnamed") [\(peripheral.identifier)]")
                 connectToPeripheral(peripheral)
                 return
             }
+            diag.log("saved UUID \(savedUUID) not retrievable — falling back")
         }
 
         // 2. Fallback: check system-connected peripherals with FTMS service
         let connected = centralManager.retrieveConnectedPeripherals(withServices: [ftmsServiceUUID])
+        diag.log("system-connected FTMS peripherals: \(connected.map { $0.name ?? "unnamed" })")
         for peripheral in connected {
             let upperName = (peripheral.name ?? "").uppercased()
             if preferredKeywords.contains(where: { upperName.contains($0) }) {
+                diag.log("connect via system-connected list → \(peripheral.name ?? "unnamed")")
                 connectToPeripheral(peripheral)
                 return
             }
         }
 
         connectionState = "No Paired Device"
+        diag.log("no paired device found")
+    }
+
+    /// Nuclear option: drop everything, forget the saved identifier, and find
+    /// the treadmill again by a fresh FTMS scan. Used by the watchdog's last
+    /// escalation and exposed in the diagnostics screen.
+    func forceFreshReconnect() {
+        diag.log("FORCE fresh reconnect: clearing saved UUID, disconnecting, scanning")
+        UserDefaults.standard.removeObject(forKey: lastDeviceUUIDKey)
+        reconnectionTimer?.invalidate()
+        if let peripheral = connectedPeripheral {
+            centralManager.cancelPeripheralConnection(peripheral)
+        }
+        connectedPeripheral = nil
+        lastConnectedPeripheral = nil
+        startScanning()
+        // Auto-connect to the first Assault-named discovery
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+            guard let self, self.connectedPeripheral == nil else { return }
+            let match = self.discoveredDevices.first {
+                let n = $0.name.uppercased()
+                return self.preferredKeywords.contains(where: { n.contains($0) })
+            } ?? self.discoveredDevices.first
+            if let match {
+                self.diag.log("fresh scan found \(match.name) — connecting")
+                self.connect(to: match)
+            } else {
+                self.diag.log("fresh scan found nothing after 6 s (is the console awake?)")
+                self.connectionState = "Treadmill Not Found"
+                self.stopScanning()
+            }
+        }
     }
 
     /// Start scanning for FTMS treadmills (for a manual device picker UI).
@@ -112,9 +160,12 @@ class BluetoothManager: NSObject, ObservableObject {
 
     /// Disconnect from the current device.
     func disconnect() {
+        diag.log("manual disconnect requested")
         reconnectionTimer?.invalidate()
         reconnectionTimer = nil
         reconnectionAttempts = 0
+        stopWatchdog()
+        connectTimeoutTimer?.invalidate()
         guard let peripheral = connectedPeripheral else { return }
         centralManager.cancelPeripheralConnection(peripheral)
     }
@@ -136,7 +187,66 @@ class BluetoothManager: NSObject, ObservableObject {
 
         centralManager.connect(peripheral, options: nil)
         connectionState = "Connecting..."
+        diag.log("connecting to \(peripheral.name ?? "unnamed") [\(peripheral.identifier)]")
+
+        connectTimeoutTimer?.invalidate()
+        connectTimeoutTimer = Timer.scheduledTimer(withTimeInterval: connectTimeout, repeats: false) { [weak self] _ in
+            guard let self, self.connectionState == "Connecting..." else { return }
+            self.diag.log("connect TIMEOUT after \(Int(self.connectTimeout)) s — cancelling, trying fresh scan")
+            self.centralManager.cancelPeripheralConnection(peripheral)
+            self.forceFreshReconnect()
+        }
     }
+
+    // MARK: - Data watchdog
+
+    private func startWatchdog() {
+        watchdogTimer?.invalidate()
+        recoveryStage = 0
+        watchdogTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            self?.watchdogTick()
+        }
+    }
+
+    private func stopWatchdog() {
+        watchdogTimer?.invalidate()
+        watchdogTimer = nil
+    }
+
+    private func watchdogTick() {
+        guard connectedDevice != nil, subscriptionState == "Subscribed" else { return }
+        let silentFor = lastPacketAt.map { Date().timeIntervalSince($0) } ?? Date().timeIntervalSince(subscribedAt ?? .distantPast)
+        guard silentFor > 10 else {
+            if recoveryStage != 0 { diag.log("watchdog: data flowing again — recovery stage reset") }
+            recoveryStage = 0
+            return
+        }
+
+        switch recoveryStage {
+        case 0:
+            recoveryStage = 1
+            diag.log("watchdog: subscribed but silent \(Int(silentFor)) s — resubscribing to 2ACD")
+            if let peripheral = connectedPeripheral, let char = ftmsCharacteristic {
+                peripheral.setNotifyValue(false, for: char)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    peripheral.setNotifyValue(true, for: char)
+                }
+            }
+        case 1:
+            recoveryStage = 2
+            diag.log("watchdog: still silent — full disconnect/reconnect")
+            if let peripheral = connectedPeripheral {
+                centralManager.cancelPeripheralConnection(peripheral)
+            }
+            // didDisconnect → attemptReconnection handles the rest
+        default:
+            recoveryStage = 3
+            diag.log("watchdog: still silent after reconnect — forcing fresh scan")
+            forceFreshReconnect()
+        }
+    }
+
+    private var subscribedAt: Date?
 
     // MARK: - Reconnection (exponential backoff)
 
@@ -167,6 +277,7 @@ class BluetoothManager: NSObject, ObservableObject {
 extension BluetoothManager: CBCentralManagerDelegate {
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        diag.log("central state → \(central.state.rawValue)")
         switch central.state {
         case .poweredOn:
             // Auto-connect on Bluetooth power-on
@@ -202,6 +313,9 @@ extension BluetoothManager: CBCentralManagerDelegate {
         connectionState = "Connected"
         reconnectionAttempts = 0
         reconnectionTimer?.invalidate()
+        connectTimeoutTimer?.invalidate()
+        diag.log("CONNECTED to \(peripheral.name ?? "unnamed") [\(peripheral.identifier)] — discovering FTMS")
+        startWatchdog()
 
         // Create or update connected device reference
         connectedDevice = discoveredDevices.first(where: { $0.peripheral == peripheral })
@@ -219,11 +333,13 @@ extension BluetoothManager: CBCentralManagerDelegate {
         error: Error?
     ) {
         connectionState = "Disconnected"
+        diag.log("DISCONNECTED from \(peripheral.name ?? "unnamed") — error: \(error?.localizedDescription ?? "clean")")
         // Reflect reality — a stale connectedDevice let runs start against
         // a peripheral that was long gone.
         connectedDevice = nil
         isFTMSSupported = false
         subscriptionState = "—"
+        subscribedAt = nil
 
         // Attempt to reconnect automatically
         attemptReconnection()
@@ -235,6 +351,7 @@ extension BluetoothManager: CBCentralManagerDelegate {
         error: Error?
     ) {
         connectionState = "Connection Failed"
+        diag.log("connect FAILED to \(peripheral.name ?? "unnamed") — \(error?.localizedDescription ?? "unknown")")
         if reconnectionAttempts > 0 {
             attemptReconnection()
         }
@@ -248,10 +365,10 @@ extension BluetoothManager: CBPeripheralDelegate {
     // Step 1: Services discovered -> look for FTMS (0x1826)
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let services = peripheral.services else {
-            print("🔵 BLE: didDiscoverServices with nil services (error: \(error?.localizedDescription ?? "none"))")
+            diag.log("didDiscoverServices: nil (error: \(error?.localizedDescription ?? "none"))")
             return
         }
-        print("🔵 BLE: services on \(peripheral.name ?? "?"): \(services.map { $0.uuid.uuidString })")
+        diag.log("services: \(services.map { $0.uuid.uuidString }.joined(separator: ", "))")
 
         if let ftmsService = services.first(where: { $0.uuid == ftmsServiceUUID }) {
             isFTMSSupported = true
@@ -272,7 +389,7 @@ extension BluetoothManager: CBPeripheralDelegate {
         error: Error?
     ) {
         guard let characteristics = service.characteristics else { return }
-        print("🔵 BLE: FTMS characteristics: \(characteristics.map { "\($0.uuid.uuidString) props=\($0.properties.rawValue)" })")
+        diag.log("FTMS chars: \(characteristics.map { "\($0.uuid.uuidString)(props \($0.properties.rawValue))" }.joined(separator: ", "))")
 
         if let treadmillChar = characteristics.first(where: { $0.uuid == treadmillDataUUID }) {
             ftmsCharacteristic = treadmillChar
@@ -281,11 +398,11 @@ extension BluetoothManager: CBPeripheralDelegate {
                 peripheral.setNotifyValue(true, for: treadmillChar)
             } else {
                 subscriptionState = "2ACD not notifiable (props=\(treadmillChar.properties.rawValue))"
-                print("🔴 BLE: Treadmill Data characteristic is not notify/indicate capable")
+                diag.log("2ACD is not notify/indicate capable — props \(treadmillChar.properties.rawValue)")
             }
         } else {
             subscriptionState = "No Treadmill Data (2ACD) characteristic"
-            print("🔴 BLE: 2ACD missing from FTMS service")
+            diag.log("2ACD MISSING from FTMS service")
         }
     }
 
@@ -298,12 +415,14 @@ extension BluetoothManager: CBPeripheralDelegate {
         guard characteristic.uuid == treadmillDataUUID else { return }
         if let error {
             subscriptionState = "Subscribe failed: \(error.localizedDescription)"
-            print("🔴 BLE: notification subscribe FAILED: \(error.localizedDescription)")
+            diag.log("subscribe FAILED: \(error.localizedDescription)")
         } else if characteristic.isNotifying {
             subscriptionState = "Subscribed"
-            print("🟢 BLE: subscribed to Treadmill Data — waiting for packets")
+            subscribedAt = Date()
+            diag.log("SUBSCRIBED to Treadmill Data — waiting for packets")
         } else {
             subscriptionState = "Notifications off"
+            diag.log("notifications reported OFF for 2ACD")
         }
     }
 
@@ -331,7 +450,9 @@ extension BluetoothManager: CBPeripheralDelegate {
                     self.packetCount += 1
                     self.lastPacketAt = now
                     if self.packetCount == 1 {
-                        print("🟢 BLE: first packet — hex=\(parsed.rawHex) flags=\(parsed.flags) speed=\(parsed.instantaneousSpeedKmh ?? -1) dist=\(parsed.totalDistanceMeters ?? -1) time=\(parsed.elapsedTime ?? -1)")
+                        self.diag.log("FIRST PACKET hex=\(parsed.rawHex) flags=\(parsed.flags) speed=\(parsed.instantaneousSpeedKmh ?? -1) dist=\(parsed.totalDistanceMeters ?? -1)")
+                    } else if self.packetCount % 150 == 0 {
+                        self.diag.log("packet #\(self.packetCount) — speed=\(parsed.instantaneousSpeedKmh ?? -1) dist=\(parsed.totalDistanceMeters ?? -1)")
                     }
                     self.onTreadmillData?(parsed)
                 }

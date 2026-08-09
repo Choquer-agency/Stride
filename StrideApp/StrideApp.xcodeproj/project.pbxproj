@@ -151,6 +151,7 @@
 		2DF365A44FFE2C77611FC049 /* mile_97.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = CEAC904D322DF9C0DAEE40BB /* mile_97.mp3 */; };
 		2E1D5CCE574BA84B63A041C7 /* recovery_ready.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 8E8559A8B205113303CCF25F /* recovery_ready.mp3 */; };
 		2E1D89879803841E1245AB9D /* mile_50.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DA42B0F782F959947EE3D9A1 /* mile_50.mp3 */; };
+		2F0B5C65D78E09D195D2657F /* TreadmillDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 05C9B8BFCF4945728D22D79E /* TreadmillDiagnosticsView.swift */; };
 		2F1DB23E857FDEFF16ED4625 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 573FADDC0EF1037127CBA9BC /* AuthView.swift */; };
 		2F21027C7299D73873417F74 /* kilometers_to_go.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E3808D302E0A1E6969C72091 /* kilometers_to_go.mp3 */; };
 		2F21DAAEFB0FC7B64AD6F27E /* km_87.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 918F697D9011627CB375233E /* km_87.mp3 */; };
@@ -199,6 +200,7 @@
 		3EC924612107F12FD3EB001D /* mile_58.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D9875F51CCE80F7EE5BEFAFA /* mile_58.mp3 */; };
 		400BF5493B3BD09C3C082570 /* pace_swing.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3D5343F3176F0726B01653F6 /* pace_swing.mp3 */; };
 		400F18332BDEFDDB03A06E08 /* mile_55.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 85123FF2BB3F9694ECD1D97A /* mile_55.mp3 */; };
+		40470FEFE48180276FF11883 /* BLEDiagnosticsLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E4A7A926E7E6F5AF9428EBB /* BLEDiagnosticsLog.swift */; };
 		41294782B7493218CDDA0585 /* GoalStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F66260BECBE7C4BEEAD147D /* GoalStepView.swift */; };
 		4132DFFC09C8BE1B953D1C2F /* recovery_hydrate.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EDC84A70AE929FC5E4C369D6 /* recovery_hydrate.mp3 */; };
 		415FCE03D53F036E32D9B8CD /* km_43.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 592791B4F07A5D9F0B9C07B9 /* km_43.mp3 */; };
@@ -730,6 +732,7 @@
 		0543E36AA20FB660FA3A74D9 /* robot_single_leg_calf_raise_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_single_leg_calf_raise_1.png; sourceTree = "<group>"; };
 		056700E364DC09F7C33BC82C /* ChallengeDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChallengeDetailView.swift; sourceTree = "<group>"; };
 		05BEE2BA356E948508CFF7CB /* mile_88.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_88.mp3; sourceTree = "<group>"; };
+		05C9B8BFCF4945728D22D79E /* TreadmillDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TreadmillDiagnosticsView.swift; sourceTree = "<group>"; };
 		0607D147B90D037B5767069E /* mile_87.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_87.mp3; sourceTree = "<group>"; };
 		069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = hip_flexor_stretch_1.png; sourceTree = "<group>"; };
 		06ECB4813761A0D70044A98E /* RaceFuelingPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceFuelingPlanView.swift; sourceTree = "<group>"; };
@@ -1172,6 +1175,7 @@
 		9CE6C5494A76F2B4FE699559 /* num_9.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_9.mp3; sourceTree = "<group>"; };
 		9D4580F80EB8D91923B344A6 /* num_49.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_49.mp3; sourceTree = "<group>"; };
 		9E35F46ECCFA744E9CCE8F6A /* num_18.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_18.mp3; sourceTree = "<group>"; };
+		9E4A7A926E7E6F5AF9428EBB /* BLEDiagnosticsLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLEDiagnosticsLog.swift; sourceTree = "<group>"; };
 		9E4EAE68C4F5DB7BCB7DB2FB /* back_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = back_squat_1.png; sourceTree = "<group>"; };
 		9E9997D0BCE2B3BA9232CFD0 /* robot_bulgarian_split_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_bulgarian_split_squat_1.png; sourceTree = "<group>"; };
 		9EA5AAE891DF3F89F53538E4 /* new_pr.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = new_pr.mp3; sourceTree = "<group>"; };
@@ -2176,6 +2180,7 @@
 				9A2DE0138F37155C1405C5C1 /* SettingsView.swift */,
 				D589D00F9F2F10207BA35DEA /* ShoesView.swift */,
 				D569319A5A7EE27281DEA5BB /* TempWorkoutEditView.swift */,
+				05C9B8BFCF4945728D22D79E /* TreadmillDiagnosticsView.swift */,
 				FECED2381A3BB88BC73D1471 /* TTSUsageView.swift */,
 				E3A74072EBB9346F682FF566 /* VoiceCoachSettingsSection.swift */,
 			);
@@ -2202,6 +2207,7 @@
 				C565B695627C8DAB71312497 /* APIService.swift */,
 				CB5F912BC2906EC770B04661 /* AuthService.swift */,
 				2F5D0A9F86666462591C985D /* AutoPauseService.swift */,
+				9E4A7A926E7E6F5AF9428EBB /* BLEDiagnosticsLog.swift */,
 				D0ACFBC0E7D1E283734B3557 /* BluetoothManager.swift */,
 				79D37B21E43D4631E6AEBA94 /* BluetoothRunDataProvider.swift */,
 				301DAFED9FF2B268EA4EBD13 /* DeepLinkRouter.swift */,
@@ -2956,6 +2962,7 @@
 				1A21C46FA3904694C7EB8EF6 /* AuthService.swift in Sources */,
 				2F1DB23E857FDEFF16ED4625 /* AuthView.swift in Sources */,
 				844CB5183D945D5B2FE477FB /* AutoPauseService.swift in Sources */,
+				40470FEFE48180276FF11883 /* BLEDiagnosticsLog.swift in Sources */,
 				5DD533C6B37DABD24E025D31 /* BluetoothManager.swift in Sources */,
 				52B415F04313C0BAB423C479 /* BluetoothRunDataProvider.swift in Sources */,
 				AE44736D7DABCB650549954D /* ChallengeCardView.swift in Sources */,
@@ -3109,6 +3116,7 @@
 				2254C8DD9D622BCDC08F314B /* TrainingCompositionView.swift in Sources */,
 				448E32F9221A354DB6841434 /* TrainingIntensityView.swift in Sources */,
 				9B6D971D2853E4505809E0A8 /* TrainingPlan.swift in Sources */,
+				2F0B5C65D78E09D195D2657F /* TreadmillDiagnosticsView.swift in Sources */,
 				F1853621159A5926410523A1 /* UserProfileView.swift in Sources */,
 				AD8B6A56BD4DE0D3EF39362C /* UserSearchView.swift in Sources */,
 				9DE85C0A2112F3D016FB73E2 /* UserSearchViewModel.swift in Sources */,
