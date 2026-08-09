@@ -304,6 +304,14 @@ struct RunTabContainer: View {
                             runState = .summary(result, score)
                         }
                     })
+                    // Treadmill runs have no in-view "begin" tap (they start when
+                    // belt data arrives) — attach the provider here, or the run
+                    // screen never hears a single packet.
+                    .onAppear {
+                        if !viewModel.hasActiveProvider {
+                            viewModel.attach(provider: makeProvider(outdoor: false))
+                        }
+                    }
                 }
                 
             case .summary(let result, let score):

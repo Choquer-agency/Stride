@@ -214,6 +214,9 @@ class RunViewModel: ObservableObject {
 
     // MARK: - Internal State
     private var dataProvider: RunDataProvider?
+
+    /// Whether a data provider is already attached (guards double-attach on re-appear).
+    var hasActiveProvider: Bool { dataProvider != nil }
     private let paceSmoother = PaceSmoother()
     private let autoPauseService = AutoPauseService()
     private let voiceCoach = VoiceCoachService()
