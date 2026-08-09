@@ -63,6 +63,11 @@ class BluetoothManager: NSObject, ObservableObject {
     private var watchdogTimer: Timer?
     private var recoveryStage = 0   // 0 fine, 1 resubscribed, 2 reconnected, 3 fresh-scanned
 
+    // While true and disconnected, we keep a persistent FTMS scan running and
+    // grab the console the moment it wakes and starts advertising. Only a
+    // manual Disconnect turns it off.
+    private var autoConnectEnabled = true
+
     // MARK: - Init
 
     override init() {
@@ -104,8 +109,9 @@ class BluetoothManager: NSObject, ObservableObject {
             }
         }
 
-        connectionState = "No Paired Device"
-        diag.log("no paired device found")
+        connectionState = "Waiting for Treadmill"
+        diag.log("no paired device — watching for the console via scan")
+        startScanning()
     }
 
     /// Nuclear option: drop everything, forget the saved identifier, and find
@@ -120,28 +126,16 @@ class BluetoothManager: NSObject, ObservableObject {
         }
         connectedPeripheral = nil
         lastConnectedPeripheral = nil
-        startScanning()
-        // Auto-connect to the first Assault-named discovery
-        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
-            guard let self, self.connectedPeripheral == nil else { return }
-            let match = self.discoveredDevices.first {
-                let n = $0.name.uppercased()
-                return self.preferredKeywords.contains(where: { n.contains($0) })
-            } ?? self.discoveredDevices.first
-            if let match {
-                self.diag.log("fresh scan found \(match.name) — connecting")
-                self.connect(to: match)
-            } else {
-                self.diag.log("fresh scan found nothing after 6 s (is the console awake?)")
-                self.connectionState = "Treadmill Not Found"
-                self.stopScanning()
-            }
-        }
+        connectionState = "Waiting for Treadmill"
+        startScanning()   // persists + auto-connects on discovery
     }
 
-    /// Start scanning for FTMS treadmills (for a manual device picker UI).
+    /// Start scanning for FTMS treadmills. The scan persists until the console
+    /// is found (auto-connect) or Bluetooth goes away — consoles only advertise
+    /// while awake, so a one-shot scan misses a treadmill woken later.
     func startScanning() {
         guard centralManager.state == .poweredOn else { return }
+        autoConnectEnabled = true
         discoveredDevices.removeAll()
         centralManager.scanForPeripherals(withServices: [ftmsServiceUUID], options: nil)
         isScanning = true
@@ -160,7 +154,8 @@ class BluetoothManager: NSObject, ObservableObject {
 
     /// Disconnect from the current device.
     func disconnect() {
-        diag.log("manual disconnect requested")
+        diag.log("manual disconnect requested — auto-connect disabled until next scan")
+        autoConnectEnabled = false
         reconnectionTimer?.invalidate()
         reconnectionTimer = nil
         reconnectionAttempts = 0
@@ -192,9 +187,11 @@ class BluetoothManager: NSObject, ObservableObject {
         connectTimeoutTimer?.invalidate()
         connectTimeoutTimer = Timer.scheduledTimer(withTimeInterval: connectTimeout, repeats: false) { [weak self] _ in
             guard let self, self.connectionState == "Connecting..." else { return }
-            self.diag.log("connect TIMEOUT after \(Int(self.connectTimeout)) s — cancelling, trying fresh scan")
+            self.diag.log("connect TIMEOUT after \(Int(self.connectTimeout)) s — console likely asleep; watching for it via scan")
             self.centralManager.cancelPeripheralConnection(peripheral)
-            self.forceFreshReconnect()
+            self.connectedPeripheral = nil
+            self.connectionState = "Waiting for Treadmill"
+            self.startScanning()
         }
     }
 
@@ -254,7 +251,9 @@ class BluetoothManager: NSObject, ObservableObject {
         guard let peripheral = lastConnectedPeripheral,
               reconnectionAttempts < maxReconnectionAttempts else {
             if reconnectionAttempts >= maxReconnectionAttempts {
-                connectionState = "Reconnection Failed"
+                connectionState = "Waiting for Treadmill"
+                diag.log("direct reconnection exhausted — falling back to scan watch")
+                startScanning()
             }
             return
         }
@@ -306,6 +305,17 @@ extension BluetoothManager: CBCentralManagerDelegate {
             discoveredDevices[index].updateRSSI(rssiValue)
         } else {
             discoveredDevices.append(DiscoveredDevice(peripheral: peripheral, rssi: rssiValue))
+            diag.log("discovered \(peripheral.name ?? "unnamed") (rssi \(rssiValue))")
+        }
+
+        // The console just woke up — grab it. (FTMS-filtered scan, so anything
+        // matching the Assault naming is ours.)
+        if autoConnectEnabled, connectedPeripheral == nil {
+            let upperName = (peripheral.name ?? "").uppercased()
+            if preferredKeywords.contains(where: { upperName.contains($0) }) {
+                diag.log("auto-connecting to \(peripheral.name ?? "unnamed") on discovery")
+                connectToPeripheral(peripheral)
+            }
         }
     }
 
