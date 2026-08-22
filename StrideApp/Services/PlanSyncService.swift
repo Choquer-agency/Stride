@@ -89,7 +89,8 @@ final class PlanSyncService: ObservableObject {
         let parsedWeeks = PlanParser.parse(
             content: content,
             startDate: plan.startDate,
-            raceDate: plan.raceDate
+            raceDate: plan.raceDate,
+            appendRaceDay: !plan.isHabitBlock
         )
         guard !parsedWeeks.isEmpty else {
             // Unparseable server content — refuse to wipe the local plan.

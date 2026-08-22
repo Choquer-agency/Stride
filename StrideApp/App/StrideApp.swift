@@ -89,7 +89,7 @@ struct StrideApp: App {
 
             for plan in plans {
                 guard let rawContent = plan.rawPlanContent, !rawContent.isEmpty else { continue }
-                let parsedWeeks = PlanParser.parse(content: rawContent, startDate: plan.startDate, raceDate: plan.raceDate)
+                let parsedWeeks = PlanParser.parse(content: rawContent, startDate: plan.startDate, raceDate: plan.raceDate, appendRaceDay: !plan.isHabitBlock)
                 guard !parsedWeeks.isEmpty else { continue }
 
                 var completionData: [DateComponents: Workout] = [:]
@@ -205,7 +205,7 @@ struct StrideApp: App {
             for plan in plans {
                 guard let rawContent = plan.rawPlanContent, !rawContent.isEmpty else { continue }
 
-                let parsedWeeks = PlanParser.parse(content: rawContent, startDate: plan.startDate, raceDate: plan.raceDate)
+                let parsedWeeks = PlanParser.parse(content: rawContent, startDate: plan.startDate, raceDate: plan.raceDate, appendRaceDay: !plan.isHabitBlock)
 
                 // Build set of existing week numbers
                 let existingWeekNumbers = Set(plan.weeks.map { $0.weekNumber })

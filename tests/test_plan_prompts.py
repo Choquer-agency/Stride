@@ -6,6 +6,7 @@ from datetime import date
 from app.models.schemas import (
     DayOfWeek,
     FitnessLevel,
+    GoalType,
     PlanMode,
     RaceType,
     TrainingPlanRequest,
@@ -66,6 +67,54 @@ class PlanPromptTests(unittest.TestCase):
         # July 11 to October 4 is 85 days, requiring 13 calendar week rows.
         self.assertIn("Training Duration: 13 weeks (85 days)", prompt)
         self.assertIn("Week 1 is a PARTIAL week", prompt)
+
+    def test_beginner_mode_composes_beginner_module_with_contract(self):
+        for get_prompt in (prompt_builder.get_system_prompt, prompt_builder.get_edit_system_prompt):
+            with self.subTest(prompt_fn=get_prompt.__name__):
+                prompt = get_prompt(RaceType.FIVE_K, None, True)
+                self.assertIn("BEGINNER MODULE", prompt)
+                self.assertNotIn("RACE MODULE — 5K / 10K", prompt)
+                self.assertIn("PLAN QUALITY CONTRACT", prompt)
+                self.assertIn("PARSER-SAFE OUTPUT CONTRACT", prompt)
+
+    def test_habit_goal_removes_race_and_requests_rides(self):
+        request = request_for(
+            RaceType.FIVE_K,
+            goal_type=GoalType.HABIT,
+            beginner_mode=True,
+            fitness_level=FitnessLevel.BEGINNER,
+            running_days_per_week=2,
+            gym_days_per_week=2,
+            cross_train_days_per_week=2,
+            cross_train_modality="Peloton indoor cycling",
+            strength_equipment="Light dumbbells 5-10 lb, kettlebells, bodyweight only",
+            training_notes="Usually does a Peloton app core class after rides",
+            goal_time=None,
+        )
+        prompt = prompt_builder.build_user_prompt(request)
+        self.assertIn("NO RACE", prompt)
+        self.assertNotIn("Race Distance:", prompt)
+        self.assertNotIn("Race Name:", prompt)
+        self.assertIn("2 ride(s) per week (Peloton indoor cycling)", prompt)
+        self.assertIn("2 runs + 2 gym + 2 rides", prompt)
+        self.assertIn("EQUIPMENT AND PREFERENCES", prompt)
+        self.assertIn("Light dumbbells 5-10 lb", prompt)
+        self.assertIn("TRUE BEGINNER", prompt)
+        self.assertIn("celebration/benchmark week (NO race)", prompt)
+
+    def test_two_run_days_validate(self):
+        request = request_for(RaceType.FIVE_K, running_days_per_week=2)
+        self.assertEqual(request.running_days_per_week, 2)
+
+    def test_default_flags_leave_existing_prompt_unchanged(self):
+        prompt = prompt_builder.build_user_prompt(request_for(RaceType.HALF_MARATHON))
+        self.assertIn("Race Distance: Half Marathon", prompt)
+        self.assertIn("Total Sessions Required: 5 (4 runs + 1 gym)", prompt)
+        self.assertIn("Cross-Training Days: Auto-select optimal days based on the training schedule", prompt)
+        self.assertNotIn("EQUIPMENT AND PREFERENCES", prompt)
+        self.assertNotIn("TRUE BEGINNER", prompt)
+        self.assertNotIn("rides", prompt)
+        self.assertIn("end with race week concluding on", prompt)
 
     def test_edit_prompt_gets_quality_contract_but_analysis_keeps_its_own_format(self):
         edit_prompt = prompt_builder.get_edit_system_prompt(RaceType.MARATHON)

@@ -371,13 +371,27 @@ struct DayCardView: View {
     // MARK: - Workout Icon
     @ViewBuilder
     private func workoutIcon(for workout: Workout) -> some View {
-        if workout.workoutType == .gym || workout.workoutType == .crossTraining {
+        if workout.isPeloton {
+            // Peloton ride days show the Peloton logo
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "CF0000").opacity(0.15))
+                    .frame(width: 36, height: 36)
+
+                Image("PelotonLogo")
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 12, height: 17)
+                    .foregroundColor(Color(hex: "CF0000"))
+            }
+        } else if workout.workoutType == .gym || workout.workoutType == .crossTraining {
             // Gym/CrossTraining uses Workout (kettlebell) icon
             ZStack {
                 Circle()
                     .fill(Color(hex: "CF0000").opacity(0.15))
                     .frame(width: 36, height: 36)
-                
+
                 WorkoutIconView(size: 14)
             }
         } else {

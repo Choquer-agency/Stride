@@ -41,7 +41,7 @@ async def _with_heartbeat(chunks, interval: float = 10.0):
     finally:
         task.cancel()
 
-from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, PostRunCoachRequest, PreRunCoachRequest, PreRunCoachResponse, ConflictAnalysisResponse
+from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, PostRunCoachRequest, PreRunCoachRequest, PreRunCoachResponse, ConflictAnalysisResponse, GoalType
 from app.models.user import User
 from app.services import plan_store
 from app.services.anthropic_client import AnthropicClient, ClaudeRefusalError
@@ -71,6 +71,11 @@ async def analyze_conflicts(request: TrainingPlanRequest, current_user: User = D
             status_code=400,
             detail="Race date must be after start date"
         )
+
+    # Beginner/habit plans have no goal-vs-fitness tension to analyze — the
+    # analyzer's race benchmarks would spam conflicts at 1-2 run days/week.
+    if request.beginner_mode or request.goal_type == GoalType.HABIT:
+        return ConflictAnalysisResponse(has_conflicts=False, conflicts=[])
 
     result = conflict_analyzer.analyze(request)
 
@@ -102,7 +107,7 @@ async def generate_training_plan(request: TrainingPlanRequest, current_user: Use
             detail="Training period must be at least 2 weeks"
         )
 
-    system_prompt = prompt_builder.get_system_prompt(request.race_type, request.custom_distance_km)
+    system_prompt = prompt_builder.get_system_prompt(request.race_type, request.custom_distance_km, request.beginner_mode)
     user_prompt = prompt_builder.build_user_prompt(request)
 
     client = AnthropicClient()
@@ -183,7 +188,7 @@ async def edit_training_plan(request: PlanEditRequest, current_user: User = Depe
             detail="Edit instructions are required"
         )
 
-    system_prompt = prompt_builder.get_edit_system_prompt(request.race_type, request.custom_distance_km)
+    system_prompt = prompt_builder.get_edit_system_prompt(request.race_type, request.custom_distance_km, request.beginner_mode)
     user_prompt = prompt_builder.build_edit_user_prompt(request)
 
     client = AnthropicClient()

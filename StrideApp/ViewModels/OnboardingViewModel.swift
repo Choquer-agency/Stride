@@ -2,6 +2,13 @@ import Foundation
 import SwiftUI
 import SwiftData
 
+/// Which onboarding variant is running. `.standard` is the original race-goal
+/// flow; `.beginner` is the 4-step "Create Plan – M" flow (no conflict step).
+enum OnboardingFlow {
+    case standard
+    case beginner
+}
+
 @MainActor
 class OnboardingViewModel: ObservableObject {
     // MARK: - Published Properties
@@ -24,30 +31,50 @@ class OnboardingViewModel: ObservableObject {
     @Published var isGeneratingPlan = false
     
     // MARK: - Constants
-    let totalSteps = 5
-    
+    let flow: OnboardingFlow
+    let totalSteps: Int
+
     // MARK: - Dependencies
     private let apiService = APIService.shared
-    
+
     // MARK: - Initialization
-    init() {
+    init(flow: OnboardingFlow = .standard, preset: OnboardingData? = nil) {
+        self.flow = flow
+        self.totalSteps = flow == .beginner ? 4 : 5
+        if let preset = preset {
+            self.data = preset
+        }
+
         // Set default dates
         let calendar = Calendar.current
         let today = Date()
-        
+
         // Start date: next Monday
         var nextMonday = today
         while calendar.component(.weekday, from: nextMonday) != 2 {
             nextMonday = calendar.date(byAdding: .day, value: 1, to: nextMonday)!
         }
         data.startDate = nextMonday
-        
+
         // Race date: 12 weeks from start
         data.raceDate = calendar.date(byAdding: .day, value: 84, to: nextMonday)!
     }
-    
+
     // MARK: - Navigation
     var canGoNext: Bool {
+        if flow == .beginner {
+            switch currentStep {
+            case 1:
+                // Finish goal has no time target, so isStep1Valid (which
+                // requires goalTime) doesn't apply here.
+                return data.goalType == .habit
+                    || (!data.raceName.trimmingCharacters(in: .whitespaces).isEmpty && data.raceDate > data.startDate)
+            case 2: return data.isStep2Valid
+            case 3: return data.isStep3Valid
+            case 4: return true  // equipment step is pre-seeded and always valid
+            default: return false
+            }
+        }
         switch currentStep {
         case 1: return data.isStep1Valid
         case 2: return data.isStep2Valid
@@ -64,7 +91,19 @@ class OnboardingViewModel: ObservableObject {
     
     func nextStep(context: ModelContext? = nil) {
         guard canGoNext else { return }
-        
+
+        if flow == .beginner {
+            if currentStep == totalSteps {
+                // Beginner flow skips conflict analysis — generate directly.
+                Task { await generatePlan(context: context) }
+            } else {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    currentStep += 1
+                }
+            }
+            return
+        }
+
         if currentStep == 4 {
             // Analyze conflicts before proceeding
             Task {
@@ -169,21 +208,26 @@ class OnboardingViewModel: ObservableObject {
         // DEBUG: Log raw API content
         PlanLogger.logRawContent(content)
         
+        // Habit blocks end on a synthetic date with no race day appended.
+        let isHabit = data.goalType == .habit
+        let endDate = data.effectiveRaceDate
+
         // Parse the content into structured data
         let parsedWeeks = PlanParser.parse(
             content: content,
             startDate: data.startDate,
-            raceDate: data.raceDate
+            raceDate: endDate,
+            appendRaceDay: !isHabit
         )
-        
+
         // DEBUG: Log parsed weeks before conversion to SwiftData models
-        PlanLogger.logParsedWeeks(parsedWeeks, startDate: data.startDate, raceDate: data.raceDate)
-        
+        PlanLogger.logParsedWeeks(parsedWeeks, startDate: data.startDate, raceDate: endDate)
+
         // Create the TrainingPlan
         let plan = TrainingPlan(
             raceType: data.raceType,
-            raceDate: data.raceDate,
-            raceName: data.raceName.isEmpty ? nil : data.raceName,
+            raceDate: endDate,
+            raceName: isHabit ? "Habit Builder Block" : (data.raceName.isEmpty ? nil : data.raceName),
             goalTime: data.goalTime.isEmpty ? nil : data.goalTime,
             customDistanceKm: data.raceType == .custom ? data.customDistanceKm : nil,
             terrainTypeRaw: data.isUltraDistance ? data.terrainType?.rawValue : nil,
@@ -192,7 +236,9 @@ class OnboardingViewModel: ObservableObject {
             longestRecentRun: data.longestRecentRun,
             fitnessLevel: data.fitnessLevel,
             startDate: data.startDate,
-            planMode: data.planMode
+            planMode: data.planMode,
+            isBeginnerMode: data.beginnerMode,
+            goalType: data.goalType == .race ? nil : data.goalType
         )
         
         plan.rawPlanContent = content
@@ -248,7 +294,7 @@ class OnboardingViewModel: ObservableObject {
     // MARK: - Validation Helpers
     func validateSchedule() -> (isValid: Bool, message: String?) {
         let availableDays = 7 - data.restDays.count
-        let totalSessions = data.runningDaysPerWeek + data.gymDaysPerWeek
+        let totalSessions = data.runningDaysPerWeek + data.gymDaysPerWeek + data.crossTrainDaysPerWeek
         
         if totalSessions > availableDays && !data.doubleDaysAllowed {
             let stackingNeeded = totalSessions - availableDays

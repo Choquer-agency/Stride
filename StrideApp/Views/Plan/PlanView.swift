@@ -283,7 +283,9 @@ struct PlanView: View {
                 HStack(spacing: 8) {
                     TimeIconView(size: 20)
 
-                    Text("\(plan.daysUntilRace) Days Until Race")
+                    Text(plan.isHabitBlock
+                         ? "\(plan.daysUntilRace) Days Left in Block"
+                         : "\(plan.daysUntilRace) Days Until Race")
                         .font(.inter(size: 14, weight: .medium))
                         .foregroundStyle(.primary)
                 }

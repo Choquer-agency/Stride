@@ -33,6 +33,13 @@ final class Workout {
         get { WorkoutType(rawValue: workoutTypeRaw) ?? .easyRun }
         set { workoutTypeRaw = newValue.rawValue }
     }
+
+    /// A cross-training day prescribed on the Peloton — shows the Peloton logo.
+    var isPeloton: Bool {
+        guard workoutType == .crossTraining else { return false }
+        let text = "\(title) \(details ?? "")".lowercased()
+        return text.contains("peloton")
+    }
     
     var dayOfWeek: String {
         let formatter = DateFormatter()

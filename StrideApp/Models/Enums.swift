@@ -111,6 +111,13 @@ enum PlanMode: String, Codable {
     case recommended = "recommended"
 }
 
+// MARK: - Goal Type
+enum GoalType: String, Codable {
+    case race = "race"        // A race with a time goal
+    case finish = "finish"    // A race with a completion goal (no time target)
+    case habit = "habit"      // No race — rolling block to build a running habit
+}
+
 // MARK: - Workout Type
 enum WorkoutType: String, Codable, CaseIterable, Identifiable {
     case easyRun = "easy_run"

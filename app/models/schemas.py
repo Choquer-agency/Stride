@@ -44,6 +44,13 @@ class PlanMode(str, Enum):
     RECOMMENDED = "recommended"  # User accepts - use adjusted/safer approach
 
 
+class GoalType(str, Enum):
+    """What the athlete is training toward."""
+    RACE = "race"      # A race with a time goal
+    FINISH = "finish"  # A race with a completion goal (no time target)
+    HABIT = "habit"    # No race — a rolling block to build a consistent running habit
+
+
 class ConflictType(str, Enum):
     """Types of conflicts that can be detected between goals and current state."""
     GOAL_VS_FITNESS = "goal_vs_fitness"  # Goal pace much faster than current fitness
@@ -88,6 +95,8 @@ class PlanEditRequest(BaseModel):
     start_date: date = Field(..., description="Plan start date")
     current_plan_content: str = Field(..., description="The raw text of the current training plan")
     edit_instructions: str = Field(..., description="Natural language description of desired changes")
+    goal_type: Optional[GoalType] = Field(None, description="race | finish | habit — preserved from the original plan request")
+    beginner_mode: bool = Field(default=False, description="Compose the beginner module so edits keep the beginner plan style")
 
 
 class CompletedWorkoutData(BaseModel):
@@ -215,8 +224,18 @@ class TrainingPlanRequest(BaseModel):
     long_run_day: DayOfWeek = Field(default=DayOfWeek.SUNDAY, description="Preferred day for long runs")
     double_days_allowed: bool = Field(default=False, description="Whether two-a-day workouts are allowed")
     cross_training_days: Optional[list[DayOfWeek]] = Field(None, description="Days for cross-training")
-    running_days_per_week: int = Field(default=5, ge=3, le=7, description="Number of running days per week")
+    running_days_per_week: int = Field(default=5, ge=1, le=7, description="Number of running days per week")
     gym_days_per_week: int = Field(default=2, ge=0, le=4, description="Number of gym/strength training days per week")
+    cross_train_days_per_week: int = Field(default=0, ge=0, le=5, description="Number of dedicated cross-training session days per week")
+    cross_train_modality: Optional[str] = Field(None, description="Cross-training modality, e.g. 'Peloton indoor cycling'")
+
+    # Beginner / goal shaping
+    goal_type: Optional[GoalType] = Field(None, description="race | finish | habit; habit means no race — race_date is the block end date")
+    beginner_mode: bool = Field(default=False, description="True-beginner plan style: run/walk progression, effort over pace")
+
+    # Equipment & preferences
+    strength_equipment: Optional[str] = Field(None, description="Equipment available for strength sessions; only prescribe with these")
+    training_notes: Optional[str] = Field(None, description="Free-form athlete preferences/habits the coach should honor")
     
     # Running History
     years_running: int = Field(..., ge=0, le=50, description="Years of running experience")

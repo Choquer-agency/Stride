@@ -26,6 +26,16 @@ struct TrainingPlanRequest: Codable {
     let crossTrainingDays: [String]?
     let runningDaysPerWeek: Int
     let gymDaysPerWeek: Int
+    let crossTrainDaysPerWeek: Int
+    let crossTrainModality: String?
+
+    // Beginner / goal shaping
+    let goalType: String?
+    let beginnerMode: Bool
+
+    // Equipment & preferences
+    let strengthEquipment: String?
+    let trainingNotes: String?
 
     // Running History
     let yearsRunning: Int
@@ -56,6 +66,12 @@ struct TrainingPlanRequest: Codable {
         case crossTrainingDays = "cross_training_days"
         case runningDaysPerWeek = "running_days_per_week"
         case gymDaysPerWeek = "gym_days_per_week"
+        case crossTrainDaysPerWeek = "cross_train_days_per_week"
+        case crossTrainModality = "cross_train_modality"
+        case goalType = "goal_type"
+        case beginnerMode = "beginner_mode"
+        case strengthEquipment = "strength_equipment"
+        case trainingNotes = "training_notes"
         case yearsRunning = "years_running"
         case previousInjuries = "previous_injuries"
         case previousExperience = "previous_experience"
@@ -118,6 +134,8 @@ struct PlanEditRequest: Codable {
     let startDate: String
     let currentPlanContent: String
     let editInstructions: String
+    let goalType: String?
+    let beginnerMode: Bool
 
     enum CodingKeys: String, CodingKey {
         case raceType = "race_type"
@@ -128,6 +146,8 @@ struct PlanEditRequest: Codable {
         case startDate = "start_date"
         case currentPlanContent = "current_plan_content"
         case editInstructions = "edit_instructions"
+        case goalType = "goal_type"
+        case beginnerMode = "beginner_mode"
     }
 }
 

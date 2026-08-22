@@ -4,8 +4,10 @@ import Foundation
 /// Parses the AI-generated training plan text into structured Week/Workout models
 class PlanParser {
     
-    /// Parse raw plan content into weeks and workouts
-    static func parse(content: String, startDate: Date, raceDate: Date) -> [ParsedWeek] {
+    /// Parse raw plan content into weeks and workouts.
+    /// `appendRaceDay: false` skips the auto-added Race Day workout — used for
+    /// habit-building blocks where raceDate is just the block's end date.
+    static func parse(content: String, startDate: Date, raceDate: Date, appendRaceDay: Bool = true) -> [ParsedWeek] {
         var weeks: [ParsedWeek] = []
         let lines = content.components(separatedBy: .newlines)
         let calendar = Calendar.current
@@ -297,6 +299,9 @@ class PlanParser {
             weeks = createBasicStructure(from: content, startDate: startDate, raceDate: raceDate)
         }
         
+        // Habit blocks have no race — skip the auto-appended race day entirely.
+        guard appendRaceDay else { return weeks }
+
         // Add race day to the week that contains the race date
         // Find the week whose date range includes the race date
         var raceWeekIndex: Int? = nil
@@ -520,6 +525,11 @@ class PlanParser {
             return .rest
         } else if lower.hasPrefix("race day") || lower == "race" || lower.contains("race day") {
             return .race
+        } else if lower.contains("peloton") || lower.contains("bike") || lower.contains("cycling")
+                    || lower.contains("spin class") || lower.contains("pilates") {
+            // Before the long/tempo/interval/hill checks — a "30 min endurance ride"
+            // or "hill climb class" must type as cross-training, not a run.
+            return .crossTraining
         } else if lower.contains("long") {
             return .longRun
         } else if lower.contains("fartlek") {

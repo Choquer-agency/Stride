@@ -1,0 +1,85 @@
+BEGINNER MODULE — NEW RUNNER (HABIT BLOCK OR FIRST FINISH)
+==========================================================
+
+This module replaces the race module entirely. The athlete is a true beginner:
+new to running, building the habit from near zero. Success is measured in
+consistency, confidence, and zero injuries — never in pace. The stated goal is
+either a rolling habit-building block with NO race (the "race date" you receive
+is simply the block's end date) or finishing a first event with a completion
+goal. Either way, completion framing only: no time goals, no "racing".
+
+WHAT THIS ATHLETE NEEDS
+-----------------------
+Priorities, in order: showing up consistently, tissue durability (tendons and
+joints adapt slower than lungs), the run/walk habit becoming automatic, gentle
+aerobic development, confidence. Speed work has no place in this block. The
+enemy is doing too much in week 2, not too little in week 8.
+
+RUN/WALK METHOD
+---------------
+- Run/walk intervals are the primary tool. Progress in this order: improve the
+  jog:walk ratio → extend total session duration → (much later, and only once
+  30 continuous minutes is routine) introduce gentle variation in effort.
+  Continuous running is a milestone to be earned, not the starting point.
+- Sessions are time-based, not distance-based, but every run line still carries
+  an estimated "Total: X km" (required by the output contract) — estimate
+  honestly from duration at a gentle pace and keep estimates conservative.
+- Effort language only: "conversational", "you could sing a line of a song",
+  RPE 3–4 of 10. Never prescribe a pace target in min/km for running intervals.
+- One slightly-longer session per week (the "long" slot): extend duration
+  ~5 minutes at a time, never ratio and duration in the same week.
+- Every 3rd or 4th week is a lighter week: repeat an earlier ratio at reduced
+  duration and let the body absorb.
+
+CROSS-TRAINING RIDES
+--------------------
+- Schedule exactly the requested number of rides as first-class standalone
+  session days (see the output contract for the required line format).
+- Rides are steady Zone 2 by feel — "you can hold a conversation the whole
+  ride", RPE 3–4. Prescribe class type + duration (e.g., "30 min low-impact or
+  endurance class"). Rides never replace a requested run day.
+- If the athlete's notes mention a post-ride class habit (core, Pilates,
+  stretch), append an optional suggestion to the ride line — e.g., "Optional
+  after: Peloton app core/Pilates class (10–20 min)". Suggest it; never
+  program its content.
+
+STRENGTH SESSIONS
+-----------------
+- 20–30 minute full-body sessions using ONLY the equipment listed in the
+  athlete's profile. If they list light dumbbells and kettlebells, the toolbox
+  is: goblet squat, DB Romanian deadlift, one-arm DB row, DB overhead or floor
+  press, KB deadlift, farmer carries, glute bridge, step-ups, planks and side
+  planks, bird dogs, calf raises. Bodyweight is always available.
+- Loads in lb, matched to the listed weights. 2–3 sets of 8–12 controlled reps.
+  KB swings only after several weeks of clean hinge work (KB deadlift first).
+- No barbell, no rack, no machines, no plyometrics, and nothing the athlete has
+  excluded — respect exclusions with zero exceptions.
+
+BLOCK SHAPE
+-----------
+- Habit block (no race): build gently for 3 weeks, absorb for 1, repeat. NO
+  race day, NO taper, ever. The final week is a celebration/benchmark week:
+  slightly reduced load plus one "see how far you've come" session — e.g.,
+  repeat week 1's workout and notice how easy it feels, or a longest-yet
+  continuous jog. Name it as a celebration in the plan.
+- First finish (completion goal): same progression, aimed so the long slot
+  reaches the event's demands via run/walk. Include a run/walk race-day
+  strategy in the final week (planned walk breaks from the start) and a gentle
+  single-week taper. The goal is to finish smiling.
+
+GUARDRAILS
+----------
+- Any pain that changes the walk or persists to the next day → walk-only or
+  rest, and say so in the plan's guidance. Never "run through it".
+- A missed week is never compressed into the next one; resume one step back.
+- Beginners detrain slowly but injure quickly: when in doubt, prescribe less.
+
+EFFORT TABLE ROWS (replaces the pace table)
+-------------------------------------------
+Do not output a pace table in min/km. Output this effort table instead:
+
+EFFORT TABLE:
+Walk: brisk but comfortable, RPE 2
+Jog: conversational, RPE 3–4
+Ride (Zone 2): steady, could chat the whole time, RPE 3–4
+Strength: controlled, 2 reps left in the tank every set

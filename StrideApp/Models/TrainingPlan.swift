@@ -27,6 +27,10 @@ final class TrainingPlan {
     var startDate: Date
     var planModeRaw: String?
 
+    // MARK: - Beginner Flow (defaults keep SwiftData lightweight migration safe)
+    var isBeginnerMode: Bool = false
+    var goalTypeRaw: String? = nil
+
     // MARK: - Raw Plan Content (from AI)
     var rawPlanContent: String?
 
@@ -77,6 +81,14 @@ final class TrainingPlan {
         get { planModeRaw.flatMap { PlanMode(rawValue: $0) } }
         set { planModeRaw = newValue?.rawValue }
     }
+
+    var goalType: GoalType? {
+        get { goalTypeRaw.flatMap { GoalType(rawValue: $0) } }
+        set { goalTypeRaw = newValue?.rawValue }
+    }
+
+    /// Habit blocks have no race — the stored raceDate is the block's end date.
+    var isHabitBlock: Bool { goalType == .habit }
 
     var archiveReason: ArchiveReason? {
         get { archiveReasonRaw.flatMap { ArchiveReason(rawValue: $0) } }
@@ -136,7 +148,9 @@ final class TrainingPlan {
         longestRecentRun: Int,
         fitnessLevel: FitnessLevel,
         startDate: Date,
-        planMode: PlanMode? = nil
+        planMode: PlanMode? = nil,
+        isBeginnerMode: Bool = false,
+        goalType: GoalType? = nil
     ) {
         self.id = UUID()
         self.createdAt = Date()
@@ -152,6 +166,8 @@ final class TrainingPlan {
         self.fitnessLevelRaw = fitnessLevel.rawValue
         self.startDate = startDate
         self.planModeRaw = planMode?.rawValue
+        self.isBeginnerMode = isBeginnerMode
+        self.goalTypeRaw = goalType?.rawValue
         self.weeks = []
     }
 }

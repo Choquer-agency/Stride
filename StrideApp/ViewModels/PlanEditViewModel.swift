@@ -64,7 +64,8 @@ class PlanEditViewModel: ObservableObject {
         let parsedWeeks = PlanParser.parse(
             content: content,
             startDate: plan.startDate,
-            raceDate: plan.raceDate
+            raceDate: plan.raceDate,
+            appendRaceDay: !plan.isHabitBlock
         )
 
         PlanLogger.logParsedWeeks(parsedWeeks, startDate: plan.startDate, raceDate: plan.raceDate)

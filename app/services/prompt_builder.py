@@ -1,6 +1,6 @@
 import hashlib
 from pathlib import Path
-from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, RaceType, PlanMode
+from app.models.schemas import TrainingPlanRequest, PlanEditRequest, PerformanceAnalysisRequest, RaceType, PlanMode, GoalType
 from app.services.conflict_analyzer import REQUIRED_BENCHMARKS, get_required_benchmarks
 from datetime import date, timedelta
 
@@ -12,8 +12,12 @@ PLAN_QUALITY_PROMPT = "_plan_quality_contract.txt"
 PLAN_CORE_PROMPT = "coach_plan_core.txt"
 
 
-def get_coach_file(race_type: RaceType, custom_distance_km: float | None = None) -> str:
+def get_coach_file(race_type: RaceType, custom_distance_km: float | None = None, beginner_mode: bool = False) -> str:
     """Route to the correct race-specific module based on race type and custom distance."""
+    if beginner_mode:
+        # True-beginner plans replace the race module entirely — race_type may be
+        # a synthetic placeholder for habit-building blocks.
+        return "race/beginner.txt"
     if race_type != RaceType.CUSTOM:
         return {
             RaceType.FIVE_K: "race/speed.txt",
@@ -87,12 +91,12 @@ class PromptBuilder:
         parts.append(self._load_prompt(behavior_filename))
         return "\n\n".join(parts)
     
-    def get_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
+    def get_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, beginner_mode: bool = False) -> str:
         """
         System prompt for plan generation:
         coach voice + plan-building framework + race module + quality contract.
         """
-        coach_file = get_coach_file(race_type, custom_distance_km)
+        coach_file = get_coach_file(race_type, custom_distance_km, beginner_mode)
         return self.compose(FOUNDATION_PROMPT, PLAN_CORE_PROMPT, coach_file, PLAN_QUALITY_PROMPT)
     
     def build_user_prompt(self, request: TrainingPlanRequest) -> str:
@@ -115,10 +119,19 @@ class PromptBuilder:
         locked_rest_days_count = len(request.rest_days)
         
         # Calculate scheduling constraints
+        ride_days = request.cross_train_days_per_week
         available_days = 7 - locked_rest_days_count
-        total_sessions = request.running_days_per_week + request.gym_days_per_week
+        total_sessions = request.running_days_per_week + request.gym_days_per_week + ride_days
         stacking_required = total_sessions > available_days
-        
+
+        # Human-readable session breakdowns; both omit rides entirely when none are
+        # requested so existing (ride-free) prompts remain byte-identical.
+        session_breakdown = f"{request.running_days_per_week} runs + {request.gym_days_per_week} gym"
+        stacking_prose = f"{request.running_days_per_week} runs and {request.gym_days_per_week} gym sessions"
+        if ride_days > 0:
+            session_breakdown += f" + {ride_days} rides"
+            stacking_prose = f"{request.running_days_per_week} runs, {request.gym_days_per_week} gym sessions, and {ride_days} rides"
+
         # Build scheduling summary
         if locked_rest_days_count == 0:
             scheduling_summary = f"All 7 days available for training. {total_sessions} total sessions to schedule on separate days."
@@ -126,7 +139,7 @@ class PromptBuilder:
             sessions_to_stack = total_sessions - available_days
             gym_only_days = request.gym_days_per_week - sessions_to_stack
             scheduling_summary = (
-                f"STACKING MINIMIZATION: With {request.running_days_per_week} runs and {request.gym_days_per_week} gym sessions in {available_days} available days, "
+                f"STACKING MINIMIZATION: With {stacking_prose} in {available_days} available days, "
                 f"place {gym_only_days} gym session(s) on non-run days first, then stack exactly {sessions_to_stack} gym session(s) onto easy run days. "
                 f"Do NOT create extra rest days — use all {available_days} available days."
             )
@@ -145,7 +158,14 @@ class PromptBuilder:
             )
         
         # Cross-training days are auto-selected by the coach
-        cross_training_str = "Auto-select optimal days based on the training schedule"
+        if ride_days > 0:
+            modality = request.cross_train_modality or "indoor cycling"
+            cross_training_str = (
+                f"{ride_days} ride(s) per week ({modality}) — schedule each as a dedicated "
+                f"session day, never on a locked rest day"
+            )
+        else:
+            cross_training_str = "Auto-select optimal days based on the training schedule"
         
         # Detect partial first week (start date is not Monday)
         start_day_name = request.start_date.strftime("%A")
@@ -170,15 +190,52 @@ class PromptBuilder:
                 terrain_lines.append(f"Total Elevation Gain: {request.elevation_gain_m} meters")
             terrain_block = "\n".join(terrain_lines)
 
+        # Beginner plan style rider on the fitness section
+        beginner_style_line = ""
+        if request.beginner_mode:
+            beginner_style_line = (
+                "\nPlan Style: TRUE BEGINNER — use run/walk progressions and effort language "
+                "(conversational, comfortable) instead of pace targets."
+            )
+
+        # Equipment & preferences block
+        equipment_block = ""
+        if request.strength_equipment or request.training_notes:
+            # Leading blank line separates the section when appended inline after
+            # the Cross-Training Days line; empty block leaves the template untouched.
+            eq_lines = ["\n\nEQUIPMENT AND PREFERENCES"]
+            if request.strength_equipment:
+                eq_lines.append(f"Strength Equipment Available: {request.strength_equipment}")
+                eq_lines.append("Only prescribe strength work using the listed equipment — nothing else.")
+            if request.training_notes:
+                eq_lines.append(f"Athlete Notes: {request.training_notes}")
+            equipment_block = "\n".join(eq_lines)
+
+        # Build the goal section. Habit blocks have NO race — race_date is repurposed
+        # as the block end date and the race fields are omitted entirely.
+        is_habit = request.goal_type == GoalType.HABIT
+        if is_habit:
+            goal_section = f"""GOAL INFORMATION
+Goal: Build a consistent running habit (NO RACE)
+Plan End Date: {request.race_date.strftime("%A, %B %d, %Y")}
+There is no race. Never schedule a race day or a taper. End the plan with a
+celebration/benchmark week that lets the athlete see how far they've come."""
+        else:
+            if request.goal_type == GoalType.FINISH:
+                goal_time_str = "Completion — finish the distance, no time goal"
+            else:
+                goal_time_str = request.goal_time or "Finish strong (no specific time goal)"
+            goal_section = f"""GOAL INFORMATION
+Race Distance: {race_distance_str}
+Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
+Race Name: {request.race_name or "Not specified"}
+Goal Time: {goal_time_str}"""
+
         prompt = f"""
 ATHLETE PROFILE AND TRAINING REQUEST
 =====================================
 
-GOAL INFORMATION
-Race Distance: {race_distance_str}
-Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
-Race Name: {request.race_name or "Not specified"}
-Goal Time: {request.goal_time or "Finish strong (no specific time goal)"}
+{goal_section}
 {terrain_block}
 
 TRAINING TIMELINE
@@ -190,7 +247,7 @@ Weekly Volume: {request.current_weekly_mileage} km per week
 Longest Recent Run: {request.longest_recent_run} km (past 4 weeks)
 Recent Race Times: {request.recent_race_times or "None provided"}
 Recent Runs (Last 7-14 Days): {request.recent_runs or "None provided"}
-Self-Assessed Level: {request.fitness_level.value.capitalize()}
+Self-Assessed Level: {request.fitness_level.value.capitalize()}{beginner_style_line}
 
 SCHEDULE CONSTRAINTS
 Running Days per Week: {request.running_days_per_week} days
@@ -198,11 +255,11 @@ Gym/Strength Sessions per Week: {request.gym_days_per_week} days
 Fixed Rest Days: {rest_days_str}
 Long Run Day: {request.long_run_day.value}
 Double Days Allowed: {"Yes" if request.double_days_allowed else "No"}
-Cross-Training Days: {cross_training_str}
+Cross-Training Days: {cross_training_str}{equipment_block}
 
 SCHEDULING SUMMARY
 Available Training Days: {available_days} (7 days minus {locked_rest_days_count} fixed rest days)
-Total Sessions Required: {total_sessions} ({request.running_days_per_week} runs + {request.gym_days_per_week} gym)
+Total Sessions Required: {total_sessions} ({session_breakdown})
 Stacking Required: {"Yes — stack exactly " + str(total_sessions - available_days) + " gym session(s) onto easy run days" if stacking_required else "No — use separate days for all sessions"}
 {scheduling_summary}
 {"" if not is_partial_first_week else f"""
@@ -222,7 +279,7 @@ Previous Experience at Goal Distance: {request.previous_experience or "None"}
 =====================================
 
 Please create a complete, week-by-week training plan for this athlete.
-Start the plan on {request.start_date.strftime("%A, %B %d, %Y")} and end with race week concluding on {request.race_date.strftime("%A, %B %d, %Y")}.
+Start the plan on {request.start_date.strftime("%A, %B %d, %Y")} and end with {"a celebration/benchmark week (NO race)" if is_habit else "race week"} concluding on {request.race_date.strftime("%A, %B %d, %Y")}.
 """
         
         # Add plan mode instructions if specified
@@ -369,9 +426,9 @@ COMPLETED WORKOUT DATA ({len(request.completed_workouts)} workouts)
 
 Please analyze this athlete's training execution and provide your assessment."""
 
-    def get_edit_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None) -> str:
+    def get_edit_system_prompt(self, race_type: RaceType, custom_distance_km: float | None = None, beginner_mode: bool = False) -> str:
         """Plan modification: same composition as generation, plus edit-mode behavior."""
-        coach_file = get_coach_file(race_type, custom_distance_km)
+        coach_file = get_coach_file(race_type, custom_distance_km, beginner_mode)
         return self.compose(
             FOUNDATION_PROMPT, PLAN_CORE_PROMPT, coach_file, PLAN_QUALITY_PROMPT, "coach_edit.txt"
         )
@@ -448,13 +505,20 @@ Please analyze this athlete's training execution and provide your assessment."""
         """
         edit_distance = f"{request.custom_distance_km} km (Custom)" if request.race_type == RaceType.CUSTOM and request.custom_distance_km else request.race_type.value
 
-        return f"""CURRENT TRAINING PLAN
-=====================================
-Race Distance: {edit_distance}
+        if request.goal_type == GoalType.HABIT:
+            goal_header = f"""Goal: Habit-building block (NO RACE — never schedule one)
+Modification Date: {date.today().strftime("%A, %B %d, %Y")}
+Plan End Date: {request.race_date.strftime("%A, %B %d, %Y")}"""
+        else:
+            goal_header = f"""Race Distance: {edit_distance}
 Modification Date: {date.today().strftime("%A, %B %d, %Y")}
 Race Date: {request.race_date.strftime("%A, %B %d, %Y")}
 Race Name: {request.race_name or "Not specified"}
-Goal Time: {request.goal_time or "Not specified"}
+Goal Time: {request.goal_time or "Not specified"}"""
+
+        return f"""CURRENT TRAINING PLAN
+=====================================
+{goal_header}
 Plan Start Date: {request.start_date.strftime("%A, %B %d, %Y")}
 
 {request.current_plan_content}

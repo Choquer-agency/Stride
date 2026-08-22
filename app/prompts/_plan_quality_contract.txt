@@ -79,6 +79,12 @@ STRENGTH AND SCHEDULING
   easy days; otherwise use an easy-run day. Never stack with the long run.
 - Space meaningful strength sessions by at least 48 hours and reduce lifting before
   the race. Do not compensate for removed gym work by adding running volume.
+- When the athlete requests dedicated cross-training rides, each ride is a
+  standalone session day that counts in the weekly session math exactly like a gym
+  day: never on a locked rest day, never stacked with the long run, and never a
+  substitute for a requested run day.
+- If the athlete lists available strength equipment, prescribe only with that
+  equipment. Anything the athlete has excluded is excluded without exception.
 
 WORKOUT PRESCRIPTION QUALITY
 ----------------------------
@@ -114,8 +120,9 @@ PLAN COHERENCE
 ARITHMETIC AND CONSISTENCY AUDIT
 --------------------------------
 Before returning the plan, silently verify every week:
-- Run count and gym count match the schedule rules and stated header.
-- Sum of all run totals equals "Weekly volume" (within 0.2 km for rounding).
+- Run count, gym count, and ride count match the schedule rules and stated header.
+- Sum of all run totals equals "Weekly volume" (within 0.2 km for rounding). Rides
+  never carry a "Total: X km" and never count toward weekly volume.
 - Workout components equal each workout's stated total.
 - No session appears on a locked rest day.
 - No unintended double day exists.
@@ -134,6 +141,14 @@ The iOS parser depends on predictable plain text:
 - Use one primary day line per calendar day: - Monday: ...
 - Put a stacked gym session on the following indented line: Gym (PM): ...
 - Use "Total: X km" for every run. Use a decimal point, not a comma.
+- Cross-training ride day lines must contain the word "Bike", state duration not
+  distance, carry NO "Total:", and never use the word "intervals". Example:
+  - Wednesday: Bike (Peloton) – 30 min Zone 2 endurance class, RPE 3–4. Optional after: Peloton app core/Pilates class (10–20 min).
+- Run/walk day lines keep the estimated total. Example:
+  - Monday: Run/Walk – 30 min (8 × 2 min jog / 2 min walk), conversational effort. Total: 3.5 km
+- A standalone strength day line uses "Gym – <Focus> — <Exercise> <sets>×<reps> @ <load>; ..."
+  with exercises semicolon-separated. Example:
+  - Thursday: Gym – Full Body — Goblet Squat 3×10 @ 10 lb DB; One-Arm Row 3×12/side @ 10 lb DB; KB Deadlift 3×10 @ 20 lb; Glute Bridge 3×12 @ BW; Side Plank 3×20 sec/side
 - Use pace forms such as "5:20/km" or "5:15–5:30/km".
 - Use "Rest" only for a day with no scheduled training.
 - Never duplicate a week number or repeat a plan in a summary section.

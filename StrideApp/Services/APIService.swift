@@ -444,7 +444,9 @@ class APIService: ObservableObject {
             customDistanceKm: plan.customDistanceKm,
             startDate: dateFormatter.string(from: plan.startDate),
             currentPlanContent: plan.rawPlanContent ?? "",
-            editInstructions: editInstructions
+            editInstructions: editInstructions,
+            goalType: plan.goalTypeRaw,
+            beginnerMode: plan.isBeginnerMode
         )
     }
 
@@ -453,11 +455,12 @@ class APIService: ObservableObject {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
 
+        let isHabit = data.goalType == .habit
         return TrainingPlanRequest(
-            raceType: data.raceType.rawValue,
-            raceDate: dateFormatter.string(from: data.raceDate),
-            raceName: data.raceName.isEmpty ? nil : data.raceName,
-            goalTime: data.goalTime.isEmpty ? nil : data.goalTime,
+            raceType: isHabit ? RaceType.fiveK.rawValue : data.raceType.rawValue,
+            raceDate: dateFormatter.string(from: data.effectiveRaceDate),
+            raceName: isHabit ? "Habit Builder Block" : (data.raceName.isEmpty ? nil : data.raceName),
+            goalTime: (isHabit || data.goalType == .finish || data.goalTime.isEmpty) ? nil : data.goalTime,
             customDistanceKm: data.raceType == .custom ? data.customDistanceKm : nil,
             terrainType: data.isUltraDistance ? data.terrainType?.rawValue : nil,
             elevationGainM: data.isUltraDistance ? data.elevationGainM : nil,
@@ -473,6 +476,12 @@ class APIService: ObservableObject {
             crossTrainingDays: nil,
             runningDaysPerWeek: data.runningDaysPerWeek,
             gymDaysPerWeek: data.gymDaysPerWeek,
+            crossTrainDaysPerWeek: data.crossTrainDaysPerWeek,
+            crossTrainModality: data.crossTrainModality,
+            goalType: data.goalType == .race ? nil : data.goalType.rawValue,
+            beginnerMode: data.beginnerMode,
+            strengthEquipment: data.strengthEquipment,
+            trainingNotes: data.trainingNotes,
             yearsRunning: data.yearsRunning,
             previousInjuries: data.previousInjuries.isEmpty ? nil : data.previousInjuries,
             previousExperience: data.previousExperience.isEmpty ? nil : data.previousExperience,
@@ -2548,6 +2557,8 @@ struct OnboardingData {
     var doubleDaysAllowed: Bool = false
     var runningDaysPerWeek: Int = 5
     var gymDaysPerWeek: Int = 2
+    var crossTrainDaysPerWeek: Int = 0
+    var crossTrainModality: String? = nil
 
     // Step 4: History
     var yearsRunning: Int = 0
@@ -2557,6 +2568,13 @@ struct OnboardingData {
     // Step 5: Conflict Resolution (optional)
     var planMode: PlanMode? = nil
     var recommendedGoalTime: String? = nil
+
+    // Beginner flow (Create Plan – M)
+    var goalType: GoalType = .race
+    var beginnerMode: Bool = false
+    var blockWeeks: Int = 10                 // habit-block length when goalType == .habit
+    var strengthEquipment: String? = nil
+    var trainingNotes: String? = nil
 
     // MARK: - Computed Helpers
 
@@ -2582,8 +2600,17 @@ struct OnboardingData {
 
     var isStep3Valid: Bool {
         let availableDays = 7 - restDays.count
-        let totalSessions = runningDaysPerWeek + gymDaysPerWeek
+        let totalSessions = runningDaysPerWeek + gymDaysPerWeek + crossTrainDaysPerWeek
         return totalSessions <= availableDays || doubleDaysAllowed
+    }
+
+    /// Habit blocks have no real race — the "race date" is the block's end date:
+    /// the last day of week `blockWeeks` (blockWeeks*7 - 1 days after the start),
+    /// not blockWeeks*7, which would spill into a stray one-day extra week.
+    var effectiveRaceDate: Date {
+        goalType == .habit
+            ? Calendar.current.date(byAdding: .day, value: blockWeeks * 7 - 1, to: startDate) ?? raceDate
+            : raceDate
     }
 
     var isStep4Valid: Bool {

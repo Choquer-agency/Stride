@@ -257,6 +257,13 @@ struct WorkoutDetailView: View {
                     HStack(spacing: 8) {
                         if workout.isCompleted {
                             CheckmarkCircleView(isCompleted: true, size: 16)
+                        } else if workout.isPeloton {
+                            Image("PelotonLogo")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 12, height: 16)
+                                .foregroundColor(workout.typeColor)
                         } else {
                             Circle()
                                 .fill(workout.typeColor)
@@ -264,8 +271,8 @@ struct WorkoutDetailView: View {
                         }
 
                         Text(workout.isCompleted
-                             ? (isGymWorkout ? "Gym Completed" : "\(workout.title) Completed")
-                             : (isGymWorkout ? "Gym" : workout.workoutType.displayName))
+                             ? (workout.isPeloton ? "Ride Completed" : (isGymWorkout ? "Gym Completed" : "\(workout.title) Completed"))
+                             : (workout.isPeloton ? "Peloton Ride" : (isGymWorkout ? "Gym" : workout.workoutType.displayName)))
                             .font(.inter(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
                     }

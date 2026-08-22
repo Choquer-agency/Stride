@@ -77,6 +77,24 @@ final class RunPullService {
                 continue
             }
 
+            // Value healing: same run (same day, same distance) but the server's
+            // duration/pace was corrected by the coach — server wins.
+            if let stale = localLogs.first(where: { log in
+                calendar.isDate(log.completedAt, inSameDayAs: runDate)
+                    && abs(log.distanceKm - run.distanceKm) < 0.2
+                    && abs(log.durationSeconds - run.durationSeconds) > 60
+            }) {
+                stale.durationSeconds = run.durationSeconds
+                stale.avgPaceSecPerKm = run.avgPaceSecPerKm
+                stale.completionScore = run.completionScore
+                if let workoutId = stale.plannedWorkoutId {
+                    refreshWorkoutActuals(workoutId: workoutId, from: stale, context: context)
+                }
+                applied.insert(run.id)
+                changed = true
+                continue
+            }
+
             guard !applied.contains(run.id) else { continue }
 
             // Dedupe against runs that originated on this phone (or were

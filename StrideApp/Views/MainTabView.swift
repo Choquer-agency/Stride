@@ -428,17 +428,24 @@ struct PlanTabContainer: View {
     @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<TrainingPlan> { $0.isArchived == false }, sort: \TrainingPlan.createdAt, order: .reverse) private var plans: [TrainingPlan]
     @State private var showOnboarding = false
-    
+    @State private var showBeginnerOnboarding = false
+
     var body: some View {
         Group {
             if let plan = plans.first {
                 PlanView(plan: plan)
             } else {
-                EmptyStateView(showOnboarding: $showOnboarding)
+                EmptyStateView(
+                    showOnboarding: $showOnboarding,
+                    showBeginnerOnboarding: $showBeginnerOnboarding
+                )
             }
         }
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingContainerView()
+        }
+        .fullScreenCover(isPresented: $showBeginnerOnboarding) {
+            BeginnerOnboardingContainerView()
         }
         .onAppear {
             archiveExtraPlans()
@@ -460,7 +467,8 @@ struct PlanTabContainer: View {
 // MARK: - Empty State View
 struct EmptyStateView: View {
     @Binding var showOnboarding: Bool
-    
+    @Binding var showBeginnerOnboarding: Bool
+
     var body: some View {
         GeometryReader { geometry in
             let logoHeight = geometry.size.width * 88.0 / 402.0
@@ -505,7 +513,27 @@ struct EmptyStateView: View {
                         .background(Color.stridePrimary)
                         .clipShape(Capsule())
                 }
-                
+
+                Spacer()
+                    .frame(height: 16)
+
+                // Beginner flow — tailored onboarding with runs, Peloton rides,
+                // and light strength sessions.
+                Button(action: {
+                    PostHogSDK.shared.capture("onboarding_started_beginner")
+                    showBeginnerOnboarding = true
+                }) {
+                    Text("Create Plan – M")
+                        .font(.inter(size: 14, weight: .medium))
+                        .foregroundColor(.stridePrimary)
+                        .frame(width: buttonWidth)
+                        .padding(.vertical, 14)
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.stridePrimary.opacity(0.4), lineWidth: 1)
+                        )
+                }
+
                 Spacer()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
