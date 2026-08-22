@@ -249,6 +249,7 @@
 		5043F39D92A7E58637CAC9F2 /* ProgressIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05839BE194623D5E51B51F0 /* ProgressIndicator.swift */; };
 		50563F2392841F4C062FADC3 /* num_33.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3BD953D026A22899E2323F74 /* num_33.mp3 */; };
 		508A4470616243E97ACF7197 /* mile_96.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 722CBA7236E4D2E7BFB28F88 /* mile_96.mp3 */; };
+		513F71C87D52789E2764AAE0 /* HeartRateZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB753D4010D79E36C0A3BDF /* HeartRateZones.swift */; };
 		516BF7FA4B31CFF37A6143E7 /* encourage_consistent.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4F5D07535641136AA8F7F6F4 /* encourage_consistent.mp3 */; };
 		51ADF27D0182B7B11D9A2B24 /* mile_13.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 49B38A880F81033D06BD9FE9 /* mile_13.mp3 */; };
 		52B415F04313C0BAB423C479 /* BluetoothRunDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79D37B21E43D4631E6AEBA94 /* BluetoothRunDataProvider.swift */; };
@@ -981,6 +982,7 @@
 		5B910AB57DF2D3765336ED56 /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 		5B91CE0306CD482F820AC03E /* mile_48.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_48.mp3; sourceTree = "<group>"; };
 		5BE53CB66115831BD7E2600C /* km_15.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_15.mp3; sourceTree = "<group>"; };
+		5CB753D4010D79E36C0A3BDF /* HeartRateZones.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateZones.swift; sourceTree = "<group>"; };
 		5CD29FC80BC11BAA80D8B08E /* ManualEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntryView.swift; sourceTree = "<group>"; };
 		5CED029A9A419806B5ED8D99 /* pull_ups_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = pull_ups_1.png; sourceTree = "<group>"; };
 		5D075BD3BA524BB1EDA87B6F /* runs_this_week.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = runs_this_week.mp3; sourceTree = "<group>"; };
@@ -1777,6 +1779,7 @@
 			isa = PBXGroup;
 			children = (
 				ECA49B5DFAFBEF8B31BC12CB /* Extensions.swift */,
+				5CB753D4010D79E36C0A3BDF /* HeartRateZones.swift */,
 				EC0623CDA6C862A5CE166B6A /* PlanLogger.swift */,
 				C7F42E61428477E09BB5E6D6 /* RunScoringService.swift */,
 				60B001169C60BE650E0BF3CA /* ShareSheet.swift */,
@@ -3045,6 +3048,7 @@
 				41294782B7493218CDDA0585 /* GoalStepView.swift in Sources */,
 				9D3E3C05361B686198FD0EF2 /* GymSessionModel.swift in Sources */,
 				AEDBFB73419ED0A08E611721 /* GymWorkoutPlayerView.swift in Sources */,
+				513F71C87D52789E2764AAE0 /* HeartRateZones.swift in Sources */,
 				B096B07A71F0C6E24CA456C6 /* HistoryStepView.swift in Sources */,
 				13A3FF8616915FABF905CEEF /* HydrationLog.swift in Sources */,
 				5F36E3F15372BFF46F0E5124 /* IconBadge.swift in Sources */,
