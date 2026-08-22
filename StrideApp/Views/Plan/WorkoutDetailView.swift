@@ -306,6 +306,11 @@ struct WorkoutDetailView: View {
                         if !isGymWorkout, let rpe = parsedDetail.rpe {
                             statBlock(value: rpe, label: "RPE")
                         }
+
+                        // Heart-rate band — keeps easy days honestly easy
+                        if let hr = HeartRateZones.band(for: workout.workoutType) {
+                            statBlock(value: hr, label: "bpm")
+                        }
                     }
                     .padding(.horizontal, 16)
                     

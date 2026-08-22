@@ -337,6 +337,7 @@ struct DayCardView: View {
         if let distance = workout.distanceDisplay { parts.append(distance) }
         else if let duration = workout.durationDisplay { parts.append(duration) }
         if let pace = workout.paceDescription { parts.append(pace) }
+        if let hr = HeartRateZones.band(for: workout.workoutType) { parts.append("HR \(hr)") }
         return parts.isEmpty ? nil : parts.joined(separator: "  ·  ")
     }
 
