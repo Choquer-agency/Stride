@@ -28,6 +28,7 @@ load_dotenv(ROOT / ".env")
 import sqlalchemy as sa
 
 from app.database import async_session
+from app.models.user import User  # noqa: F401 — registers `users` in metadata for the FK
 from app.services import plan_store
 
 HERE = Path(__file__).parent
