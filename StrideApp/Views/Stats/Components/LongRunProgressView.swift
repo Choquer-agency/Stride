@@ -3,6 +3,7 @@ import Charts
 
 struct LongRunProgressView: View {
     let progression: [(weekNumber: Int, distance: Double)]
+    var actualProgression: [(weekNumber: Int, distance: Double)] = []
     let longestRunEver: Double
     let peakLongRunWeek: Int?
     let raceDistance: Double
@@ -22,20 +23,52 @@ struct LongRunProgressView: View {
                     .font(.inter(size: 13, weight: .medium))
                     .foregroundStyle(.secondary)
             }
+
+            if !actualProgression.isEmpty {
+                HStack(spacing: 16) {
+                    HStack(spacing: 5) {
+                        Circle().fill(Color(.systemGray3)).frame(width: 8, height: 8)
+                        Text("Planned").font(.inter(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                    }
+                    HStack(spacing: 5) {
+                        Circle().fill(Color.stridePrimary).frame(width: 8, height: 8)
+                        Text("Actual").font(.inter(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                    }
+                }
+            }
             
             if !progression.isEmpty {
                 // Chart
                 Chart {
-                    // Long run progression line
+                    // Planned progression — grey; what the coach prescribed
                     ForEach(progression, id: \.weekNumber) { data in
                         LineMark(
                             x: .value("Week", data.weekNumber),
+                            y: .value("Distance", data.distance),
+                            series: .value("Series", "Planned")
+                        )
+                        .foregroundStyle(Color(.systemGray3))
+                        .lineStyle(StrokeStyle(lineWidth: 3))
+
+                        PointMark(
+                            x: .value("Week", data.weekNumber),
                             y: .value("Distance", data.distance)
+                        )
+                        .foregroundStyle(Color(.systemGray3))
+                        .symbolSize(60)
+                    }
+
+                    // Actual — red, drawn on top; overlaps the grey exactly
+                    // when a week went to plan (values rounded to whole km)
+                    ForEach(actualProgression, id: \.weekNumber) { data in
+                        LineMark(
+                            x: .value("Week", data.weekNumber),
+                            y: .value("Distance", data.distance),
+                            series: .value("Series", "Actual")
                         )
                         .foregroundStyle(Color.stridePrimary)
                         .lineStyle(StrokeStyle(lineWidth: 3))
-                        
-                        // Point markers
+
                         PointMark(
                             x: .value("Week", data.weekNumber),
                             y: .value("Distance", data.distance)

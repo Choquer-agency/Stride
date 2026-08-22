@@ -55,6 +55,7 @@ struct StatsView: View {
                     // Long Run Progression
                     LongRunProgressView(
                         progression: viewModel.longRunProgression,
+                        actualProgression: viewModel.longRunActualProgression,
                         longestRunEver: viewModel.longestRunEver,
                         peakLongRunWeek: viewModel.peakLongRunWeek,
                         raceDistance: plan.customDistanceKm ?? plan.raceType.distanceKm ?? 42.195,

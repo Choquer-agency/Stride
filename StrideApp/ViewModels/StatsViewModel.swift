@@ -227,6 +227,39 @@ class StatsViewModel: ObservableObject {
         }
     }
 
+    /// What actually happened, week by week, rounded to the nearest km so an
+    /// on-plan week sits exactly on the planned line. A missed week carries the
+    /// previous value forward (flat dot) instead of dropping to zero. Only
+    /// weeks that are decided — long run completed, or the week is over — are
+    /// included, so the current week doesn't read as a miss prematurely.
+    var longRunActualProgression: [(weekNumber: Int, distance: Double)] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        var result: [(weekNumber: Int, distance: Double)] = []
+        var carried = 0.0
+
+        for week in plan.sortedWeeks {
+            let runWorkouts = week.workouts.filter {
+                $0.workoutType != .rest && $0.workoutType != .gym
+                    && $0.workoutType != .crossTraining && $0.workoutType != .race
+            }
+            let longRun = runWorkouts.max(by: { ($0.distanceKm ?? 0) < ($1.distanceKm ?? 0) })
+            let weekEnd = week.workouts.map(\.date).max() ?? .distantPast
+
+            if let workout = longRun, workout.isCompleted,
+               let actual = workout.actualDistanceKm, actual > 0 {
+                carried = actual.rounded()
+                result.append((week.weekNumber, carried))
+            } else if weekEnd < today {
+                // Week's over and the long run never happened — flat line
+                result.append((week.weekNumber, carried))
+            } else {
+                break
+            }
+        }
+        return result
+    }
+
     var longestRunEver: Double {
         longRunProgression.map { $0.distance }.max() ?? 0
     }
