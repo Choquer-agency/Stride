@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 63;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -1035,7 +1035,7 @@
 		6C05C2774981D46A6D9320FC /* pace_on_target.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = pace_on_target.mp3; sourceTree = "<group>"; };
 		6C80CD798B1EF9E5F2C5AB4F /* ScheduleStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleStepView.swift; sourceTree = "<group>"; };
 		6CAC513E6E38195C92957427 /* RaceLogisticsChecklist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceLogisticsChecklist.swift; sourceTree = "<group>"; };
-		6CD7CC89563B45008C986776 /* StrideApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StrideApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CD7CC89563B45008C986776 /* StrideApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StrideApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CFAF9F1AE6E529B9AAAA0DE /* num_44.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_44.mp3; sourceTree = "<group>"; };
 		6E9644DD668253D121C871B0 /* km_11.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_11.mp3; sourceTree = "<group>"; };
 		6E96A89F2B83176041D96748 /* run_ended.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = run_ended.mp3; sourceTree = "<group>"; };
@@ -2445,7 +2445,6 @@
 				32F67DA20269339903E07B04 /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */,
 				AC54FF4B207C9AA8045E9910 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
-			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -3202,6 +3201,7 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Stride;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3347,6 +3347,7 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Stride;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

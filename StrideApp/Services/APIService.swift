@@ -2775,6 +2775,11 @@ struct RemotePlanDTO: Codable {
     let customDistanceKm: Double?
     let startDate: String?
     let changeNote: String?
+    let goalType: String?
+    let beginnerMode: Bool?
+    let fitnessLevel: String?
+    let currentWeeklyMileage: Int?
+    let longestRecentRun: Int?
 
     enum CodingKeys: String, CodingKey {
         case id, source
@@ -2787,6 +2792,11 @@ struct RemotePlanDTO: Codable {
         case customDistanceKm = "custom_distance_km"
         case startDate = "start_date"
         case changeNote = "change_note"
+        case goalType = "goal_type"
+        case beginnerMode = "beginner_mode"
+        case fitnessLevel = "fitness_level"
+        case currentWeeklyMileage = "current_weekly_mileage"
+        case longestRecentRun = "longest_recent_run"
     }
 
     var exists: Bool { id != nil && rawPlanContent != nil }

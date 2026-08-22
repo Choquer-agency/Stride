@@ -31,7 +31,14 @@ final class PlanSyncService: ObservableObject {
         inFlight = true
         defer { inFlight = false }
 
-        guard let localPlan = activeLocalPlan(context: context) else { return }
+        guard let localPlan = activeLocalPlan(context: context) else {
+            // Fresh install (or plan deleted): if the coach authored a plan
+            // server-side, adopt it as the active local plan.
+            if let remote = try? await APIService.shared.fetchRemotePlan(), remote.exists {
+                adoptServerPlan(remote, context: context)
+            }
+            return
+        }
         guard let remote = try? await APIService.shared.fetchRemotePlan() else { return }
 
         if !remote.exists {
@@ -148,6 +155,71 @@ final class PlanSyncService: ObservableObject {
             UserDefaults.standard.set(ts, forKey: lastAppliedKey)
         }
         pendingServerPlan = nil
+    }
+
+    // MARK: - Adopt a server-authored plan on a fresh device
+
+    /// Build the active local plan from the server's copy when no local plan
+    /// exists — a coach-authored plan waiting for a new device/account.
+    private func adoptServerPlan(_ remote: RemotePlanDTO, context: ModelContext) {
+        guard let content = remote.rawPlanContent, !content.isEmpty else { return }
+
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        // ISO strings may carry a time component — keep the date prefix only.
+        func parseDate(_ s: String?) -> Date? {
+            guard let s = s else { return nil }
+            return df.date(from: String(s.prefix(10)))
+        }
+        guard let startDate = parseDate(remote.startDate),
+              let raceDate = parseDate(remote.raceDate) else { return }
+
+        let goalType = remote.goalType.flatMap { GoalType(rawValue: $0) }
+        let parsedWeeks = PlanParser.parse(
+            content: content,
+            startDate: startDate,
+            raceDate: raceDate,
+            appendRaceDay: goalType != .habit
+        )
+        guard !parsedWeeks.isEmpty else { return }
+
+        let plan = TrainingPlan(
+            raceType: remote.raceType.flatMap { RaceType(rawValue: $0) } ?? .halfMarathon,
+            raceDate: raceDate,
+            raceName: remote.raceName,
+            goalTime: remote.goalTime,
+            customDistanceKm: remote.customDistanceKm,
+            currentWeeklyMileage: remote.currentWeeklyMileage ?? 0,
+            longestRecentRun: remote.longestRecentRun ?? 0,
+            fitnessLevel: remote.fitnessLevel.flatMap { FitnessLevel(rawValue: $0) } ?? .intermediate,
+            startDate: startDate,
+            isBeginnerMode: remote.beginnerMode ?? false,
+            goalType: goalType
+        )
+        plan.rawPlanContent = content
+
+        for parsedWeek in parsedWeeks {
+            let week = Week(weekNumber: parsedWeek.weekNumber, theme: parsedWeek.theme)
+            for parsedWorkout in parsedWeek.workouts {
+                week.workouts.append(Workout(
+                    date: parsedWorkout.date,
+                    workoutType: parsedWorkout.workoutType,
+                    title: parsedWorkout.title,
+                    details: parsedWorkout.details,
+                    distanceKm: parsedWorkout.distanceKm,
+                    durationMinutes: parsedWorkout.durationMinutes,
+                    paceDescription: parsedWorkout.paceDescription
+                ))
+            }
+            plan.weeks.append(week)
+        }
+
+        context.insert(plan)
+        try? context.save()
+
+        if let ts = remote.updatedAt {
+            UserDefaults.standard.set(ts, forKey: lastAppliedKey)
+        }
     }
 
     func dismissPendingServerPlan() {

@@ -450,6 +450,13 @@ struct PlanTabContainer: View {
         .onAppear {
             archiveExtraPlans()
         }
+        .task {
+            // Fresh install: adopt a coach-authored server plan if one is
+            // waiting (no-op when a local plan exists — PlanView reconciles).
+            if plans.isEmpty {
+                await PlanSyncService.shared.reconcile(context: modelContext)
+            }
+        }
     }
 
     /// Keep only the most recent plan, archive all others

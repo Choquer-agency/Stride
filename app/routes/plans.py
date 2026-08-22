@@ -540,6 +540,13 @@ class ActivePlanResponse(_BaseModel):
     custom_distance_km: _Optional[float] = None
     start_date: _Optional[str] = None
     change_note: _Optional[str] = None
+    # Derived from athlete_profile — lets a fresh install adopt a
+    # server-authored plan with the right plan style and fitness context.
+    goal_type: _Optional[str] = None
+    beginner_mode: bool = False
+    fitness_level: _Optional[str] = None
+    current_weekly_mileage: _Optional[int] = None
+    longest_recent_run: _Optional[int] = None
 
 
 @router.get("/plans/active", response_model=ActivePlanResponse)
@@ -555,6 +562,7 @@ async def get_active_plan(
     record = await plan_store.get_active(db, current_user.id)
     if record is None:
         return ActivePlanResponse()
+    profile = record.athlete_profile or {}
     return ActivePlanResponse(
         id=record.id,
         updated_at=record.updated_at.isoformat() if record.updated_at else None,
@@ -567,6 +575,11 @@ async def get_active_plan(
         custom_distance_km=record.custom_distance_km,
         start_date=record.start_date.isoformat() if record.start_date else None,
         change_note=record.change_note,
+        goal_type=profile.get("goal_type"),
+        beginner_mode=bool(profile.get("beginner_mode", False)),
+        fitness_level=profile.get("fitness_level"),
+        current_weekly_mileage=profile.get("current_weekly_mileage"),
+        longest_recent_run=profile.get("longest_recent_run"),
     )
 
 

@@ -58,25 +58,6 @@ final class RunPullService {
                 continue
             }
 
-            // Timestamp healing: the server is authoritative for WHEN a run
-            // happened (coach corrections). The same run — distance match
-            // within ±36 h — sitting on a different calendar day locally gets
-            // moved to the server time. Also before the ledger guard: the run
-            // may have been applied back when its timestamp was still wrong.
-            if let misdated = localLogs.first(where: { log in
-                abs(log.completedAt.timeIntervalSince(runDate)) < 36 * 3600
-                    && !calendar.isDate(log.completedAt, inSameDayAs: runDate)
-                    && abs(log.distanceKm - run.distanceKm) < 0.2
-            }) {
-                misdated.completedAt = runDate
-                if let workoutId = misdated.plannedWorkoutId {
-                    refreshWorkoutActuals(workoutId: workoutId, from: misdated, context: context)
-                }
-                applied.insert(run.id)
-                changed = true
-                continue
-            }
-
             // Value healing: same run (same day, same distance) but the server's
             // duration/pace was corrected by the coach — server wins.
             if let stale = localLogs.first(where: { log in
@@ -136,6 +117,16 @@ final class RunPullService {
             changed = true
         }
 
+        // Timestamp healing, one-to-one: every server run first claims its
+        // same-day local log; only logs NO server run claims may be moved to a
+        // pending run's date. Handles coach date-corrections without the naive
+        // failure mode (consecutive same-distance days dragging each other's
+        // logs onto the wrong date).
+        if reconcileTimestamps(serverRuns: serverRuns, localLogs: localLogs,
+                               context: context, calendar: calendar) {
+            changed = true
+        }
+
         // Self-heal: any local run history without its planned-workout checkmark
         // (covers timezone edge cases and runs pulled before this pass existed).
         reconcileCompletions(context: context, calendar: calendar)
@@ -178,6 +169,49 @@ final class RunPullService {
             didChange = true
         }
         if didChange { try? context.save() }
+    }
+
+    /// One-to-one timestamp reconciliation. Pass 1: each server run claims an
+    /// unclaimed local log on its own calendar day (distance-matched). Pass 2:
+    /// server runs left without a claim take an unclaimed distance-matched log
+    /// within ±72 h and move it to the server's (authoritative) time.
+    private func reconcileTimestamps(
+        serverRuns: [ServerRunDTO],
+        localLogs: [RunLog],
+        context: ModelContext,
+        calendar: Calendar
+    ) -> Bool {
+        var claimed = Set<ObjectIdentifier>()
+        var unmatched: [(ServerRunDTO, Date)] = []
+
+        for run in serverRuns {
+            guard let runDate = run.completedAtDate else { continue }
+            if let match = localLogs.first(where: { log in
+                !claimed.contains(ObjectIdentifier(log))
+                    && calendar.isDate(log.completedAt, inSameDayAs: runDate)
+                    && abs(log.distanceKm - run.distanceKm) < 0.2
+            }) {
+                claimed.insert(ObjectIdentifier(match))
+            } else {
+                unmatched.append((run, runDate))
+            }
+        }
+
+        var changed = false
+        for (run, runDate) in unmatched {
+            guard let misdated = localLogs.first(where: { log in
+                !claimed.contains(ObjectIdentifier(log))
+                    && abs(log.completedAt.timeIntervalSince(runDate)) < 72 * 3600
+                    && abs(log.distanceKm - run.distanceKm) < 0.2
+            }) else { continue }
+            claimed.insert(ObjectIdentifier(misdated))
+            misdated.completedAt = runDate
+            if let workoutId = misdated.plannedWorkoutId {
+                refreshWorkoutActuals(workoutId: workoutId, from: misdated, context: context)
+            }
+            changed = true
+        }
+        return changed
     }
 
     /// Overwrite a completed workout's actuals after its RunLog was corrected.
