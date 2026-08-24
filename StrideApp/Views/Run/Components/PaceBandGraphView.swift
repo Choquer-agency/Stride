@@ -10,7 +10,7 @@ struct PaceBandGraphView: View {
     let targetMinSec: Double?
     let targetMaxSec: Double?
 
-    private let graphHeight: CGFloat = 170
+    private let graphHeight: CGFloat = 150
 
     var body: some View {
         if let lo = targetMinSec, let hi = targetMaxSec, hi > lo {
@@ -23,10 +23,10 @@ struct PaceBandGraphView: View {
     // MARK: - Target-band mode
 
     private func bandGraph(fastEdge: Double, slowEdge: Double) -> some View {
-        // Display domain: a little headroom above the band, generous room
-        // below so a walk visibly falls away without leaving the chart.
-        let domainTop = fastEdge - 30          // fastest pace shown (top)
-        let domainBottom = slowEdge + 75       // slowest pace shown (bottom)
+        // Display domain: tight headroom so the band itself dominates the
+        // canvas; anything slower than the walk threshold clamps to the floor.
+        let domainTop = fastEdge - 22          // fastest pace shown (top)
+        let domainBottom = slowEdge + 40       // slowest pace shown (bottom)
 
         func y(_ pace: Double, _ height: CGFloat) -> CGFloat {
             let clamped = min(max(pace, domainTop), domainBottom)

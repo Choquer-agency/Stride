@@ -27,30 +27,26 @@ struct RunView: View {
                                 .padding(.bottom, 10)
                         }
 
-                        // Distance hero — the number he's chasing
-                        distanceHero
-                            .padding(.bottom, 14)
+                        // ── Pace story: hero number + verdict pill + corridor ──
+                        // (the corridor's labeled edges ARE the target — no
+                        // redundant "Target: 6:00-6:30" text row)
+                        paceBlock
+                            .padding(.bottom, 2)
 
-                        // Pace: target row + big number
-                        PaceLaneIndicator(
-                            currentPace: viewModel.currentPace,
-                            paceZone: viewModel.paceZone,
-                            targetPaceMin: viewModel.targetPaceMinSec,
-                            targetPaceMax: viewModel.targetPaceMaxSec,
-                            isPlannedRun: viewModel.isPlannedRun
-                        )
-
-                        // Heart rate: live bpm when available, else target band
-                        heartRateLine
-                            .padding(.bottom, 14)
-
-                        // Pace trace through the target corridor
                         PaceBandGraphView(
                             paces: viewModel.paceGraphPaces,
                             targetMinSec: viewModel.targetPaceMinSec,
                             targetMaxSec: viewModel.targetPaceMaxSec
                         )
-                        .padding(.bottom, 28)
+                        .padding(.bottom, 26)
+
+                        // ── Journey: distance as progress, not arithmetic ──
+                        distanceProgress
+                            .padding(.bottom, 10)
+
+                        // Heart rate: live bpm when available, else target band
+                        heartRateLine
+                            .padding(.bottom, 30)
 
                         // ── Below the fold ──
                         kilometerSplitsTable
@@ -176,26 +172,88 @@ struct RunView: View {
         }
     }
 
-    // MARK: - Distance Hero
-    private var distanceHero: some View {
-        VStack(spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(String(format: "%.2f", viewModel.distance))
-                    .font(.barlowCondensed(size: 72, weight: .medium))
-                    .foregroundColor(.primary)
-                    .contentTransition(.numericText())
+    // MARK: - Pace Block (hero + verdict pill)
+    private var paceBlock: some View {
+        VStack(spacing: 0) {
+            Text(viewModel.currentPace)
+                .font(.barlowCondensed(size: 132, weight: .medium))
+                .foregroundColor(.primary)
+                .contentTransition(.numericText())
+                .frame(maxWidth: .infinity)
+
+            HStack(spacing: 10) {
+                Text("Pace /km")
+                    .font(.inter(size: 13, weight: .regular))
+                    .foregroundColor(.secondary)
+
+                if viewModel.isPlannedRun, !viewModel.paceZone.statusText.isEmpty {
+                    Text(viewModel.paceZone.statusText)
+                        .font(.inter(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(pillColor))
+                }
+            }
+        }
+    }
+
+    /// Verdict pill: green = good, red = slow, blue = fast. Color does the
+    /// thinking so the text never has to be read mid-stride.
+    private var pillColor: Color {
+        switch viewModel.paceZone {
+        case .onPace, .slightlyFast: return .green
+        case .slightlySlow: return .orange
+        case .tooSlow: return Color.stridePrimary
+        case .tooFast: return .blue
+        case .noTarget: return .gray
+        }
+    }
+
+    // MARK: - Distance Progress
+    private var distanceProgress: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .firstTextBaseline) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(String(format: "%.2f", viewModel.distance))
+                        .font(.barlowCondensed(size: 52, weight: .medium))
+                        .foregroundColor(.primary)
+                        .contentTransition(.numericText())
+                    Text("km")
+                        .font(.inter(size: 15, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+
+                Spacer()
 
                 if viewModel.isPlannedRun, let target = viewModel.targetDistanceKm {
-                    Text("/ \(formatTargetDistanceLabel(target))")
-                        .font(.barlowCondensed(size: 34, weight: .medium))
+                    Text(remainingLabel(target: target))
+                        .font(.inter(size: 15, weight: .semibold))
                         .foregroundColor(.secondary)
                 }
             }
-            Text("Distance (km)")
-                .font(.inter(size: 12, weight: .regular))
-                .foregroundColor(.secondary)
+
+            if viewModel.isPlannedRun, let target = viewModel.targetDistanceKm, target > 0 {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(Color(.systemGray5))
+                            .frame(height: 10)
+                        Capsule()
+                            .fill(Color.stridePrimary)
+                            .frame(width: max(10, geo.size.width * min(viewModel.distance / target, 1.0)),
+                                   height: 10)
+                    }
+                }
+                .frame(height: 10)
+            }
         }
-        .frame(maxWidth: .infinity)
+    }
+
+    private func remainingLabel(target: Double) -> String {
+        let left = target - viewModel.distance
+        if left <= 0 { return "target reached" }
+        return String(format: "%.2f to go", left)
     }
 
     // MARK: - Heart Rate Line
