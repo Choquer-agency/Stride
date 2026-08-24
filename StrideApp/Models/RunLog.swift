@@ -26,6 +26,11 @@ final class RunLog {
     var elevationGainMeters: Double?
     var elevationLossMeters: Double?
 
+    // Heart rate (nil when no monitor was connected during the run)
+    var avgHeartRate: Int?
+    var maxHeartRate: Int?
+    var hrSamplesJSON: String?
+
     // Shoe context (denormalized — survives shoe deletion)
     var shoeId: UUID?
     var shoeName: String?
@@ -76,6 +81,13 @@ final class RunLog {
         return "\(minutes):\(String(format: "%02d", seconds)) /km"
     }
 
+    /// Decoded heart-rate samples from JSON
+    var decodedHRSamples: [CodableHRSample] {
+        guard let json = hrSamplesJSON,
+              let data = json.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([CodableHRSample].self, from: data)) ?? []
+    }
+
     /// Decoded km splits from JSON
     var decodedKmSplits: [CodableKilometerSplit] {
         guard let json = kmSplitsJSON,
@@ -124,6 +136,9 @@ final class RunLog {
         routeJSON: String? = nil,
         elevationGainMeters: Double? = nil,
         elevationLossMeters: Double? = nil,
+        avgHeartRate: Int? = nil,
+        maxHeartRate: Int? = nil,
+        hrSamplesJSON: String? = nil,
         shoeId: UUID? = nil,
         shoeName: String? = nil,
         plannedWorkoutId: UUID? = nil,
@@ -149,6 +164,9 @@ final class RunLog {
         self.routeJSON = routeJSON
         self.elevationGainMeters = elevationGainMeters
         self.elevationLossMeters = elevationLossMeters
+        self.avgHeartRate = avgHeartRate
+        self.maxHeartRate = maxHeartRate
+        self.hrSamplesJSON = hrSamplesJSON
         self.shoeId = shoeId
         self.shoeName = shoeName
         self.plannedWorkoutId = plannedWorkoutId

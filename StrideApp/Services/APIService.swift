@@ -1194,6 +1194,29 @@ class APIService: ObservableObject {
         }
     }
 
+    func fitbitVitals() async throws -> FitbitVitalsDTO {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/fitbit/vitals")!)
+        addAuthHeader(to: &request)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .custom { d in
+            let container = try d.singleValueContainer()
+            let raw = try container.decode(String.self)
+            let fmt = ISO8601DateFormatter()
+            fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fmt.date(from: raw) { return date }
+            fmt.formatOptions = [.withInternetDateTime]
+            if let date = fmt.date(from: raw) { return date }
+            throw DecodingError.dataCorruptedError(in: container, debugDescription: "Bad date: \(raw)")
+        }
+        return try decoder.decode(FitbitVitalsDTO.self, from: data)
+    }
+
     // MARK: - v2 Phase 2: Weekly Review
 
     /// Manually trigger a weekly review (admin/debug). Returns the new event_id, or
@@ -2541,6 +2564,47 @@ struct FitbitStatusDTO: Codable {
         case disconnectedAt = "disconnected_at"
         case backfillStatus = "backfill_status"
         case backfillProgress = "backfill_progress"
+    }
+}
+
+struct FitbitVitalsDTO: Codable {
+    struct HeartRateSample: Codable, Identifiable {
+        let at: Date
+        let bpm: Int
+        var id: Date { at }
+    }
+
+    struct DailyVitals: Codable, Identifiable {
+        let date: String
+        let restingHeartRate: Int?
+        let hrvOvernight: Double?
+        let hrvBaseline7Day: Double?
+        let sleepDurationMinutes: Int?
+        let sleepScore: Int?
+        let steps: Int?
+        var id: String { date }
+
+        enum CodingKeys: String, CodingKey {
+            case date
+            case restingHeartRate = "resting_heart_rate"
+            case hrvOvernight = "hrv_overnight"
+            case hrvBaseline7Day = "hrv_baseline_7day"
+            case sleepDurationMinutes = "sleep_duration_minutes"
+            case sleepScore = "sleep_score"
+            case steps
+        }
+    }
+
+    let latestBpm: Int?
+    let latestAt: Date?
+    let todayHeartRate: [HeartRateSample]
+    let daily: [DailyVitals]
+
+    enum CodingKeys: String, CodingKey {
+        case latestBpm = "latest_bpm"
+        case latestAt = "latest_at"
+        case todayHeartRate = "today_heart_rate"
+        case daily
     }
 }
 

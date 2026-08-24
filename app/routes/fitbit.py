@@ -276,6 +276,111 @@ async def disconnect(
     return {"ok": True}
 
 
+# ── Vitals dashboard ────────────────────────────────────────────────────────
+
+class HeartRateSample(BaseModel):
+    at: datetime
+    bpm: int
+
+
+class DailyVitals(BaseModel):
+    date: str
+    resting_heart_rate: Optional[int] = None
+    hrv_overnight: Optional[float] = None
+    hrv_baseline_7day: Optional[float] = None
+    sleep_duration_minutes: Optional[int] = None
+    sleep_score: Optional[int] = None
+    steps: Optional[int] = None
+
+
+class FitbitVitalsResponse(BaseModel):
+    latest_bpm: Optional[int] = None
+    latest_at: Optional[datetime] = None
+    today_heart_rate: list[HeartRateSample] = []
+    daily: list[DailyVitals] = []
+
+
+def _parse_sample_time(dp: dict) -> Optional[datetime]:
+    st = (dp.get("heartRate") or {}).get("sampleTime") or {}
+    raw = st.get("physicalTime")
+    if not raw:
+        return None
+    try:
+        return datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+@router.get("/vitals", response_model=FitbitVitalsResponse)
+async def vitals(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> FitbitVitalsResponse:
+    """
+    Dashboard payload: latest intraday heart rate (pulled fresh from Google —
+    current as of the watch's last cloud sync), today's HR curve (downsampled),
+    and the last 14 days of daily vitals from our own tables.
+    """
+    if not current_user.fitbit_refresh_token:
+        raise HTTPException(status_code=400, detail="Fitbit not connected")
+
+    # Today's intraday heart rate, live from Google
+    samples: list[HeartRateSample] = []
+    token = await fitbit_service.ensure_fresh_token(db, current_user)
+    if token:
+        client = fitbit_service.GoogleHealthClient(access_token=token)
+        since = datetime.now(timezone.utc) - timedelta(hours=24)
+        filter_expr = (
+            f'heart_rate.sample_time.physical_time >= "{since.isoformat().replace("+00:00", "Z")}"'
+        )
+        try:
+            points = await client.list_data_points(
+                "heart-rate", filter_expr=filter_expr, page_size=10000, max_pages=2
+            )
+        except fitbit_service.GoogleHealthAPIError as exc:
+            logger.warning("Intraday HR pull failed for user=%s: %s", current_user.id, exc)
+            points = []
+        for dp in points:
+            at = _parse_sample_time(dp)
+            bpm = (dp.get("heartRate") or {}).get("beatsPerMinute")
+            if at is not None and bpm and at >= since:
+                samples.append(HeartRateSample(at=at, bpm=int(bpm)))
+        samples.sort(key=lambda s: s.at)
+        # Downsample to ~240 points so the sparkline payload stays small
+        if len(samples) > 240:
+            step = len(samples) / 240.0
+            samples = [samples[int(i * step)] for i in range(240)]
+
+    # Last 14 days of dailies from our own store
+    from app.models.garmin_daily_metric import GarminDailyMetric
+    cutoff = datetime.now(timezone.utc).date() - timedelta(days=14)
+    result = await db.execute(
+        select(GarminDailyMetric)
+        .where(GarminDailyMetric.user_id == current_user.id, GarminDailyMetric.date >= cutoff)
+        .order_by(GarminDailyMetric.date.desc())
+    )
+    daily = [
+        DailyVitals(
+            date=row.date.isoformat(),
+            resting_heart_rate=row.resting_heart_rate,
+            hrv_overnight=row.hrv_overnight,
+            hrv_baseline_7day=row.hrv_baseline_7day,
+            sleep_duration_minutes=row.sleep_duration_minutes,
+            sleep_score=row.sleep_score,
+            steps=row.steps,
+        )
+        for row in result.scalars().all()
+    ]
+
+    latest = samples[-1] if samples else None
+    return FitbitVitalsResponse(
+        latest_bpm=latest.bpm if latest else None,
+        latest_at=latest.at if latest else None,
+        today_heart_rate=samples,
+        daily=daily,
+    )
+
+
 class FitbitStatusResponse(BaseModel):
     connected: bool
     connected_at: Optional[datetime] = None

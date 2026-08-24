@@ -404,6 +404,24 @@ struct OutdoorRunView: View {
                                 .foregroundColor(.secondary)
                         }
                         .frame(maxWidth: .infinity)
+
+                        // Live heart rate (BLE broadcast from the watch)
+                        if viewModel.heartRate > 0 {
+                            VStack(spacing: 2) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(viewModel.heartRateZone.color)
+                                    Text("\(viewModel.heartRate)")
+                                        .font(.barlowCondensed(size: 40, weight: .medium))
+                                        .foregroundColor(.primary)
+                                }
+                                Text(viewModel.heartRateZone.displayText)
+                                    .font(.inter(size: 12, weight: .medium))
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                        }
                     }
                     .padding(.horizontal, 24)
 

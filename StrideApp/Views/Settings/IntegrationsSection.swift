@@ -52,11 +52,24 @@ struct IntegrationsSection: View {
             }
 
             // ── Fitbit (Google Health API) ─────────────────────────────
-            HStack {
-                Label("Fitbit", systemImage: "heart.circle")
-                    .foregroundStyle(Color.primary, Color.stridePrimary)
-                Spacer()
-                fitbitStatusIndicator
+            if fitbitViewModel.isConnected {
+                NavigationLink {
+                    FitbitDashboardView()
+                } label: {
+                    HStack {
+                        Label("Fitbit", systemImage: "heart.circle")
+                            .foregroundStyle(Color.primary, Color.stridePrimary)
+                        Spacer()
+                        fitbitStatusIndicator
+                    }
+                }
+            } else {
+                HStack {
+                    Label("Fitbit", systemImage: "heart.circle")
+                        .foregroundStyle(Color.primary, Color.stridePrimary)
+                    Spacer()
+                    fitbitStatusIndicator
+                }
             }
 
             if fitbitViewModel.isConnected {

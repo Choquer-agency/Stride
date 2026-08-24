@@ -30,6 +30,11 @@ struct RunResult {
     let elevationGainMeters: Double?
     let elevationLossMeters: Double?
 
+    // Heart rate (BLE broadcast or FTMS; nil when no monitor was connected)
+    let avgHeartRate: Int?
+    let maxHeartRate: Int?
+    let hrSamplesJSON: String?
+
     // Pause tracking
     let totalPauseDurationSeconds: Double
     let completedPauseDurations: [Double]
@@ -82,6 +87,27 @@ struct RunResult {
             return "\(Int(distanceKm))"
         }
         return String(format: "%.2f", distanceKm)
+    }
+}
+
+/// Codable heart-rate sample persisted to RunLog.hrSamplesJSON — `t` is
+/// seconds of elapsed run time, matching the server's hr_samples_json shape.
+struct CodableHRSample: Codable {
+    let t: TimeInterval
+    let bpm: Int
+}
+
+extension HeartRateZone {
+    /// Map a BPM to a training zone. Uses the same ~187 max-HR assumption as
+    /// HeartRateZones.band(for:) until per-athlete max HR lands.
+    static func zone(forBPM bpm: Int) -> HeartRateZone {
+        switch bpm {
+        case ..<113: return .zone1        // < 60%
+        case 113..<131: return .zone2     // 60–70%
+        case 131..<149: return .zone3     // 70–80%
+        case 149..<168: return .zone4     // 80–90%
+        default: return .zone5            // 90%+
+        }
     }
 }
 
@@ -155,8 +181,9 @@ class RunViewModel: ObservableObject {
     @Published var distance: Double = 0.0                 // km (validated, never regresses)
     @Published var currentPace: String = "--:--"          // M:SS /km (smoothed)
     @Published var paceDrift: String = "--"               // "+X.Xs" or "-X.Xs"
-    @Published var heartRate: Int = 0                     // placeholder until Garmin phase
-    @Published var heartRateZone: HeartRateZone = .zone2  // placeholder until Garmin phase
+    @Published var heartRate: Int = 0                     // live BPM (BLE broadcast or FTMS), 0 = no signal
+    @Published var heartRateZone: HeartRateZone = .zone2
+    @Published var hrSourceConnected: Bool = false        // true while a BLE HR broadcaster is attached
     @Published var kilometerSplits: [KilometerSplit] = []
     @Published var paceGraphDataPoints: [Double] = []     // normalized 0-1 for PaceGraphView
     @Published var paceGraphPaces: [Double] = []          // raw sec/km window for the target-band graph
@@ -216,6 +243,10 @@ class RunViewModel: ObservableObject {
     // MARK: - Internal State
     private var dataProvider: RunDataProvider?
 
+    // Heart-rate capture (BLE broadcast subscription + per-run sample log)
+    private var hrCancellables = Set<AnyCancellable>()
+    private var hrSamples: [(t: TimeInterval, bpm: Int)] = []
+
     /// Whether a data provider is already attached (guards double-attach on re-appear).
     var hasActiveProvider: Bool { dataProvider != nil }
     private let paceSmoother = PaceSmoother()
@@ -274,6 +305,7 @@ class RunViewModel: ObservableObject {
     /// Call this once to wire up a data provider (Bluetooth or GPS).
     func attach(provider: RunDataProvider) {
         self.dataProvider = provider
+        startHeartRateCapture()
 
         // Wire auto-pause for GPS outdoor runs
         if provider.dataSourceType == "gps" {
@@ -303,6 +335,55 @@ class RunViewModel: ObservableObject {
         // GPS runs need an independent display timer (GPS updates only come when you move)
         if provider.dataSourceType == "gps" {
             startDisplayTimer()
+        }
+    }
+
+    // MARK: - Heart Rate Capture
+
+    /// Start the BLE heart-rate scanner and subscribe to its readings.
+    /// Fitbit/Pixel watches broadcast during exercises when "Broadcast heart
+    /// rate" is on; chest straps broadcast always. FTMS console HR (treadmill)
+    /// flows in via handleRunSample as a fallback.
+    private func startHeartRateCapture() {
+        hrSamples = []
+        // HeartRateManager is @MainActor; RunViewModel is not — hop over.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let manager = HeartRateManager.shared
+            manager.startScanning()
+
+            manager.$currentBPM
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] bpm in
+                    guard let self, let bpm, bpm > 0 else { return }
+                    self.recordHeartRate(bpm)
+                }
+                .store(in: &self.hrCancellables)
+
+            manager.$isConnected
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] connected in
+                    self?.hrSourceConnected = connected
+                }
+                .store(in: &self.hrCancellables)
+        }
+    }
+
+    /// Update live UI state and append to the run's HR log (~1Hz cap).
+    private func recordHeartRate(_ bpm: Int) {
+        heartRate = bpm
+        heartRateZone = HeartRateZone.zone(forBPM: bpm)
+        guard !isPaused else { return }
+        // Cap logging at one sample per second of elapsed run time
+        if let last = hrSamples.last, elapsedTime - last.t < 1.0 { return }
+        hrSamples.append((t: elapsedTime, bpm: bpm))
+    }
+
+    private func stopHeartRateCapture() {
+        hrCancellables.removeAll()
+        hrSourceConnected = false
+        Task { @MainActor in
+            HeartRateManager.shared.stopAndDisconnect()
         }
     }
 
@@ -374,6 +455,16 @@ class RunViewModel: ObservableObject {
             elevLoss = nil
         }
 
+        // Heart rate summary from the per-run sample log
+        let avgHR: Int? = hrSamples.isEmpty ? nil : hrSamples.map(\.bpm).reduce(0, +) / hrSamples.count
+        let maxHR: Int? = hrSamples.map(\.bpm).max()
+        let hrJSON: String? = {
+            guard !hrSamples.isEmpty else { return nil }
+            let codable = hrSamples.map { CodableHRSample(t: $0.t, bpm: $0.bpm) }
+            guard let data = try? JSONEncoder().encode(codable) else { return nil }
+            return String(data: data, encoding: .utf8)
+        }()
+
         return RunResult(
             distanceKm: distance,
             durationSeconds: elapsedTime,
@@ -390,6 +481,9 @@ class RunViewModel: ObservableObject {
             routeJSON: routeJSON,
             elevationGainMeters: elevGain,
             elevationLossMeters: elevLoss,
+            avgHeartRate: avgHR,
+            maxHeartRate: maxHR,
+            hrSamplesJSON: hrJSON,
             totalPauseDurationSeconds: displayTimerPausedDuration,
             completedPauseDurations: completedPauseDurations
         )
@@ -406,6 +500,9 @@ class RunViewModel: ObservableObject {
         currentPace = "--:--"
         paceDrift = "--"
         heartRate = 0
+        heartRateZone = .zone2
+        stopHeartRateCapture()
+        hrSamples = []
         kilometerSplits = []
         paceGraphDataPoints = []
         paceGraphPaces = []
@@ -470,6 +567,7 @@ class RunViewModel: ObservableObject {
     /// Call this after buildRunResult() so the summary screen still has data.
     func stopRun() {
         dataProvider?.stop()
+        stopHeartRateCapture()
         displayTimer?.invalidate()
         displayTimer = nil
         voiceCoach.reset()
@@ -571,6 +669,13 @@ class RunViewModel: ObservableObject {
 
         // 3b. Auto-pause detection runs off GPSRunDataProvider.onSpeedTick so it
         // keeps receiving samples while paused. Nothing to do here.
+
+        // 3c. Heart rate from the provider (FTMS consoles report it). The BLE
+        // broadcast path takes priority — only use console HR when no
+        // broadcaster is attached, so we don't interleave two sources.
+        if let bpm = sample.heartRate, bpm > 0, !hrSourceConnected {
+            recordHeartRate(bpm)
+        }
 
         // 4. Pace — smooth raw speed, then format
         if let rawSpeedMps = sample.speedMps, rawSpeedMps > 0 {

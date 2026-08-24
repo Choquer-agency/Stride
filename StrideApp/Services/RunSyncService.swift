@@ -68,7 +68,10 @@ class RunSyncService {
                         weekNumber: run.weekNumber,
                         dataSource: run.dataSource,
                         treadmillBrand: run.treadmillBrand,
-                        shoeId: run.shoeId?.uuidString
+                        shoeId: run.shoeId?.uuidString,
+                        avgHeartRate: run.avgHeartRate,
+                        maxHeartRate: run.maxHeartRate,
+                        hrSamplesJson: run.hrSamplesJSON
                     )
                 }
 

@@ -41,6 +41,11 @@ class RunSyncPayload(BaseModel):
     plan_name: Optional[str] = None
     week_number: Optional[int] = None
 
+    # Heart rate (live BLE/FTMS capture)
+    avg_heart_rate: Optional[int] = None
+    max_heart_rate: Optional[int] = None
+    hr_samples_json: Optional[str] = None
+
     # Verification
     data_source: str = "manual"  # "bluetooth_ftms" | "manual"
     treadmill_brand: Optional[str] = None

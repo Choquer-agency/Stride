@@ -248,6 +248,7 @@
 		4F72C06F4393B7BC4B1CD89F /* BeginnerScheduleStepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4693F17E485C5E0E9E3B2E69 /* BeginnerScheduleStepView.swift */; };
 		5043F39D92A7E58637CAC9F2 /* ProgressIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = E05839BE194623D5E51B51F0 /* ProgressIndicator.swift */; };
 		50563F2392841F4C062FADC3 /* num_33.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3BD953D026A22899E2323F74 /* num_33.mp3 */; };
+		5075770426A360A33366C2B2 /* HeartRateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E66B52087F1AE1658E4F9CC9 /* HeartRateManager.swift */; };
 		508A4470616243E97ACF7197 /* mile_96.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 722CBA7236E4D2E7BFB28F88 /* mile_96.mp3 */; };
 		513F71C87D52789E2764AAE0 /* HeartRateZones.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CB753D4010D79E36C0A3BDF /* HeartRateZones.swift */; };
 		516BF7FA4B31CFF37A6143E7 /* encourage_consistent.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4F5D07535641136AA8F7F6F4 /* encourage_consistent.mp3 */; };
@@ -475,6 +476,7 @@
 		9E22414D7AEFC96B76DB4103 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 034FAAB960EF8EA212E1E74D /* Assets.xcassets */; };
 		9E2B9364EF2B996D8E680EED /* StrengthSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84812E0B3E70AF75BCAA702E /* StrengthSet.swift */; };
 		9EA661162862ACE85D593863 /* target_time_today.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5E61F14FAEC5F619F00B5A4E /* target_time_today.mp3 */; };
+		9ECCE18BE512A5A31FBF21C3 /* HeartRateGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C088B1498EFB111789608502 /* HeartRateGraphView.swift */; };
 		9F2288716E04A7C6647AE7EC /* female_bird_dog_2.png in Resources */ = {isa = PBXBuildFile; fileRef = B7EC3C4D4035265BEC6E7161 /* female_bird_dog_2.png */; };
 		9F260D2D0F5B133ECFF4ACBB /* side_plank_abduction_1.png in Resources */ = {isa = PBXBuildFile; fileRef = BA1833C3FA03F8B0C86BF715 /* side_plank_abduction_1.png */; };
 		9F9E59F89E7D7C1BDD6E2ADC /* longest_run.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7877BF6AEDB1811AB6790604 /* longest_run.mp3 */; };
@@ -613,6 +615,7 @@
 		CDC8663A2F25D5CBD2361500 /* num_7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C74F6C72F34099FFA7274AC1 /* num_7.mp3 */; };
 		CDC8E667389F1E36BDB88AFC /* VoiceCoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374E18297DEF111FB499E384 /* VoiceCoachService.swift */; };
 		CE4B62767F01E19B7AE21B1D /* robot_pull_ups_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 63506CB3D330870FA285F30E /* robot_pull_ups_2.png */; };
+		CEACE35EA92B4BCAD17E42A2 /* FitbitDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C392A1BCF8B0A2482F0A0EDB /* FitbitDashboardView.swift */; };
 		CF74C36B94D2D9523AE3A389 /* robot_dead_bug_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 9898D3531C541116D067D7AB /* robot_dead_bug_2.png */; };
 		D0625601AF045F765059D5C5 /* km_35.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 749F229A58B12D30B47307B4 /* km_35.mp3 */; };
 		D0DDAC56BFB54524143C5EA3 /* hip_flexor_stretch_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */; };
@@ -1281,6 +1284,7 @@
 		C01D16030538794D53E419AC /* BeginnerPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeginnerPresets.swift; sourceTree = "<group>"; };
 		C01FF05B50F31A139D013CB8 /* SyncModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncModels.swift; sourceTree = "<group>"; };
 		C0595175E17B53AF45B2E117 /* StrengthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthSession.swift; sourceTree = "<group>"; };
+		C088B1498EFB111789608502 /* HeartRateGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateGraphView.swift; sourceTree = "<group>"; };
 		C1229CD8FB869044E1F0FC3B /* landmine_press_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = landmine_press_2.png; sourceTree = "<group>"; };
 		C166510A558E917616B553BF /* female_side_plank_abduction_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_side_plank_abduction_1.png; sourceTree = "<group>"; };
 		C185332FF06AEA3241BDAB30 /* km_3.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_3.mp3; sourceTree = "<group>"; };
@@ -1288,6 +1292,7 @@
 		C1E4810343AEBCA6AF5FD2BF /* encourage_negative_split.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = encourage_negative_split.mp3; sourceTree = "<group>"; };
 		C1F0CB346B88FBC0A97F110E /* encourage_halfway.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = encourage_halfway.mp3; sourceTree = "<group>"; };
 		C319BCBB2D34ED9AE0444502 /* mile_46.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_46.mp3; sourceTree = "<group>"; };
+		C392A1BCF8B0A2482F0A0EDB /* FitbitDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitbitDashboardView.swift; sourceTree = "<group>"; };
 		C3A74A8D7C650051493989ED /* female_single_leg_glute_bridge_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_single_leg_glute_bridge_2.png; sourceTree = "<group>"; };
 		C3FF22135B7559683C3C518A /* StrideIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrideIcons.swift; sourceTree = "<group>"; };
 		C565B695627C8DAB71312497 /* APIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIService.swift; sourceTree = "<group>"; };
@@ -1381,6 +1386,7 @@
 		E51BA7A68DA682181845EC5C /* BarlowCondensed-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BarlowCondensed-Bold.ttf"; sourceTree = "<group>"; };
 		E63713D982D9E42004420887 /* hour.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = hour.mp3; sourceTree = "<group>"; };
 		E6666625BF457C83DCCBAC49 /* female_db_split_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_db_split_squat_1.png; sourceTree = "<group>"; };
+		E66B52087F1AE1658E4F9CC9 /* HeartRateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateManager.swift; sourceTree = "<group>"; };
 		E6BF77874B84A40302B16D37 /* mile_90.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_90.mp3; sourceTree = "<group>"; };
 		E6D8F71416488FAA655A5312 /* summary_intro.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = summary_intro.mp3; sourceTree = "<group>"; };
 		E6FB78280E5EBF7B0C77D5B3 /* type_progression.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = type_progression.mp3; sourceTree = "<group>"; };
@@ -1581,6 +1587,7 @@
 			isa = PBXGroup;
 			children = (
 				77C5B7DDD4096BF9741A48F6 /* ElevationProfileView.swift */,
+				C088B1498EFB111789608502 /* HeartRateGraphView.swift */,
 				6D0D6E6629B1A63D3A38D163 /* PaceBandGraphView.swift */,
 				8D86146F3B33D3FD0DF50DFC /* PaceGraphView.swift */,
 				793C7E71AE3B9E47C30EC7E3 /* PaceLaneIndicator.swift */,
@@ -2212,6 +2219,7 @@
 			children = (
 				D868388DC8E52DFD7EDED48A /* AddEditShoeView.swift */,
 				8B0E0B9BC3146701C64DFE78 /* ArchivedPlansView.swift */,
+				C392A1BCF8B0A2482F0A0EDB /* FitbitDashboardView.swift */,
 				96D16082297CA07A5B8871D1 /* IntegrationsSection.swift */,
 				9A2DE0138F37155C1405C5C1 /* SettingsView.swift */,
 				D589D00F9F2F10207BA35DEA /* ShoesView.swift */,
@@ -2252,6 +2260,7 @@
 				73DE919FA162FA57A48745F5 /* FTMSTreadmillDataParser.swift */,
 				19E47F643022231E3630DAEA /* GPSRunDataProvider.swift */,
 				F5371B11FAA1D16806E4E9A5 /* GymSessionModel.swift */,
+				E66B52087F1AE1658E4F9CC9 /* HeartRateManager.swift */,
 				E3B670DBC022D2C88882D9CF /* KeychainService.swift */,
 				84648E5719B4C7A00EB20B6C /* LocationManager.swift */,
 				AD92622443C74D7E5159BF01 /* MidRunCoachingService.swift */,
@@ -3048,6 +3057,7 @@
 				5BF88323DCD9FB1FE7F4B2F0 /* ExerciseLibraryView.swift in Sources */,
 				535FCAD742AE834E1503A837 /* Extensions.swift in Sources */,
 				83570F0931123E1643719A96 /* FTMSTreadmillDataParser.swift in Sources */,
+				CEACE35EA92B4BCAD17E42A2 /* FitbitDashboardView.swift in Sources */,
 				8041FDB160B3F9700CE43134 /* FitbitViewModel.swift in Sources */,
 				833AF38B38F76E0FB6F4A35F /* FitnessStepView.swift in Sources */,
 				85C6FF6FAB1204A0E52412EA /* GPSRunDataProvider.swift in Sources */,
@@ -3055,6 +3065,8 @@
 				41294782B7493218CDDA0585 /* GoalStepView.swift in Sources */,
 				9D3E3C05361B686198FD0EF2 /* GymSessionModel.swift in Sources */,
 				AEDBFB73419ED0A08E611721 /* GymWorkoutPlayerView.swift in Sources */,
+				9ECCE18BE512A5A31FBF21C3 /* HeartRateGraphView.swift in Sources */,
+				5075770426A360A33366C2B2 /* HeartRateManager.swift in Sources */,
 				513F71C87D52789E2764AAE0 /* HeartRateZones.swift in Sources */,
 				B096B07A71F0C6E24CA456C6 /* HistoryStepView.swift in Sources */,
 				13A3FF8616915FABF905CEEF /* HydrationLog.swift in Sources */,

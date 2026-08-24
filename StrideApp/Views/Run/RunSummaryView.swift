@@ -62,6 +62,16 @@ struct RunSummaryView: View {
                         }
                     }
 
+                    // Heart Rate profile (any run that captured HR)
+                    if let hrJSON = result.hrSamplesJSON {
+                        HeartRateGraphView(
+                            hrSamplesJSON: hrJSON,
+                            avgHeartRate: result.avgHeartRate,
+                            maxHeartRate: result.maxHeartRate
+                        )
+                        .padding(.bottom, 20)
+                    }
+
                     // Planned vs Actual (planned runs only)
                     if result.isPlannedRun {
                         plannedVsActualCard
@@ -699,6 +709,9 @@ struct RunSummaryView: View {
             routeJSON: nil,
             elevationGainMeters: nil,
             elevationLossMeters: nil,
+            avgHeartRate: 152,
+            maxHeartRate: 171,
+            hrSamplesJSON: nil,
             totalPauseDurationSeconds: 0,
             completedPauseDurations: []
         ),

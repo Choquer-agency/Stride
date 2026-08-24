@@ -157,6 +157,10 @@ async def startup():
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_disconnected_at TIMESTAMP WITH TIME ZONE"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_backfill_status VARCHAR(16) NOT NULL DEFAULT 'pending'"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_backfill_progress INTEGER NOT NULL DEFAULT 0"))
+        # Live in-run heart rate (BLE broadcast / FTMS)
+        await conn.execute(text("ALTER TABLE runs ADD COLUMN IF NOT EXISTS avg_heart_rate INTEGER"))
+        await conn.execute(text("ALTER TABLE runs ADD COLUMN IF NOT EXISTS max_heart_rate INTEGER"))
+        await conn.execute(text("ALTER TABLE runs ADD COLUMN IF NOT EXISTS hr_samples_json TEXT"))
         # Notification preferences
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS quiet_hours_start TIME"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS quiet_hours_end TIME"))

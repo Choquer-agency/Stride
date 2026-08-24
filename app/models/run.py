@@ -33,6 +33,11 @@ class Run(Base):
     plan_name = Column(String(255), nullable=True)
     week_number = Column(Integer, nullable=True)
 
+    # Heart rate (BLE broadcast or FTMS during the run)
+    avg_heart_rate = Column(Integer, nullable=True)
+    max_heart_rate = Column(Integer, nullable=True)
+    hr_samples_json = Column(Text, nullable=True)  # [{"t": secs, "bpm": n}, ...]
+
     # Run verification
     data_source = Column(String(20), nullable=False, default="manual")  # "bluetooth_ftms" | "manual"
     treadmill_brand = Column(String(100), nullable=True)
