@@ -81,6 +81,17 @@ class User(Base):
     garmin_disconnected_at = Column(DateTime(timezone=True), nullable=True)
     garmin_backfill_status = Column(String(16), nullable=False, default="pending")
     garmin_backfill_progress = Column(Integer, nullable=False, default=0)
+    # Fitbit via Google Health API — OAuth + connection state. Ingested data
+    # lands in the same garmin_* metric tables so the coaching stack reads it
+    # with zero changes.
+    fitbit_access_token = Column(Text, nullable=True)
+    fitbit_refresh_token = Column(Text, nullable=True)
+    fitbit_token_expires_at = Column(DateTime(timezone=True), nullable=True)
+    fitbit_health_user_id = Column(String(64), nullable=True, index=True)
+    fitbit_connected_at = Column(DateTime(timezone=True), nullable=True)
+    fitbit_disconnected_at = Column(DateTime(timezone=True), nullable=True)
+    fitbit_backfill_status = Column(String(16), nullable=False, default="pending")
+    fitbit_backfill_progress = Column(Integer, nullable=False, default=0)
     # Notification preferences
     quiet_hours_start = Column(Time, nullable=True)
     quiet_hours_end = Column(Time, nullable=True)

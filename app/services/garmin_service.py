@@ -292,7 +292,7 @@ def normalize_periodic_metric_payload(payload: dict, user_id: UUID) -> dict:
 
 # ── Ingest entry points (called by webhook handlers + simulator) ───────────
 
-async def ingest_workout(db: AsyncSession, user: User, payload: dict) -> tuple[GarminWorkout, bool, Optional[Event]]:
+async def ingest_workout(db: AsyncSession, user: User, payload: dict, source: str = "garmin") -> tuple[GarminWorkout, bool, Optional[Event]]:
     """
     Ingest a single Garmin activity push.
     Returns (garmin_workout, is_new, race_event_or_none).
@@ -326,7 +326,7 @@ async def ingest_workout(db: AsyncSession, user: User, payload: dict) -> tuple[G
 
     # Mirror running activities into the canonical Run table
     if row.activity_type == ACTIVITY_BUCKET_RUNNING:
-        await _upsert_run_from_garmin(db, user, row)
+        await _upsert_run_from_garmin(db, user, row, source=source)
 
     await db.flush()
     logger.info(
@@ -370,7 +370,7 @@ async def ingest_periodic_metric(db: AsyncSession, user: User, payload: dict) ->
 
 # ── Run mirroring ──────────────────────────────────────────────────────────
 
-async def _upsert_run_from_garmin(db: AsyncSession, user: User, garmin_workout: GarminWorkout) -> Run:
+async def _upsert_run_from_garmin(db: AsyncSession, user: User, garmin_workout: GarminWorkout, source: str = "garmin") -> Run:
     """
     Mirror a Garmin running activity into the canonical Run table.
     Run.id is generated deterministically from garmin_activity_id so re-pushes
@@ -404,7 +404,7 @@ async def _upsert_run_from_garmin(db: AsyncSession, user: User, garmin_workout: 
         duration_seconds=garmin_workout.duration_seconds,
         avg_pace_sec_per_km=garmin_workout.avg_pace_sec_per_km or 0,
         km_splits_json=km_splits_json,
-        data_source="garmin",
+        data_source=source,
         is_leaderboard_eligible=False,
     )
     db.add(run)

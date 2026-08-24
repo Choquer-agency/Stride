@@ -1145,6 +1145,55 @@ class APIService: ObservableObject {
         }
     }
 
+    // MARK: - Fitbit (Google Health API)
+
+    /// Build the URL the user opens to start the Fitbit (Google Health) OAuth flow.
+    /// Same token-in-query shim as Garmin — SFSafariView can't carry auth headers.
+    func fitbitConnectURL() -> URL? {
+        guard let token = AuthService.shared.currentToken else { return nil }
+        var components = URLComponents(string: "\(baseURL)/api/fitbit/connect")
+        components?.queryItems = [URLQueryItem(name: "token", value: token)]
+        return components?.url
+    }
+
+    func fitbitStatus() async throws -> FitbitStatusDTO {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/fitbit/status")!)
+        addAuthHeader(to: &request)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(FitbitStatusDTO.self, from: data)
+    }
+
+    func fitbitRefresh() async throws {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/fitbit/refresh")!)
+        request.httpMethod = "POST"
+        addAuthHeader(to: &request)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+    }
+
+    func fitbitDisconnect() async throws {
+        var request = URLRequest(url: URL(string: "\(baseURL)/api/fitbit/disconnect")!)
+        request.httpMethod = "POST"
+        addAuthHeader(to: &request)
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        checkForUnauthorized(response)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw APIServiceError.invalidResponse
+        }
+    }
+
     // MARK: - v2 Phase 2: Weekly Review
 
     /// Manually trigger a weekly review (admin/debug). Returns the new event_id, or
@@ -2462,6 +2511,24 @@ struct RaceFuelingPlanDTO: Codable {
 // MARK: - v2 Phase 1 Garmin DTOs
 
 struct GarminStatusDTO: Codable {
+    let connected: Bool
+    let connectedAt: Date?
+    let disconnectedAt: Date?
+    let backfillStatus: String?
+    let backfillProgress: Int
+
+    enum CodingKeys: String, CodingKey {
+        case connected
+        case connectedAt = "connected_at"
+        case disconnectedAt = "disconnected_at"
+        case backfillStatus = "backfill_status"
+        case backfillProgress = "backfill_progress"
+    }
+}
+
+/// Same shape as GarminStatusDTO — separate type so the two integrations can
+/// evolve independently.
+struct FitbitStatusDTO: Codable {
     let connected: Bool
     let connectedAt: Date?
     let disconnectedAt: Date?

@@ -64,6 +64,7 @@ enum DeepLink: Equatable {
     case racePrepChecklist(eventId: String)
     case racePrepReview(eventId: String)
     case garminConnected
+    case fitbitConnected
     case unknown(host: String, path: String)
 
     init?(url: URL) {
@@ -128,6 +129,12 @@ enum DeepLink: Equatable {
         case "garmin":
             if segments == ["connected"] {
                 self = .garminConnected
+            } else {
+                self = .unknown(host: host, path: segments.joined(separator: "/"))
+            }
+        case "fitbit":
+            if segments == ["connected"] {
+                self = .fitbitConnected
             } else {
                 self = .unknown(host: host, path: segments.joined(separator: "/"))
             }

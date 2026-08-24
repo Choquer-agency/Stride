@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     garmin_webhook_secret: str = ""
     garmin_redirect_uri: str = "http://localhost:8000/api/garmin/callback"
 
+    # Google Health API — Fitbit devices (GCP project stride-506514)
+    google_health_client_id: str = ""
+    google_health_client_secret: str = ""
+    google_health_redirect_uri: str = "http://localhost:8000/api/fitbit/callback"
+    # Shared secret we set on the Health API subscription; webhook pushes must echo it.
+    google_health_webhook_token: str = ""
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -15,6 +15,7 @@ from app.routes.shoes import router as shoes_router
 from app.routes.devices import router as devices_router
 from app.routes.coaching import router as coaching_router
 from app.routes.garmin import router as garmin_router
+from app.routes.fitbit import router as fitbit_router
 from app.routes.wellness import router as wellness_router
 from app.routes.nutrition import router as nutrition_router, hydration_router
 from app.routes.race_prep import router as race_prep_router
@@ -58,6 +59,7 @@ from app.services.challenge_service import auto_generate_weekly_challenges, auto
 from app.scheduler import start_scheduler, shutdown_scheduler
 from app.services.adjustment_jobs import register_jobs as register_adjustment_jobs
 from app.services.garmin_jobs import register_jobs as register_garmin_jobs
+from app.services.fitbit_jobs import register_jobs as register_fitbit_jobs
 from app.services.weekly_review_jobs import register_jobs as register_weekly_review_jobs
 from app.services.wellness_jobs import register_jobs as register_wellness_jobs
 from app.services.nutrition_jobs import register_jobs as register_nutrition_jobs
@@ -105,6 +107,7 @@ app.include_router(shoes_router)
 app.include_router(devices_router)
 app.include_router(coaching_router)
 app.include_router(garmin_router)
+app.include_router(fitbit_router)
 app.include_router(wellness_router)
 app.include_router(nutrition_router)
 app.include_router(hydration_router)
@@ -145,6 +148,15 @@ async def startup():
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS garmin_disconnected_at TIMESTAMP WITH TIME ZONE"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS garmin_backfill_status VARCHAR(16) NOT NULL DEFAULT 'pending'"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS garmin_backfill_progress INTEGER NOT NULL DEFAULT 0"))
+        # Fitbit via Google Health API — OAuth + connection state
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_access_token TEXT"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_refresh_token TEXT"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_token_expires_at TIMESTAMP WITH TIME ZONE"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_health_user_id VARCHAR(64)"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_connected_at TIMESTAMP WITH TIME ZONE"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_disconnected_at TIMESTAMP WITH TIME ZONE"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_backfill_status VARCHAR(16) NOT NULL DEFAULT 'pending'"))
+        await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_backfill_progress INTEGER NOT NULL DEFAULT 0"))
         # Notification preferences
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS quiet_hours_start TIME"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS quiet_hours_end TIME"))
@@ -178,6 +190,7 @@ async def startup():
 
     # Register all v2 cron jobs before starting the scheduler.
     register_garmin_jobs()
+    register_fitbit_jobs()
     register_weekly_review_jobs()
     register_adjustment_jobs()
     register_wellness_jobs()
