@@ -21,8 +21,11 @@ struct RunView: View {
 
                         // Treadmill data-flow status — surfaces "connected but
                         // silent" instead of letting a run record zeros for 40 min
-                        TreadmillDataStatusBanner(bluetoothManager: bluetoothManager)
-                            .padding(.bottom, 10)
+                        // (suppressed in --runview-demo screenshots)
+                        if !ProcessInfo.processInfo.arguments.contains("--runview-demo") {
+                            TreadmillDataStatusBanner(bluetoothManager: bluetoothManager)
+                                .padding(.bottom, 10)
+                        }
 
                         // Distance hero — the number he's chasing
                         distanceHero

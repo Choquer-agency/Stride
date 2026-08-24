@@ -6,6 +6,11 @@ struct ContentView: View {
 
     var body: some View {
         Group {
+            // UI-iteration hook: --runview-demo skips auth straight into the
+            // tab UI (RunTabContainer seeds the demo run). Simulator only.
+            if ProcessInfo.processInfo.arguments.contains("--runview-demo") {
+                MainTabView()
+            } else {
             switch authService.authState {
             case .unknown:
                 // Brief splash while we check the keychain + validate the cached user.
@@ -16,6 +21,7 @@ struct ContentView: View {
                 ProfileSetupView(user: user)
             case .signedIn:
                 MainTabView()
+            }
             }
         }
         .task {
