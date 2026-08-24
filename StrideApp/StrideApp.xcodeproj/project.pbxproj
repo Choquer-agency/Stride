@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 63;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -540,6 +540,7 @@
 		B7E84880C80BE67F28381EC8 /* countdown_2.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9A341E5029809577CDDA5DE6 /* countdown_2.mp3 */; };
 		B820515583D12D9481922D88 /* single_leg_balance_reach_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 0011DE6A3E4A0221F391BF10 /* single_leg_balance_reach_2.png */; };
 		B862E4A401A126A052956EA1 /* mile_43.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1FFC39ADA2C25DEA95731F6B /* mile_43.mp3 */; };
+		B9473B1F0518B3A323ECCC19 /* PaceBandGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D0D6E6629B1A63D3A38D163 /* PaceBandGraphView.swift */; };
 		B97F64FFD7B704D950CC9926 /* RouteAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = E4DD658178C3DE59E7619821 /* RouteAnalyzer.swift */; };
 		B9B3860C58A07954FC488CCF /* TeamDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B3D6605E0EB286AE3CB341D /* TeamDetailView.swift */; };
 		B9DA6DE05D6198CCB5C8E566 /* weeks_to_race.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7CCF2C6ECCF6B18A1D42B78D /* weeks_to_race.mp3 */; };
@@ -1035,8 +1036,9 @@
 		6C05C2774981D46A6D9320FC /* pace_on_target.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = pace_on_target.mp3; sourceTree = "<group>"; };
 		6C80CD798B1EF9E5F2C5AB4F /* ScheduleStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleStepView.swift; sourceTree = "<group>"; };
 		6CAC513E6E38195C92957427 /* RaceLogisticsChecklist.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceLogisticsChecklist.swift; sourceTree = "<group>"; };
-		6CD7CC89563B45008C986776 /* StrideApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StrideApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CD7CC89563B45008C986776 /* StrideApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = StrideApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CFAF9F1AE6E529B9AAAA0DE /* num_44.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_44.mp3; sourceTree = "<group>"; };
+		6D0D6E6629B1A63D3A38D163 /* PaceBandGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaceBandGraphView.swift; sourceTree = "<group>"; };
 		6E9644DD668253D121C871B0 /* km_11.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_11.mp3; sourceTree = "<group>"; };
 		6E96A89F2B83176041D96748 /* run_ended.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = run_ended.mp3; sourceTree = "<group>"; };
 		6ECF895E8AF1DFC6D149BD27 /* kilometers.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = kilometers.mp3; sourceTree = "<group>"; };
@@ -1577,6 +1579,7 @@
 			isa = PBXGroup;
 			children = (
 				77C5B7DDD4096BF9741A48F6 /* ElevationProfileView.swift */,
+				6D0D6E6629B1A63D3A38D163 /* PaceBandGraphView.swift */,
 				8D86146F3B33D3FD0DF50DFC /* PaceGraphView.swift */,
 				793C7E71AE3B9E47C30EC7E3 /* PaceLaneIndicator.swift */,
 				F51C04366B55BBA16DFEC68E /* RouteMapView.swift */,
@@ -2445,6 +2448,7 @@
 				32F67DA20269339903E07B04 /* XCRemoteSwiftPackageReference "mapbox-maps-ios" */,
 				AC54FF4B207C9AA8045E9910 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
+			preferredProjectObjectVersion = 77;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -3070,6 +3074,7 @@
 				57D906893C7FCE7B36B0E988 /* OnboardingContainerView.swift in Sources */,
 				43BB06A2B540E6E56D71D9C9 /* OnboardingViewModel.swift in Sources */,
 				91972A5DEE981452F5D9B879 /* OutdoorRunView.swift in Sources */,
+				B9473B1F0518B3A323ECCC19 /* PaceBandGraphView.swift in Sources */,
 				0937548E0DD66D06C8FD8647 /* PaceGraphView.swift in Sources */,
 				36104B935A881F6B4F999CBD /* PaceLaneIndicator.swift in Sources */,
 				CD36443E14A94884ECABAB98 /* PaceSmoother.swift in Sources */,
@@ -3201,7 +3206,6 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Stride;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -3347,7 +3351,6 @@
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Stride;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

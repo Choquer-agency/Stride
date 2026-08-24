@@ -14,17 +14,21 @@ struct RunView: View {
                 VStack(spacing: 0) {
                     // Container with 80% width, centered (10% padding on each side)
                     VStack(spacing: 0) {
-                        // Header Row
+                        // Header: time + flag only
                         headerRow
-                            .padding(.top, 30)
-                            .padding(.bottom, 8)
+                            .padding(.top, 24)
+                            .padding(.bottom, 10)
 
                         // Treadmill data-flow status — surfaces "connected but
                         // silent" instead of letting a run record zeros for 40 min
                         TreadmillDataStatusBanner(bluetoothManager: bluetoothManager)
-                            .padding(.bottom, 16)
+                            .padding(.bottom, 10)
 
-                        // Lane Guidance Pace Indicator
+                        // Distance hero — the number he's chasing
+                        distanceHero
+                            .padding(.bottom, 14)
+
+                        // Pace: target row + big number
                         PaceLaneIndicator(
                             currentPace: viewModel.currentPace,
                             paceZone: viewModel.paceZone,
@@ -32,18 +36,24 @@ struct RunView: View {
                             targetPaceMax: viewModel.targetPaceMaxSec,
                             isPlannedRun: viewModel.isPlannedRun
                         )
-                        .padding(.bottom, 24)
-                        
-                        // Pace Graph
-                        PaceGraphView(dataPoints: viewModel.paceGraphDataPoints)
-                            .padding(.bottom, 24)
-                        
-                        // Metrics Row
-                        metricsRow
-                            .padding(.bottom, 32)
-                        
-                        // Kilometer Splits Table
+
+                        // Heart rate: live bpm when available, else target band
+                        heartRateLine
+                            .padding(.bottom, 14)
+
+                        // Pace trace through the target corridor
+                        PaceBandGraphView(
+                            paces: viewModel.paceGraphPaces,
+                            targetMinSec: viewModel.targetPaceMinSec,
+                            targetMaxSec: viewModel.targetPaceMaxSec
+                        )
+                        .padding(.bottom, 28)
+
+                        // ── Below the fold ──
                         kilometerSplitsTable
+                            .padding(.bottom, 24)
+
+                        metricsRow
                             .padding(.bottom, 120) // Extra space for Pause/End buttons
                     }
                     .frame(maxWidth: .infinity)
@@ -136,17 +146,19 @@ struct RunView: View {
     
     // MARK: - Header Row
     private var headerRow: some View {
-        HStack {
+        HStack(alignment: .center) {
             // Timer (Left)
-            VStack(alignment: .center, spacing: 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 if viewModel.isTimeBasedWorkout, let remaining = viewModel.remainingTimeSeconds {
                     Text(formatTime(remaining))
-                        .font(.barlowCondensed(size: 32, weight: .medium))
+                        .font(.barlowCondensed(size: 40, weight: .medium))
                         .foregroundColor(.primary)
+                        .monospacedDigit()
                 } else {
                     Text(formatTime(viewModel.elapsedTime))
-                        .font(.barlowCondensed(size: 32, weight: .medium))
+                        .font(.barlowCondensed(size: 40, weight: .medium))
                         .foregroundColor(.primary)
+                        .monospacedDigit()
                 }
 
                 Text("Time")
@@ -156,26 +168,60 @@ struct RunView: View {
 
             Spacer()
 
-            // Logo (Center)
-            StrideLogoView(height: 32)
+            // Flag mark only — no wordmark mid-run
+            FlagIconView(size: 34, color: .stridePrimary)
+        }
+    }
 
-            Spacer()
-
-            // Distance (Right)
-            VStack(alignment: .center, spacing: 4) {
-                // Target distance label (planned runs with distance only)
-                if viewModel.isPlannedRun, let target = viewModel.targetDistanceKm {
-                    Text("Target: \(formatTargetDistanceLabel(target))")
-                        .font(.inter(size: 12, weight: .semibold))
-                        .foregroundColor(.stridePrimary)
-                }
-
+    // MARK: - Distance Hero
+    private var distanceHero: some View {
+        VStack(spacing: 2) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(String(format: "%.2f", viewModel.distance))
-                    .font(.barlowCondensed(size: 32, weight: .medium))
+                    .font(.barlowCondensed(size: 72, weight: .medium))
                     .foregroundColor(.primary)
+                    .contentTransition(.numericText())
 
-                Text("Distance (km)")
-                    .font(.inter(size: 12, weight: .regular))
+                if viewModel.isPlannedRun, let target = viewModel.targetDistanceKm {
+                    Text("/ \(formatTargetDistanceLabel(target))")
+                        .font(.barlowCondensed(size: 34, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+            }
+            Text("Distance (km)")
+                .font(.inter(size: 12, weight: .regular))
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Heart Rate Line
+    @ViewBuilder
+    private var heartRateLine: some View {
+        let band = viewModel.plannedWorkoutType.flatMap { HeartRateZones.band(for: $0) }
+        if viewModel.heartRate > 0 {
+            HStack(spacing: 6) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 13))
+                    .foregroundColor(viewModel.heartRateZone.color)
+                Text("\(viewModel.heartRate) bpm")
+                    .font(.barlowCondensed(size: 20, weight: .medium))
+                Text("· \(viewModel.heartRateZone.displayText)")
+                    .font(.inter(size: 13, weight: .medium))
+                    .foregroundColor(viewModel.heartRateZone.color)
+                if let band {
+                    Text("· target \(band)")
+                        .font(.inter(size: 13, weight: .medium))
+                        .foregroundColor(.secondary)
+                }
+            }
+        } else if let band {
+            HStack(spacing: 6) {
+                Image(systemName: "heart.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(.secondary)
+                Text("Target HR \(band) bpm")
+                    .font(.inter(size: 14, weight: .medium))
                     .foregroundColor(.secondary)
             }
         }

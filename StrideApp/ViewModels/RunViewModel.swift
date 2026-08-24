@@ -159,6 +159,7 @@ class RunViewModel: ObservableObject {
     @Published var heartRateZone: HeartRateZone = .zone2  // placeholder until Garmin phase
     @Published var kilometerSplits: [KilometerSplit] = []
     @Published var paceGraphDataPoints: [Double] = []     // normalized 0-1 for PaceGraphView
+    @Published var paceGraphPaces: [Double] = []          // raw sec/km window for the target-band graph
     @Published var splitFeedback: SplitFeedback? = nil
 
     // MARK: - Planned Workout Target (optional, set when running a planned workout)
@@ -407,6 +408,7 @@ class RunViewModel: ObservableObject {
         heartRate = 0
         kilometerSplits = []
         paceGraphDataPoints = []
+        paceGraphPaces = []
         paceGraphSamples = []
         lastRecordedKm = 0
         lastKmElapsedTime = 0
@@ -1006,6 +1008,7 @@ class RunViewModel: ObservableObject {
         }
 
         let paces = paceGraphSamples.map { $0.pace }
+        paceGraphPaces = paces
 
         // Normalize: faster pace (lower sec/km) = higher on graph (closer to 1.0)
         guard let rawMin = paces.min(),
