@@ -145,31 +145,23 @@ struct RunView: View {
     
     // MARK: - Header Row
     private var headerRow: some View {
-        HStack(alignment: .center) {
-            // Timer (Left)
-            VStack(alignment: .leading, spacing: 2) {
-                if viewModel.isTimeBasedWorkout, let remaining = viewModel.remainingTimeSeconds {
-                    Text(formatTime(remaining))
-                        .font(.barlowCondensed(size: 40, weight: .medium))
-                        .foregroundColor(.primary)
-                        .monospacedDigit()
-                } else {
-                    Text(formatTime(viewModel.elapsedTime))
-                        .font(.barlowCondensed(size: 40, weight: .medium))
-                        .foregroundColor(.primary)
-                        .monospacedDigit()
-                }
-
-                Text("Time")
-                    .font(.inter(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-
+        VStack(spacing: 8) {
             // Flag mark only — no wordmark mid-run
             FlagIconView(size: 34, color: .stridePrimary)
+
+            if viewModel.isTimeBasedWorkout, let remaining = viewModel.remainingTimeSeconds {
+                Text(formatTime(remaining))
+                    .font(.barlowCondensed(size: 28, weight: .medium))
+                    .foregroundColor(.primary)
+                    .monospacedDigit()
+            } else {
+                Text(formatTime(viewModel.elapsedTime))
+                    .font(.barlowCondensed(size: 28, weight: .medium))
+                    .foregroundColor(.primary)
+                    .monospacedDigit()
+            }
         }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Pace Block (hero + verdict pill)
