@@ -4,7 +4,7 @@ import PostHog
 
 struct MainTabView: View {
     @State private var selectedTab: Tab =
-        ProcessInfo.processInfo.arguments.contains("--runview-demo") ? .run : .plan
+        ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }) ? .run : .plan
     @State private var hideTabBar: Bool = false
 
     // Coach deep links (push taps) presented as sheets over whatever tab is active.
@@ -263,7 +263,9 @@ struct RunTabContainer: View {
     /// UI-iteration hook: launch with --runview-demo to land straight on the
     /// treadmill run screen with realistic mid-run state. No effect otherwise.
     private func seedDemoRunIfRequested() {
-        guard ProcessInfo.processInfo.arguments.contains("--runview-demo"),
+        let args = ProcessInfo.processInfo.arguments
+        let wantsIntervals = args.contains("--runview-demo-intervals")
+        guard args.contains("--runview-demo") || wantsIntervals,
               case .lobby = runState else { return }
         viewModel.isPlannedRun = true
         viewModel.plannedWorkoutTitle = "Long Run"
@@ -286,6 +288,22 @@ struct RunTabContainer: View {
             KilometerSplit(kilometer: 4, pace: "6:23", time: "25:35", isFastest: false, diffFromFastest: 3),
             KilometerSplit(kilometer: 5, pace: "6:26", time: "32:01", isFastest: false, diffFromFastest: 6),
         ]
+        if wantsIntervals {
+            viewModel.plannedWorkoutTitle = "Fartlek"
+            viewModel.plannedWorkoutType = .fartlek
+            viewModel.targetDistanceKm = 8
+            viewModel.intervalSegments = IntervalWorkoutParser.parse(
+                """
+                Warm-up: 2.5 km at 6:00–6:30/km
+                Main set: 3 km of alternations — 10 × 1 min at roughly 4:45–5:00/km effort (RPE 7) with 1 min easy float between
+                Cool-down: 2.5 km at 6:00–6:30/km
+                """)
+            viewModel.intervalIndex = 5      // work rep 3 of 10
+            viewModel.intervalPhaseRemaining = 37
+            viewModel.currentPace = "4:52"
+            viewModel.distance = 3.61
+            viewModel.elapsedTime = 19 * 60 + 42
+        }
         isOutdoorMode = false
         runState = .active
         hideTabBar = true

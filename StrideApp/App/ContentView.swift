@@ -8,7 +8,7 @@ struct ContentView: View {
         Group {
             // UI-iteration hook: --runview-demo skips auth straight into the
             // tab UI (RunTabContainer seeds the demo run). Simulator only.
-            if ProcessInfo.processInfo.arguments.contains("--runview-demo") {
+            if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }) {
                 MainTabView()
             } else {
             switch authService.authState {

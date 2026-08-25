@@ -197,6 +197,29 @@ class RunViewModel: ObservableObject {
     @Published var targetDurationMinutes: Int?
     @Published var isPlannedRun: Bool = false
 
+    // MARK: - Interval Mode (structured fartleks/intervals auto-advance)
+    @Published var intervalSegments: [IntervalSegment] = []
+    @Published var intervalIndex: Int = 0
+    @Published var intervalPhaseRemaining: Double = 0          // timed phases
+    @Published var intervalPhaseDistanceDone: Double = 0       // distance phases
+    @Published var intervalComplete: Bool = false
+    private var segmentStartTime: TimeInterval = 0
+    private var segmentStartDistance: Double = 0
+    private var lastCountdownTick: Int = -1
+    private var basePaceMin: Double?
+    private var basePaceMax: Double?
+
+    var isIntervalWorkout: Bool { !intervalSegments.isEmpty }
+    var currentIntervalSegment: IntervalSegment? {
+        guard intervalIndex < intervalSegments.count else { return intervalSegments.last }
+        return intervalSegments[intervalIndex]
+    }
+    var nextIntervalSegment: IntervalSegment? {
+        let next = intervalIndex + 1
+        guard next < intervalSegments.count else { return nil }
+        return intervalSegments[next]
+    }
+
     // MARK: - Pace Zone & Progress (live target comparison)
     @Published var targetPaceMinSec: Double?     // faster boundary (lower sec/km)
     @Published var targetPaceMaxSec: Double?     // slower boundary (higher sec/km)
@@ -420,6 +443,14 @@ class RunViewModel: ObservableObject {
         targetPaceDescription = workout.paceDescription
         targetDurationMinutes = workout.durationMinutes
 
+        // Structured workout? Build the auto-advancing segment list.
+        intervalSegments = IntervalWorkoutParser.parse(workout.details)
+        intervalIndex = 0
+        intervalComplete = false
+        if let first = intervalSegments.first {
+            intervalPhaseRemaining = first.durationSec ?? 0
+        }
+
         // Parse pace range for lane guidance
         if let range = RunScoringService.parsePaceRange(workout.paceDescription) {
             if range.min == range.max {
@@ -431,8 +462,10 @@ class RunViewModel: ObservableObject {
                 targetPaceMaxSec = range.max
             }
         }
+        basePaceMin = targetPaceMinSec
+        basePaceMax = targetPaceMaxSec
     }
-    
+
     /// Snapshot the current run state into a RunResult for the summary screen.
     func buildRunResult() -> RunResult {
         let avgPace: Double = distance > 0 ? elapsedTime / distance : 0
@@ -507,6 +540,13 @@ class RunViewModel: ObservableObject {
         paceGraphDataPoints = []
         paceGraphPaces = []
         paceGraphSamples = []
+        intervalSegments = []
+        intervalIndex = 0
+        intervalPhaseRemaining = 0
+        intervalPhaseDistanceDone = 0
+        intervalComplete = false
+        segmentStartTime = 0
+        segmentStartDistance = 0
         lastRecordedKm = 0
         lastKmElapsedTime = 0
         lastKmDistance = 0
@@ -698,6 +738,9 @@ class RunViewModel: ObservableObject {
             currentPace = "--:--"
             paceDrift = "--"
         }
+
+        // 6b. Interval engine: auto-advance phases, no buttons
+        updateIntervalEngine()
 
         // 7. Kilometer Split Detection
         checkForKilometerSplit()
@@ -1099,6 +1142,53 @@ class RunViewModel: ObservableObject {
     }
 
     // MARK: - Pace Graph
+
+    // MARK: - Interval Engine
+
+    private func updateIntervalEngine() {
+        guard isIntervalWorkout, !intervalComplete,
+              intervalIndex < intervalSegments.count else { return }
+        let segment = intervalSegments[intervalIndex]
+
+        if let duration = segment.durationSec {
+            let inPhase = elapsedTime - segmentStartTime
+            intervalPhaseRemaining = max(0, duration - inPhase)
+            // 3-2-1 haptic ticks into the next phase
+            let whole = Int(ceil(intervalPhaseRemaining))
+            if whole <= 3, whole >= 1, whole != lastCountdownTick {
+                lastCountdownTick = whole
+                UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            }
+            if inPhase >= duration { advanceIntervalSegment() }
+        } else if let dist = segment.distanceKm {
+            intervalPhaseDistanceDone = max(0, distance - segmentStartDistance)
+            if intervalPhaseDistanceDone >= dist { advanceIntervalSegment() }
+        }
+    }
+
+    private func advanceIntervalSegment() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        lastCountdownTick = -1
+        segmentStartTime = elapsedTime
+        segmentStartDistance = distance
+        intervalPhaseDistanceDone = 0
+
+        if intervalIndex + 1 < intervalSegments.count {
+            intervalIndex += 1
+            let segment = intervalSegments[intervalIndex]
+            intervalPhaseRemaining = segment.durationSec ?? 0
+            // Keep the pace-zone machinery (and voice coach) aligned with the phase
+            if case .work = segment.kind, let bounds = segment.paceBounds {
+                targetPaceMinSec = bounds.min
+                targetPaceMaxSec = bounds.max
+            } else {
+                targetPaceMinSec = basePaceMin
+                targetPaceMaxSec = basePaceMax
+            }
+        } else {
+            intervalComplete = true
+        }
+    }
 
     private func appendPaceGraphSample(_ paceSecPerKm: Double, atDistanceMeters currentDistance: Double) {
         guard paceSecPerKm > 0 && paceSecPerKm < 3600 else { return }

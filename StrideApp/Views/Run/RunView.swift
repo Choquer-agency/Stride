@@ -8,8 +8,19 @@ struct RunView: View {
     @State private var showFinishConfirmation = false
     @State private var splitDismissOffset: CGFloat = 0
 
+    /// Red screen = push. White screen = breathe. No buttons mid-set.
+    private var isWorkPhase: Bool {
+        if case .work = viewModel.currentIntervalSegment?.kind { return true }
+        return false
+    }
+    private var intervalFg: Color { isWorkPhase ? .white : .primary }
+    private var intervalFgSoft: Color { isWorkPhase ? .white.opacity(0.8) : .secondary }
+
     var body: some View {
         ZStack(alignment: .bottom) {
+            if viewModel.isIntervalWorkout {
+                intervalContent
+            } else {
             ScrollView {
                 VStack(spacing: 0) {
                     // Container with 80% width, centered (10% padding on each side)
@@ -87,6 +98,7 @@ struct RunView: View {
             .onChange(of: viewModel.splitFeedback?.id) { _, _ in
                 splitDismissOffset = 0
             }
+            }
 
             // Sticky Pause / End Run Buttons
             VStack(spacing: 0) {
@@ -131,7 +143,12 @@ struct RunView: View {
                 )
             )
         }
-        .background(Color(.systemBackground))
+        .background(
+            (viewModel.isIntervalWorkout && isWorkPhase
+                ? Color.stridePrimary : Color(.systemBackground))
+            .ignoresSafeArea()
+        )
+        .animation(.easeInOut(duration: 0.35), value: isWorkPhase)
         .navigationBarTitleDisplayMode(.inline)
         .alert("End Run?", isPresented: $showFinishConfirmation) {
             Button("Cancel", role: .cancel) { }
@@ -143,6 +160,129 @@ struct RunView: View {
         }
     }
     
+    // MARK: - Interval Mode
+
+    private var intervalContent: some View {
+        VStack(spacing: 0) {
+            // Minimal header: flag + clock
+            VStack(spacing: 6) {
+                FlagIconView(size: 30, color: isWorkPhase ? .white : .stridePrimary)
+                Text(formatTime(viewModel.elapsedTime))
+                    .font(.barlowCondensed(size: 26, weight: .medium))
+                    .foregroundColor(intervalFgSoft)
+                    .monospacedDigit()
+            }
+            .padding(.top, 24)
+
+            Spacer()
+
+            if viewModel.intervalComplete {
+                VStack(spacing: 14) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 56))
+                        .foregroundColor(.green)
+                    Text("WORKOUT COMPLETE")
+                        .font(.inter(size: 22, weight: .bold))
+                        .kerning(1.5)
+                    Text("Ease off, then End Run when you're done")
+                        .font(.inter(size: 15))
+                        .foregroundColor(.secondary)
+                }
+            } else if let segment = viewModel.currentIntervalSegment {
+                VStack(spacing: 10) {
+                    // Phase label
+                    Text(segment.displayLabel)
+                        .font(.inter(size: 24, weight: .bold))
+                        .kerning(2.0)
+                        .foregroundColor(intervalFg)
+
+                    // Target pace for the phase
+                    if segment.paceText == "easy" {
+                        Text("easy jog")
+                            .font(.barlowCondensed(size: 60, weight: .medium))
+                            .foregroundColor(intervalFg)
+                    } else {
+                        VStack(spacing: 0) {
+                            Text(segment.paceText)
+                                .font(.barlowCondensed(size: 74, weight: .medium))
+                                .foregroundColor(intervalFg)
+                            Text("target /km")
+                                .font(.inter(size: 13))
+                                .foregroundColor(intervalFgSoft)
+                        }
+                    }
+
+                    // Countdown (timed) or distance progress (warm-up/cool-down)
+                    if segment.durationSec != nil {
+                        Text(formatCountdownShort(viewModel.intervalPhaseRemaining))
+                            .font(.barlowCondensed(size: 150, weight: .medium))
+                            .foregroundColor(intervalFg)
+                            .monospacedDigit()
+                            .scaleEffect(viewModel.intervalPhaseRemaining <= 3.5 ? 1.08 : 1.0)
+                            .animation(.easeInOut(duration: 0.25),
+                                       value: viewModel.intervalPhaseRemaining <= 3.5)
+                    } else if let target = segment.distanceKm {
+                        VStack(spacing: 10) {
+                            Text(String(format: "%.2f / %.1f km", viewModel.intervalPhaseDistanceDone, target))
+                                .font(.barlowCondensed(size: 64, weight: .medium))
+                                .foregroundColor(intervalFg)
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color(.systemGray5)).frame(height: 8)
+                                    Capsule().fill(Color.stridePrimary)
+                                        .frame(width: max(8, geo.size.width *
+                                            min(viewModel.intervalPhaseDistanceDone / max(target, 0.01), 1.0)),
+                                               height: 8)
+                                }
+                            }
+                            .frame(height: 8)
+                            .padding(.horizontal, 60)
+                        }
+                    }
+
+                    // Live pace, small
+                    Text("now \(viewModel.currentPace) /km")
+                        .font(.inter(size: 17, weight: .semibold))
+                        .foregroundColor(intervalFgSoft)
+                        .padding(.top, 2)
+                }
+            }
+
+            Spacer()
+
+            // What's coming — removes the "what's next?" anxiety
+            if !viewModel.intervalComplete, let next = viewModel.nextIntervalSegment {
+                Text("Next: \(nextLabel(next))")
+                    .font(.inter(size: 15, weight: .medium))
+                    .foregroundColor(intervalFgSoft)
+                    .padding(.bottom, 116)
+            } else {
+                Color.clear.frame(height: 116)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func nextLabel(_ segment: IntervalSegment) -> String {
+        switch segment.kind {
+        case .warmup: return "warm-up"
+        case .work(let rep, let of):
+            let dur = segment.durationSec.map { formatCountdownShort($0) } ?? ""
+            return "rep \(rep)/\(of) — \(dur) at \(segment.paceText)"
+        case .float:
+            let dur = segment.durationSec.map { formatCountdownShort($0) } ?? ""
+            return "\(dur) easy float"
+        case .cooldown:
+            let km = segment.distanceKm.map { String(format: "%.1f", $0) } ?? ""
+            return "\(km) km cool-down"
+        }
+    }
+
+    private func formatCountdownShort(_ seconds: Double) -> String {
+        let s = Int(ceil(seconds))
+        return String(format: "%d:%02d", s / 60, s % 60)
+    }
+
     // MARK: - Header Row
     private var headerRow: some View {
         VStack(spacing: 8) {

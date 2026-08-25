@@ -620,6 +620,7 @@
 		D0625601AF045F765059D5C5 /* km_35.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 749F229A58B12D30B47307B4 /* km_35.mp3 */; };
 		D0DDAC56BFB54524143C5EA3 /* hip_flexor_stretch_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */; };
 		D0E07D593E78C5B72766780D /* AdherenceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3C507C81F068AF03CB84A826 /* AdherenceView.swift */; };
+		D13A891451AAE141D1D97E35 /* IntervalWorkoutParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C31E8BCB3FEB49CD69516F5C /* IntervalWorkoutParser.swift */; };
 		D1D704D45D6FE3F093720881 /* RaceLogisticsChecklist.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CAC513E6E38195C92957427 /* RaceLogisticsChecklist.swift */; };
 		D2337D86584C27D2518C2C3A /* mile_30.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B6B74EA738C4712B3B4250B0 /* mile_30.mp3 */; };
 		D2A17EA2B9B70166791C2458 /* LongRunProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 655B97ADC1AC5D1395E20056 /* LongRunProgressView.swift */; };
@@ -1292,6 +1293,7 @@
 		C1E4810343AEBCA6AF5FD2BF /* encourage_negative_split.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = encourage_negative_split.mp3; sourceTree = "<group>"; };
 		C1F0CB346B88FBC0A97F110E /* encourage_halfway.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = encourage_halfway.mp3; sourceTree = "<group>"; };
 		C319BCBB2D34ED9AE0444502 /* mile_46.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_46.mp3; sourceTree = "<group>"; };
+		C31E8BCB3FEB49CD69516F5C /* IntervalWorkoutParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntervalWorkoutParser.swift; sourceTree = "<group>"; };
 		C392A1BCF8B0A2482F0A0EDB /* FitbitDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FitbitDashboardView.swift; sourceTree = "<group>"; };
 		C3A74A8D7C650051493989ED /* female_single_leg_glute_bridge_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_single_leg_glute_bridge_2.png; sourceTree = "<group>"; };
 		C3FF22135B7559683C3C518A /* StrideIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrideIcons.swift; sourceTree = "<group>"; };
@@ -2261,6 +2263,7 @@
 				19E47F643022231E3630DAEA /* GPSRunDataProvider.swift */,
 				F5371B11FAA1D16806E4E9A5 /* GymSessionModel.swift */,
 				E66B52087F1AE1658E4F9CC9 /* HeartRateManager.swift */,
+				C31E8BCB3FEB49CD69516F5C /* IntervalWorkoutParser.swift */,
 				E3B670DBC022D2C88882D9CF /* KeychainService.swift */,
 				84648E5719B4C7A00EB20B6C /* LocationManager.swift */,
 				AD92622443C74D7E5159BF01 /* MidRunCoachingService.swift */,
@@ -3074,6 +3077,7 @@
 				490338F885FEFF6EE3FB40E0 /* ImagePicker.swift in Sources */,
 				BA67874FD99285B8F0481828 /* InlineRecommendationCard.swift in Sources */,
 				3D6F8ACAB7B6EFCC9CC0F074 /* IntegrationsSection.swift in Sources */,
+				D13A891451AAE141D1D97E35 /* IntervalWorkoutParser.swift in Sources */,
 				1CCBA8F092A7111996AD8976 /* KeychainService.swift in Sources */,
 				8777F43787FF06564959F679 /* LeaderboardCardView.swift in Sources */,
 				BDBF875593797B061D8B18A8 /* LocationManager.swift in Sources */,
