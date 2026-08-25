@@ -131,6 +131,11 @@ final class RunPullService {
         // (covers timezone edge cases and runs pulled before this pass existed).
         reconcileCompletions(context: context, calendar: calendar)
 
+        // Phantom-completion heal: a runnable workout marked complete with no
+        // real distance AND no server run on that day was completed by a UI
+        // bug, not a run — reset it so the athlete can actually run it.
+        unCompletePhantomRuns(serverRuns: serverRuns, context: context, calendar: calendar)
+
         if changed { try? context.save() }
         UserDefaults.standard.set(Array(applied), forKey: appliedKey)
     }
@@ -212,6 +217,32 @@ final class RunPullService {
             changed = true
         }
         return changed
+    }
+
+    /// Reset runnable workouts that were "completed" without any run behind them.
+    private func unCompletePhantomRuns(serverRuns: [ServerRunDTO], context: ModelContext, calendar: Calendar) {
+        let descriptor = FetchDescriptor<TrainingPlan>(
+            predicate: #Predicate<TrainingPlan> { !$0.isArchived },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        guard let plan = (try? context.fetch(descriptor))?.first else { return }
+        var changed = false
+        for workout in plan.weeks.flatMap({ $0.workouts }) {
+            guard workout.isCompleted,
+                  workout.workoutType.isRunnable,
+                  (workout.actualDistanceKm ?? 0) < 0.2 else { continue }
+            let hasServerRun = serverRuns.contains { run in
+                guard let runDate = run.completedAtDate else { return false }
+                return calendar.isDate(runDate, inSameDayAs: workout.date)
+            }
+            if !hasServerRun {
+                workout.isCompleted = false
+                workout.completedAt = nil
+                workout.completionScore = nil
+                changed = true
+            }
+        }
+        if changed { try? context.save() }
     }
 
     /// Overwrite a completed workout's actuals after its RunLog was corrected.

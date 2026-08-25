@@ -331,6 +331,12 @@ struct WorkoutDetailView: View {
                         Button(action: {
                             if isGymWorkout && gymSource.contains(";") {
                                 showGymPlayer = true
+                            } else if workout.workoutType.isRunnable {
+                                // Route to the Run tab — completion comes from
+                                // actually running, never from this button.
+                                NotificationCenter.default.post(
+                                    name: .strideSwitchToRunTab, object: nil)
+                                dismiss()
                             } else {
                                 onComplete()
                                 dismiss()

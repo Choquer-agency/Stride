@@ -69,6 +69,9 @@ struct MainTabView: View {
         .onChange(of: selectedTab) { _, newTab in
             PostHogSDK.shared.capture("tab_switched", properties: ["tab": newTab.title])
         }
+        .onReceive(NotificationCenter.default.publisher(for: .strideSwitchToRunTab)) { _ in
+            selectedTab = .run
+        }
         .onAppear { consumeDeepLinkIfNeeded(deepLinkRouter.pendingLink) }
         .onChange(of: deepLinkRouter.pendingLink) { _, link in
             consumeDeepLinkIfNeeded(link)

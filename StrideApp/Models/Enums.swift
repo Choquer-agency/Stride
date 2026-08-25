@@ -41,7 +41,6 @@ enum TerrainType: String, Codable, CaseIterable, Identifiable {
     case mountain = "mountain"
 
     var id: String { rawValue }
-
     var displayName: String {
         switch self {
         case .road: return "Road"
@@ -135,6 +134,17 @@ enum WorkoutType: String, Codable, CaseIterable, Identifiable {
     case race = "race"
 
     var id: String { rawValue }
+
+    /// Types tracked by an actual run (GPS/treadmill) rather than checked off.
+    var isRunnable: Bool {
+        switch self {
+        case .easyRun, .longRun, .tempoRun, .intervals, .fartlek, .hillRepeats, .recovery, .race:
+            return true
+        case .drills, .mobility, .rest, .crossTraining, .gym:
+            return false
+        }
+    }
+
 
     var displayName: String {
         switch self {
@@ -231,4 +241,10 @@ enum RiskLevel: String, Codable {
         case .high: return "xmark.circle.fill"
         }
     }
+}
+
+
+extension Notification.Name {
+    /// Posted when a plan-page Start should land the athlete on the Run tab.
+    static let strideSwitchToRunTab = Notification.Name("stride.switchToRunTab")
 }
