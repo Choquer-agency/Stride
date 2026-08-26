@@ -52,7 +52,7 @@ class ShoesViewModel: ObservableObject {
         }
     }
 
-    func addShoe(name: String, isDefault: Bool, photoData: Data?, context: ModelContext) {
+    func addShoe(name: String, isDefault: Bool, photoData: Data?, usage: ShoeUsage = .outdoor, context: ModelContext) {
         Task {
             do {
                 let response = try await APIService.shared.createShoe(name: name, isDefault: isDefault)
@@ -67,6 +67,7 @@ class ShoesViewModel: ObservableObject {
                 }
 
                 // Create shoe with photoData immediately so @Query shows it with photo
+                // (usage applied after init — new field with default)
                 let shoe = Shoe(
                     id: uuid,
                     name: response.name,
@@ -75,6 +76,7 @@ class ShoesViewModel: ObservableObject {
                     totalDistanceKm: response.totalDistanceKm,
                     isRetired: response.isRetired
                 )
+                shoe.usage = usage
                 context.insert(shoe)
                 try context.save()
 

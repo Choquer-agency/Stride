@@ -131,6 +131,12 @@ final class RunPullService {
         // (covers timezone edge cases and runs pulled before this pass existed).
         reconcileCompletions(context: context, calendar: calendar)
 
+        // Shoe-usage heal: an outdoor (GPS) run logged against an indoor shoe
+        // that has an outdoor same-name twin belongs on the outdoor pair —
+        // move the log and its mileage. Idempotent; runs after Bryce tags
+        // shoe usage in Settings.
+        reassignOutdoorRunShoes(context: context)
+
         // Phantom-completion heal: a runnable workout marked complete with no
         // real distance AND no server run on that day was completed by a UI
         // bug, not a run — reset it so the athlete can actually run it.
@@ -217,6 +223,28 @@ final class RunPullService {
             changed = true
         }
         return changed
+    }
+
+    /// Move GPS runs from indoor shoes to their outdoor same-name twin.
+    private func reassignOutdoorRunShoes(context: ModelContext) {
+        guard let shoes = try? context.fetch(FetchDescriptor<Shoe>()), shoes.count > 1 else { return }
+        let logs = ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
+            .filter { $0.dataSource == "gps" && $0.shoeId != nil }
+        var changed = false
+        for log in logs {
+            guard let current = shoes.first(where: { $0.id == log.shoeId }),
+                  current.usage == .indoor,
+                  let twin = shoes.first(where: {
+                      $0.id != current.id && $0.usage == .outdoor
+                          && $0.name.lowercased() == current.name.lowercased()
+                  }) else { continue }
+            log.shoeId = twin.id
+            log.shoeName = twin.name
+            current.totalDistanceKm = max(0, current.totalDistanceKm - log.distanceKm)
+            twin.totalDistanceKm += log.distanceKm
+            changed = true
+        }
+        if changed { try? context.save() }
     }
 
     /// Reset runnable workouts that were "completed" without any run behind them.

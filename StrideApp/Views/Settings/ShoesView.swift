@@ -88,7 +88,7 @@ struct ShoesView: View {
                             .clipShape(Capsule())
                     }
                 }
-                Text(String(format: "%.1f km", shoe.totalDistanceKm))
+                Text("\(shoe.usage.displayName) · " + String(format: "%.1f km", shoe.totalDistanceKm))
                     .font(.barlowCondensed(size: 16, weight: .medium))
                     .foregroundColor(.secondary)
             }

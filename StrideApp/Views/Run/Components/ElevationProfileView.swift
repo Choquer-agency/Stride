@@ -121,6 +121,8 @@ struct ElevationProfileView: View {
                         AxisGridLine()
                     }
                 }
+                .chartYScale(domain: yDomain(for: data))
+                .chartXScale(domain: 0...(data.last?.distance ?? 1))
                 .frame(height: 120)
             }
         }
@@ -131,6 +133,14 @@ struct ElevationProfileView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.strideBorder, lineWidth: 1)
         )
+    }
+
+    /// Fit the y-axis to the actual altitude range (±15 m) — a run hovering
+    /// at 350 m should fill the chart, not sit as a sliver above 0.
+    private func yDomain(for data: [(distance: Double, altitude: Double)]) -> ClosedRange<Double> {
+        let alts = data.map(\.altitude)
+        guard let lo = alts.min(), let hi = alts.max() else { return 0...100 }
+        return (lo - 15)...(hi + 15)
     }
 
     // MARK: - Smoothing

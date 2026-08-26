@@ -11,6 +11,13 @@ final class Shoe {
     var totalDistanceKm: Double
     var isRetired: Bool
     var createdAt: Date
+    /// "outdoor" | "indoor" — outdoor runs only offer outdoor shoes, etc.
+    var usageRaw: String = "outdoor"
+
+    var usage: ShoeUsage {
+        get { ShoeUsage(rawValue: usageRaw) ?? .outdoor }
+        set { usageRaw = newValue.rawValue }
+    }
 
     init(
         id: UUID = UUID(),
@@ -31,4 +38,9 @@ final class Shoe {
         self.isRetired = isRetired
         self.createdAt = createdAt
     }
+}
+
+enum ShoeUsage: String, CaseIterable {
+    case outdoor, indoor
+    var displayName: String { rawValue.capitalized }
 }

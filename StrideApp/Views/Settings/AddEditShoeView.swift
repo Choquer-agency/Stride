@@ -10,6 +10,7 @@ struct AddEditShoeView: View {
 
     @State private var name: String = ""
     @State private var isDefault: Bool = false
+    @State private var usage: ShoeUsage = .outdoor
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var photoImage: UIImage?
@@ -69,6 +70,13 @@ struct AddEditShoeView: View {
                     TextField("Shoe name", text: $name)
                         .font(.inter(size: 15))
 
+                    Picker("Used for", selection: $usage) {
+                        ForEach(ShoeUsage.allCases, id: \.self) { u in
+                            Text(u.displayName).tag(u)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
                     Toggle("Set as Default", isOn: $isDefault)
                         .tint(Color.stridePrimary)
                 }
@@ -121,6 +129,7 @@ struct AddEditShoeView: View {
                 if let shoe {
                     name = shoe.name
                     isDefault = shoe.isDefault
+                    usage = shoe.usage
                     // Load existing photo
                     if let data = shoe.photoData {
                         photoImage = UIImage(data: data)
@@ -172,9 +181,10 @@ struct AddEditShoeView: View {
         guard !trimmedName.isEmpty else { return }
 
         if let shoe {
+            shoe.usage = usage
             viewModel.updateShoe(shoe: shoe, name: trimmedName, isDefault: isDefault, photoData: photoData, context: modelContext)
         } else {
-            viewModel.addShoe(name: trimmedName, isDefault: isDefault, photoData: photoData, context: modelContext)
+            viewModel.addShoe(name: trimmedName, isDefault: isDefault, photoData: photoData, usage: usage, context: modelContext)
         }
         dismiss()
     }

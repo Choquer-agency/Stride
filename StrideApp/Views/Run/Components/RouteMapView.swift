@@ -49,11 +49,9 @@ struct RouteMapView: View {
 
     var body: some View {
         if coordinates.count >= 2 {
-            Map(initialViewport: .camera(
-                center: routeCenter,
-                zoom: routeZoom,
-                bearing: 0,
-                pitch: 45
+            Map(initialViewport: .overview(
+                geometry: LineString(coordinates),
+                geometryPadding: EdgeInsets(top: 36, leading: 36, bottom: 36, trailing: 36)
             )) {
                 // Route line(s)
                 if showPaceColors, !routePoints.isEmpty {

@@ -962,17 +962,11 @@ class RunViewModel: ObservableObject {
         for km in (lastRecordedKm + 1)...currentKm {
             let kmElapsedTime = elapsedTime // time at this km boundary
 
-            // Compute pace from accumulated speed samples (matches live pace & treadmill display).
-            // Falls back to elapsed-time-based pace only if no speed samples exist.
-            let paceSecPerKm: Double
-            if !currentKmSpeedSamples.isEmpty {
-                let avgSpeed = currentKmSpeedSamples.reduce(0, +) / Double(currentKmSpeedSamples.count)
-                paceSecPerKm = avgSpeed > 0 ? 1000.0 / avgSpeed : 0
-            } else {
-                // Fallback: time-based pace (less accurate on self-powered treadmills)
-                let kmSegmentTime: TimeInterval = km == 1 ? kmElapsedTime : kmElapsedTime - lastKmElapsedTime
-                paceSecPerKm = kmSegmentTime
-            }
+            // ONE source of truth: split pace = split time. A 1 km segment's
+            // pace IS its elapsed time — display, voice, and the math must
+            // always agree (speed-sample averaging drifted from clock time).
+            let kmSegmentTime: TimeInterval = km == 1 ? kmElapsedTime : kmElapsedTime - lastKmElapsedTime
+            let paceSecPerKm: Double = kmSegmentTime
 
             let paceString = formatPace(secondsPerKm: paceSecPerKm)
 
@@ -1043,12 +1037,22 @@ class RunViewModel: ObservableObject {
                     // includes km-down / km-to-go / total time.
                     midRunCoach.onKmSplitAnnounced()
                 } else {
+                    // Every split states where the athlete stands vs target —
+                    // even after a pace pivot, information keeps flowing.
+                    let comparison: String? = {
+                        guard let minP = targetPaceMinSec, let maxP = targetPaceMaxSec else { return nil }
+                        let pace = Double(paceSeconds)
+                        if pace < minP - 1 { return "\(Int(minP - pace)) seconds ahead of target." }
+                        if pace > maxP + 1 { return "\(Int(pace - maxP)) seconds behind target." }
+                        return "Right on target."
+                    }()
                     voiceCoach.announceKmSplit(
                         kilometer: latestSplit.kilometer,
                         paceSecPerKm: Double(paceSeconds),
                         totalElapsedTime: elapsedTime,
                         avgPaceSecPerKm: latestSplit.kilometer >= 2 ? avgPace : nil,
-                        isDistanceFocused: isDistanceFocusedWorkout
+                        isDistanceFocused: isDistanceFocusedWorkout,
+                        targetComparison: comparison
                     )
                     midRunCoach.onKmSplitAnnounced()
                 }

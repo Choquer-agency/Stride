@@ -9,12 +9,21 @@ struct RunSummaryView: View {
     @State private var feedbackRating: Int? = nil
     @State private var feedbackNotes: String = ""
     @State private var selectedShoe: Shoe?
+    @FocusState private var notesFocused: Bool
+
+    /// Outdoor runs offer outdoor shoes; treadmill runs offer indoor shoes.
+    private var eligibleShoes: [Shoe] {
+        let wanted: ShoeUsage = result.isOutdoorRun ? .outdoor : .indoor
+        let matching = shoes.filter { $0.usage == wanted }
+        return matching.isEmpty ? shoes : matching   // fall back if none tagged
+    }
     @State private var showShareSheet = false
     @State private var shareImage: UIImage?
     @StateObject private var coachVM = PostRunCoachViewModel()
     
     var body: some View {
         ScrollView {
+
             VStack(spacing: 0) {
                 VStack(spacing: 0) {
                     // Logo
@@ -159,7 +168,7 @@ struct RunSummaryView: View {
         }
         .background(Color(.systemBackground))
         .onAppear {
-            selectedShoe = shoes.first(where: \.isDefault)
+            selectedShoe = eligibleShoes.first(where: \.isDefault) ?? eligibleShoes.first
             // Auto-generate AI coaching summary
             coachVM.generateCoaching(result: result)
         }
@@ -252,7 +261,7 @@ struct RunSummaryView: View {
                 Text(result.avgPaceDisplay)
                     .font(.barlowCondensed(size: 44, weight: .medium))
                     .foregroundColor(.primary)
-                Text("/km")
+                Text("km pace")
                     .font(.inter(size: 13, weight: .regular))
                     .foregroundColor(.secondary)
             }
@@ -584,6 +593,13 @@ struct RunSummaryView: View {
             TextField("Any notes about this run...", text: $feedbackNotes, axis: .vertical)
                 .font(.inter(size: 14, weight: .regular))
                 .lineLimit(3...6)
+                .focused($notesFocused)
+                .toolbar {
+                    ToolbarItemGroup(placement: .keyboard) {
+                        Spacer()
+                        Button("Done") { notesFocused = false }
+                    }
+                }
                 .padding(14)
                 .background(Color(hex: "F9F9F9"))
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -609,7 +625,7 @@ struct RunSummaryView: View {
                     }
                 }
 
-                ForEach(shoes, id: \.id) { shoe in
+                ForEach(eligibleShoes, id: \.id) { shoe in
                     Button {
                         selectedShoe = shoe
                     } label: {

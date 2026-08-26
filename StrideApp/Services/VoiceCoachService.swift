@@ -108,7 +108,7 @@ final class VoiceCoachService {
     ///   - KM 2+: km + pace + average pace + total time
     /// When `isDistanceFocused` is true (long/easy distance runs), total time is omitted
     /// mid-run so the runner isn't distracted by cumulative clock time.
-    func announceKmSplit(kilometer: Int, paceSecPerKm: Double, totalElapsedTime: TimeInterval, avgPaceSecPerKm: Double? = nil, isDistanceFocused: Bool = false) {
+    func announceKmSplit(kilometer: Int, paceSecPerKm: Double, totalElapsedTime: TimeInterval, avgPaceSecPerKm: Double? = nil, isDistanceFocused: Bool = false, targetComparison: String? = nil) {
         guard settings.isEnabled, settings.announceKmSplits else { return }
 
         let unitPrefix = settings.paceUnit == .km ? "km" : "mile"
@@ -131,6 +131,11 @@ final class VoiceCoachService {
         if !isDistanceFocused {
             clips.append(.bundled("total_time", fallbackText: "Total time:"))
             clips.append(contentsOf: timeClips(totalElapsedTime))
+        }
+
+        // "How am I doing" — never leave the runner in the dark
+        if let targetComparison {
+            clips.append(.text(targetComparison))
         }
 
         tts.speakSequence(clips)
