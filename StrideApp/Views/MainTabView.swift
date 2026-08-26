@@ -14,6 +14,7 @@ struct MainTabView: View {
     @State private var presentedReviewEventId: UUID?
     @State private var showReview = false
     @State private var showCoachInbox = false
+    @State private var showCoachChat = false
     
     enum Tab: Int {
         case run = 0
@@ -87,6 +88,9 @@ struct MainTabView: View {
         .sheet(isPresented: $showCoachInbox) {
             NavigationStack { CoachInboxView() }
         }
+        .sheet(isPresented: $showCoachChat) {
+            NavigationStack { CoachChatView(trainingPlanId: nil) }
+        }
     }
 
     /// Consume the coach deep links this tab container owns. Garmin links stay
@@ -106,6 +110,9 @@ struct MainTabView: View {
             deepLinkRouter.consume()
         case .coachInbox:
             showCoachInbox = true
+            deepLinkRouter.consume()
+        case .coachChat:
+            showCoachChat = true
             deepLinkRouter.consume()
         default:
             break

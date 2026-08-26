@@ -71,6 +71,11 @@ async def sync_runs(
         result = await db.execute(stmt)
         if result.rowcount > 0:
             synced_count += 1
+            # Coach replies to athlete notes on fresh runs (chat thread + push)
+            if (run_payload.notes or "").strip():
+                import asyncio as _asyncio
+                from app.services.run_note_reply_service import send_note_reply
+                _asyncio.create_task(send_note_reply(current_user.id, run_payload.id))
             # Compute personal bests for newly synced eligible runs
             await compute_personal_bests(
                 db=db,
