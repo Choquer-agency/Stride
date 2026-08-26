@@ -14,6 +14,23 @@ struct RunView: View {
         return false
     }
     private var intervalFg: Color { isWorkPhase ? .white : .primary }
+
+    /// Verdict-pill accent for the live pace (fill on white screens, text on red)
+    private var intervalPillTextColor: Color {
+        switch viewModel.paceZone {
+        case .onPace, .slightlyFast: return .green
+        case .slightlySlow: return .orange
+        case .tooSlow: return Color.stridePrimary
+        case .tooFast: return .blue
+        case .noTarget: return .gray
+        }
+    }
+
+    /// Bottom-button backdrop matches the live background so the fade is
+    /// invisible on both the red work screen and the white screens.
+    private var backdropColor: Color {
+        viewModel.isIntervalWorkout && isWorkPhase ? Color.stridePrimary : Color(.systemBackground)
+    }
     private var intervalFgSoft: Color { isWorkPhase ? .white.opacity(0.8) : .secondary }
 
     var body: some View {
@@ -109,10 +126,10 @@ struct RunView: View {
                     } label: {
                         Text("Pause Run")
                             .font(.inter(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
+                            .foregroundColor(isWorkPhase ? Color.stridePrimary : .white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 62)
-                            .background(Color.stridePrimary)
+                            .background(isWorkPhase ? Color.white : Color.stridePrimary)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     
@@ -135,8 +152,8 @@ struct RunView: View {
             .background(
                 LinearGradient(
                     stops: [
-                        .init(color: Color(.systemBackground).opacity(0), location: 0),
-                        .init(color: Color(.systemBackground), location: 0.3)
+                        .init(color: backdropColor.opacity(0), location: 0),
+                        .init(color: backdropColor, location: 0.3)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
@@ -196,21 +213,13 @@ struct RunView: View {
                         .kerning(2.0)
                         .foregroundColor(intervalFg)
 
-                    // Target pace for the phase
-                    if segment.paceText == "easy" {
-                        Text("easy jog")
-                            .font(.barlowCondensed(size: 60, weight: .medium))
-                            .foregroundColor(intervalFg)
-                    } else {
-                        VStack(spacing: 0) {
-                            Text(segment.paceText)
-                                .font(.barlowCondensed(size: 74, weight: .medium))
-                                .foregroundColor(intervalFg)
-                            Text("target /km")
-                                .font(.inter(size: 13))
-                                .foregroundColor(intervalFgSoft)
-                        }
-                    }
+                    // Target pace caption under the phase label — the two
+                    // heroes are the countdown and the live pace below it
+                    Text(segment.paceText == "easy"
+                         ? "easy jog — shake it out"
+                         : "target \(segment.paceText) /km")
+                        .font(.inter(size: 17, weight: .semibold))
+                        .foregroundColor(intervalFgSoft)
 
                     // Countdown (timed) or distance progress (warm-up/cool-down)
                     if segment.durationSec != nil {
@@ -240,11 +249,28 @@ struct RunView: View {
                         }
                     }
 
-                    // Live pace, small
-                    Text("now \(viewModel.currentPace) /km")
-                        .font(.inter(size: 17, weight: .semibold))
-                        .foregroundColor(intervalFgSoft)
-                        .padding(.top, 2)
+                    // Live pace — the runner's only screen; this must answer
+                    // "how am I doing" at a glance, in every phase.
+                    HStack(alignment: .firstTextBaseline, spacing: 12) {
+                        Text(viewModel.currentPace)
+                            .font(.barlowCondensed(size: 64, weight: .medium))
+                            .foregroundColor(intervalFg)
+                            .contentTransition(.numericText())
+                        Text("/km now")
+                            .font(.inter(size: 15, weight: .medium))
+                            .foregroundColor(intervalFgSoft)
+
+                        if segment.paceBounds != nil,
+                           !viewModel.paceZone.statusText.isEmpty {
+                            Text(viewModel.paceZone.statusText)
+                                .font(.inter(size: 14, weight: .bold))
+                                .foregroundColor(isWorkPhase ? intervalPillTextColor : .white)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(isWorkPhase ? Color.white : intervalPillTextColor))
+                        }
+                    }
+                    .padding(.top, 4)
                 }
             }
 
