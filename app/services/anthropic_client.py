@@ -70,6 +70,24 @@ class AnthropicClient:
                    app.services.coaching_models (HAIKU/SONNET/OPUS constants).
         """
         start = time.time()
+
+        # Subscription path (Agent SDK, per-user credit) with API fallback
+        from app.services import subscription_client
+        if subscription_client.enabled() and subscription_client.user_eligible(user_id):
+            try:
+                sub_output: list = []
+                async for chunk in subscription_client.generate_stream(
+                        system_prompt, user_prompt, model=model or self.model):
+                    sub_output.append(chunk)
+                    yield chunk
+                self.last_metrics = GenerationMetrics(
+                    model=model or self.model, input_tokens=0, output_tokens=0,
+                    latency_ms=int((time.time() - start) * 1000),
+                    output_text="".join(sub_output))
+                return
+            except Exception as exc:
+                logger.warning("subscription stream failed (%s) — falling back to API", exc)
+
         full_output = []
         input_tokens = 0
         output_tokens = 0
@@ -159,6 +177,20 @@ class AnthropicClient:
         """
         start = time.time()
         active_model = model or self.model
+
+        # Subscription path (Agent SDK, per-user credit) with API fallback
+        from app.services import subscription_client
+        if subscription_client.enabled() and subscription_client.user_eligible(user_id):
+            try:
+                text = await subscription_client.generate(
+                    system_prompt, user_prompt, model=active_model)
+                self.last_metrics = GenerationMetrics(
+                    model=active_model, input_tokens=0, output_tokens=0,
+                    latency_ms=int((time.time() - start) * 1000),
+                    output_text=text)
+                return text
+            except Exception as exc:
+                logger.warning("subscription path failed (%s) — falling back to API", exc)
 
         response = await self.client.messages.create(
             model=active_model,

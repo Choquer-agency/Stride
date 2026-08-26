@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.railpack.com",
+  "packages": { "node": "22" },
+  "steps": {
+    "build": {
+      "commands": ["...", "npm install --prefix /app/claude-cli @anthropic-ai/claude-code"]
+    }
+  },
+  "deploy": {
+    "paths": ["/app/claude-cli/node_modules/.bin"]
+  }
+}
