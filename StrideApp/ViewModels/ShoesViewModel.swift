@@ -27,10 +27,14 @@ class ShoesViewModel: ObservableObject {
 
                     if let shoe = existing?.first {
                         shoe.name = remote.name
-                        shoe.photoURL = remote.photoUrl
+                        if shoe.photoURL != remote.photoUrl {
+                            shoe.photoURL = remote.photoUrl
+                            shoe.photoData = nil   // re-download the new photo
+                        }
                         shoe.isDefault = remote.isDefault
                         shoe.totalDistanceKm = remote.totalDistanceKm
                         shoe.isRetired = remote.isRetired
+                        Self.applyUsageFromPhoto(shoe)
                     } else {
                         let shoe = Shoe(
                             id: uuid,
@@ -41,6 +45,7 @@ class ShoesViewModel: ObservableObject {
                             isRetired: remote.isRetired,
                             createdAt: dateFormatter.date(from: remote.createdAt) ?? Date()
                         )
+                        Self.applyUsageFromPhoto(shoe)
                         context.insert(shoe)
                     }
                 }
@@ -50,6 +55,14 @@ class ShoesViewModel: ObservableObject {
                 errorMessage = error.localizedDescription
             }
         }
+    }
+
+    /// The coach assigns photos named ...-indoor.jpg / ...-outdoor.jpg —
+    /// derive the usage tag from them so nothing needs manual tagging.
+    static func applyUsageFromPhoto(_ shoe: Shoe) {
+        guard let url = shoe.photoURL?.lowercased() else { return }
+        if url.contains("-indoor") { shoe.usage = .indoor }
+        else if url.contains("-outdoor") { shoe.usage = .outdoor }
     }
 
     func addShoe(name: String, isDefault: Bool, photoData: Data?, usage: ShoeUsage = .outdoor, context: ModelContext) {

@@ -137,6 +137,10 @@ final class RunPullService {
         // shoe usage in Settings.
         reassignOutdoorRunShoes(context: context)
 
+        // Future-completion heal: a workout dated tomorrow or later cannot
+        // have been done — reset it (cleans up the ±1-day matching bug).
+        unCompleteFutureWorkouts(context: context, calendar: calendar)
+
         // Phantom-completion heal: a runnable workout marked complete with no
         // real distance AND no server run on that day was completed by a UI
         // bug, not a run — reset it so the athlete can actually run it.
@@ -165,6 +169,10 @@ final class RunPullService {
 
         var didChange = false
         for log in logs {
+            // Already reconciled — never re-match. (Without this, the ±1-day
+            // timezone tolerance re-fired on every pass and checked off
+            // TOMORROW's same-titled workout.)
+            if log.plannedWorkoutId != nil { continue }
             let match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
                                          in: workouts, calendar: calendar)
             guard let workout = match else { continue }
@@ -242,6 +250,28 @@ final class RunPullService {
             log.shoeName = twin.name
             current.totalDistanceKm = max(0, current.totalDistanceKm - log.distanceKm)
             twin.totalDistanceKm += log.distanceKm
+            changed = true
+        }
+        if changed { try? context.save() }
+    }
+
+    /// Reset workouts marked complete whose scheduled date is in the future.
+    private func unCompleteFutureWorkouts(context: ModelContext, calendar: Calendar) {
+        let startOfTomorrow = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 1, to: Date()) ?? Date())
+        let descriptor = FetchDescriptor<TrainingPlan>(
+            predicate: #Predicate<TrainingPlan> { !$0.isArchived },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        guard let plan = (try? context.fetch(descriptor))?.first else { return }
+        var changed = false
+        for workout in plan.weeks.flatMap({ $0.workouts })
+        where workout.isCompleted && workout.date >= startOfTomorrow {
+            workout.isCompleted = false
+            workout.completedAt = nil
+            workout.completionScore = nil
+            workout.actualDistanceKm = nil
+            workout.actualDurationSeconds = nil
+            workout.actualAvgPaceSecPerKm = nil
             changed = true
         }
         if changed { try? context.save() }
