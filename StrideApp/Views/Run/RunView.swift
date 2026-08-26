@@ -213,18 +213,11 @@ struct RunView: View {
                         .kerning(2.0)
                         .foregroundColor(intervalFg)
 
-                    // Target pace caption under the phase label — the two
-                    // heroes are the countdown and the live pace below it
-                    Text(segment.paceText == "easy"
-                         ? "easy jog — shake it out"
-                         : "target \(segment.paceText) /km")
-                        .font(.inter(size: 17, weight: .semibold))
-                        .foregroundColor(intervalFgSoft)
 
                     // Countdown (timed) or distance progress (warm-up/cool-down)
                     if segment.durationSec != nil {
                         Text(formatCountdownShort(viewModel.intervalPhaseRemaining))
-                            .font(.barlowCondensed(size: 150, weight: .medium))
+                            .font(.barlowCondensed(size: 118, weight: .medium))
                             .foregroundColor(intervalFg)
                             .monospacedDigit()
                             .scaleEffect(viewModel.intervalPhaseRemaining <= 3.5 ? 1.08 : 1.0)
@@ -249,28 +242,38 @@ struct RunView: View {
                         }
                     }
 
-                    // Live pace — the runner's only screen; this must answer
-                    // "how am I doing" at a glance, in every phase.
-                    HStack(alignment: .firstTextBaseline, spacing: 12) {
-                        Text(viewModel.currentPace)
-                            .font(.barlowCondensed(size: 64, weight: .medium))
-                            .foregroundColor(intervalFg)
-                            .contentTransition(.numericText())
-                        Text("/km now")
-                            .font(.inter(size: 15, weight: .medium))
-                            .foregroundColor(intervalFgSoft)
+                    // Live pace — equal weight with the countdown, and the
+                    // target sits RIGHT under it: one glance zone.
+                    VStack(spacing: 4) {
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Text(viewModel.currentPace)
+                                .font(.barlowCondensed(size: 118, weight: .medium))
+                                .foregroundColor(intervalFg)
+                                .contentTransition(.numericText())
+                            Text("/km")
+                                .font(.inter(size: 18, weight: .medium))
+                                .foregroundColor(intervalFgSoft)
+                        }
 
-                        if segment.paceBounds != nil,
-                           !viewModel.paceZone.statusText.isEmpty {
-                            Text(viewModel.paceZone.statusText)
-                                .font(.inter(size: 14, weight: .bold))
-                                .foregroundColor(isWorkPhase ? intervalPillTextColor : .white)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 5)
-                                .background(Capsule().fill(isWorkPhase ? Color.white : intervalPillTextColor))
+                        HStack(spacing: 12) {
+                            Text(segment.paceText == "easy"
+                                 ? "easy — shake it out"
+                                 : "target \(segment.paceText)")
+                                .font(.inter(size: 19, weight: .semibold))
+                                .foregroundColor(intervalFgSoft)
+
+                            if segment.paceBounds != nil,
+                               !viewModel.paceZone.statusText.isEmpty {
+                                Text(viewModel.paceZone.statusText)
+                                    .font(.inter(size: 15, weight: .bold))
+                                    .foregroundColor(isWorkPhase ? intervalPillTextColor : .white)
+                                    .padding(.horizontal, 13)
+                                    .padding(.vertical, 6)
+                                    .background(Capsule().fill(isWorkPhase ? Color.white : intervalPillTextColor))
+                            }
                         }
                     }
-                    .padding(.top, 4)
+                    .padding(.top, 2)
                 }
             }
 
@@ -297,7 +300,7 @@ struct RunView: View {
             return "rep \(rep)/\(of) — \(dur) at \(segment.paceText)"
         case .float:
             let dur = segment.durationSec.map { formatCountdownShort($0) } ?? ""
-            return "\(dur) easy float"
+            return "\(dur) recovery"
         case .cooldown:
             let km = segment.distanceKm.map { String(format: "%.1f", $0) } ?? ""
             return "\(km) km cool-down"
