@@ -11,9 +11,15 @@ struct FitbitDashboardView: View {
     @State private var isLoading = true
     @State private var error: String?
 
+    // Live BLE broadcast test — connects to the watch's "Share heart rate"
+    // broadcast so the user can verify the Bluetooth path without starting a run.
+    @ObservedObject private var hrManager = HeartRateManager.shared
+    @State private var dashboardStartedScan = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                liveBroadcastCard
                 if let vitals {
                     liveHeartRateCard(vitals)
                     if !vitals.todayHeartRate.isEmpty {
@@ -38,6 +44,78 @@ struct FitbitDashboardView: View {
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task { await load() }
+        .onAppear {
+            // Start scanning for the watch broadcast unless a run already owns it
+            if !hrManager.isConnected && !hrManager.isScanning {
+                dashboardStartedScan = true
+                hrManager.startScanning()
+            }
+        }
+        .onDisappear {
+            // Only tear down a scan this screen started — never a run's capture
+            if dashboardStartedScan {
+                hrManager.stopAndDisconnect()
+                dashboardStartedScan = false
+            }
+        }
+    }
+
+    // MARK: - Live Bluetooth broadcast card
+
+    @ViewBuilder
+    private var liveBroadcastCard: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .foregroundStyle(hrManager.isConnected ? Color.green : Color.secondary)
+                Text("LIVE BROADCAST")
+                    .font(.inter(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .kerning(1)
+            }
+
+            if hrManager.isConnected {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(Color.stridePrimary)
+                        .symbolEffect(.pulse, options: .repeating)
+                    Text(hrManager.currentBPM.map { "\($0)" } ?? "--")
+                        .font(.barlowCondensed(size: 64, weight: .bold))
+                        .foregroundStyle(.primary)
+                    Text("bpm")
+                        .font(.inter(size: 16))
+                        .foregroundStyle(.secondary)
+                }
+                Text("Connected to \(hrManager.deviceName ?? "your watch") — this is the same live signal you'll see during runs.")
+                    .font(.inter(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            } else if hrManager.bluetoothUnavailable {
+                Text("Bluetooth is unavailable. Check iPhone Settings → Stride → Bluetooth, and that Bluetooth is on.")
+                    .font(.inter(size: 13))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.vertical, 8)
+            } else {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Looking for your watch's broadcast…")
+                        .font(.inter(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.vertical, 6)
+                Text("On the watch, make sure \"Share heart rate\" is on (Always visible works best).")
+                    .font(.inter(size: 12))
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(20)
+        .background(Color.strideCard)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.strideBorder, lineWidth: 1))
     }
 
     private func load() async {
@@ -58,7 +136,7 @@ struct FitbitDashboardView: View {
             HStack(spacing: 6) {
                 Image(systemName: "heart.fill")
                     .foregroundStyle(Color.stridePrimary)
-                Text("LATEST HEART RATE")
+                Text("LAST CLOUD SYNC")
                     .font(.inter(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .kerning(1)
@@ -77,7 +155,7 @@ struct FitbitDashboardView: View {
                         .font(.inter(size: 13))
                         .foregroundStyle(.secondary)
                 }
-                Text("Updates when your watch syncs to the Fitbit app. For second-by-second heart rate, start a run — Stride connects to your watch live over Bluetooth.")
+                Text("From Google's cloud — updates when your watch syncs to the Fitbit app. The live broadcast above is real-time.")
                     .font(.inter(size: 12))
                     .foregroundStyle(.tertiary)
                     .multilineTextAlignment(.center)
