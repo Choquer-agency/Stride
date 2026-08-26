@@ -11,6 +11,7 @@ struct AddEditShoeView: View {
     @State private var name: String = ""
     @State private var isDefault: Bool = false
     @State private var usage: ShoeUsage = .outdoor
+    @State private var maxKmText: String = ""
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var photoData: Data?
     @State private var photoImage: UIImage?
@@ -77,6 +78,16 @@ struct AddEditShoeView: View {
                     }
                     .pickerStyle(.segmented)
 
+                    HStack {
+                        Text("Recommended max")
+                        Spacer()
+                        TextField("auto", text: $maxKmText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 70)
+                        Text("km").foregroundStyle(.secondary)
+                    }
+
                     Toggle("Set as Default", isOn: $isDefault)
                         .tint(Color.stridePrimary)
                 }
@@ -130,6 +141,7 @@ struct AddEditShoeView: View {
                     name = shoe.name
                     isDefault = shoe.isDefault
                     usage = shoe.usage
+                    maxKmText = shoe.recommendedMaxKm > 0 ? String(Int(shoe.recommendedMaxKm)) : ""
                     // Load existing photo
                     if let data = shoe.photoData {
                         photoImage = UIImage(data: data)
@@ -182,6 +194,7 @@ struct AddEditShoeView: View {
 
         if let shoe {
             shoe.usage = usage
+            shoe.recommendedMaxKm = Double(maxKmText) ?? 0
             viewModel.updateShoe(shoe: shoe, name: trimmedName, isDefault: isDefault, photoData: photoData, context: modelContext)
         } else {
             viewModel.addShoe(name: trimmedName, isDefault: isDefault, photoData: photoData, usage: usage, context: modelContext)

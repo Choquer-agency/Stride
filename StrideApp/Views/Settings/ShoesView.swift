@@ -88,7 +88,18 @@ struct ShoesView: View {
                             .clipShape(Capsule())
                     }
                 }
-                Text("\(shoe.usage.displayName) · " + String(format: "%.1f km", shoe.totalDistanceKm))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(shoe.usage.displayName) · " + String(format: "%.0f / %.0f km", shoe.totalDistanceKm, shoe.effectiveMaxKm))
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Color(.systemGray5)).frame(height: 5)
+                            Capsule().fill(shoe.lifeFraction >= 1.0 ? Color.stridePrimary
+                                           : shoe.lifeFraction >= 0.8 ? Color.orange : Color.green)
+                                .frame(width: max(5, geo.size.width * min(shoe.lifeFraction, 1.0)), height: 5)
+                        }
+                    }
+                    .frame(height: 5)
+                }
                     .font(.barlowCondensed(size: 16, weight: .medium))
                     .foregroundColor(.secondary)
             }

@@ -101,7 +101,14 @@ struct RunSummaryView: View {
                     feedbackSection
                         .padding(.bottom, 20)
                     
-                    // Notes
+                    // Shoe lifespan celebration — crossing the recommended max
+            if let shoe = selectedShoe,
+               shoe.effectiveMaxKm > 0,
+               shoe.totalDistanceKm + result.distanceKm >= shoe.effectiveMaxKm {
+                shoeRetirementBanner(shoe)
+            }
+
+            // Notes
                     notesSection
                         .padding(.bottom, 20)
 
@@ -571,6 +578,30 @@ struct RunSummaryView: View {
         }
     }
     
+    // MARK: - Shoe Retirement Banner
+
+    private func shoeRetirementBanner(_ shoe: Shoe) -> some View {
+        HStack(spacing: 12) {
+            Text("🎉")
+                .font(.system(size: 30))
+            VStack(alignment: .leading, spacing: 3) {
+                Text("\(shoe.name) hit its max")
+                    .font(.inter(size: 15, weight: .bold))
+                    .foregroundColor(.white)
+                Text("\(Int(shoe.totalDistanceKm + result.distanceKm)) of \(Int(shoe.effectiveMaxKm)) km. Go ahead and buy a new pair — you earned it!")
+                    .font(.inter(size: 13, weight: .medium))
+                    .foregroundColor(.white.opacity(0.92))
+            }
+            Spacer()
+        }
+        .padding(16)
+        .background(
+            LinearGradient(colors: [Color.stridePrimary, Color.strideDarkRed],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
     // MARK: - Notes Section
 
     private var notesSection: some View {

@@ -19,6 +19,31 @@ final class Shoe {
         set { usageRaw = newValue.rawValue }
     }
 
+    /// Recommended lifespan in km (0 = unset → derived from model name).
+    var recommendedMaxKm: Double = 0
+
+    var effectiveMaxKm: Double {
+        recommendedMaxKm > 0 ? recommendedMaxKm : Shoe.defaultMaxKm(forName: name)
+    }
+
+    var lifeFraction: Double {
+        let maxKm = effectiveMaxKm
+        return maxKm > 0 ? totalDistanceKm / maxKm : 0
+    }
+
+    /// Per-model lifespans from published durability data:
+    /// Alphafly ~250 mi (Nike), Streakfly ~350 km (ZoomX flat),
+    /// Zoom Fly ~550 km (plated trainer), Vomero ~400 mi median.
+    static func defaultMaxKm(forName name: String) -> Double {
+        let n = name.lowercased()
+        if n.contains("alphafly") || n.contains("alpha fly") { return 400 }
+        if n.contains("streakfly") || n.contains("streak fly") { return 350 }
+        if n.contains("vaporfly") || n.contains("vapor fly") { return 400 }
+        if n.contains("zoom fly") || n.contains("zoomfly") { return 550 }
+        if n.contains("vomero") { return 650 }
+        return 600   // sensible daily-trainer default
+    }
+
     init(
         id: UUID = UUID(),
         name: String,
