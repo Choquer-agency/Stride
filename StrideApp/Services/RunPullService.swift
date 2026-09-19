@@ -166,16 +166,30 @@ final class RunPullService {
         )
         guard let plan = (try? context.fetch(planDescriptor))?.first else { return }
         let workouts = plan.weeks.flatMap { $0.workouts }
+        let flexible = plan.isFlexibleSchedule
 
         var didChange = false
-        for log in logs {
+        // Flexible week: every real run counts toward the week's sessions, so
+        // free runs are candidates too (the regular filter above excludes them).
+        let candidatesLogs: [RunLog] = flexible
+            ? ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
+                .filter { $0.completedAt >= cutoff && $0.distanceKm >= 0.2 }
+            : logs
+        for log in candidatesLogs {
             // Already reconciled — never re-match. (Without this, the ±1-day
             // timezone tolerance re-fired on every pass and checked off
             // TOMORROW's same-titled workout.)
             if log.plannedWorkoutId != nil { continue }
-            let match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
+            var match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
                                          in: workouts, calendar: calendar)
+            if match == nil, flexible {
+                match = flexibleWeekMatch(for: log.completedAt, distanceKm: log.distanceKm,
+                                          in: plan, calendar: calendar)
+            }
             guard let workout = match else { continue }
+            if flexible, !calendar.isDate(workout.date, inSameDayAs: log.completedAt) {
+                workout.date = log.completedAt   // session moves to the day it was done
+            }
             log.plannedWorkoutId = workout.id   // back-link so this log stops reading as a free run
             workout.isCompleted = true
             workout.completedAt = log.completedAt
@@ -346,6 +360,32 @@ final class RunPullService {
         return nil
     }
 
+    /// Flexible week: an off-schedule run claims the open session of its
+    /// Monday–Sunday week whose planned distance is closest to what was run.
+    private func flexibleWeekMatch(
+        for date: Date,
+        distanceKm: Double,
+        in plan: TrainingPlan,
+        calendar: Calendar
+    ) -> Workout? {
+        let day = calendar.startOfDay(for: date)
+        guard let week = plan.weeks.first(where: { week in
+            guard let start = week.mondayStart,
+                  let end = calendar.date(byAdding: .day, value: 6, to: start) else { return false }
+            return day >= start && day <= end
+        }) else { return nil }
+        let open = week.sortedWorkouts.filter { workout in
+            !workout.isCompleted
+                && workout.workoutType != .rest
+                && workout.workoutType != .gym
+                && workout.workoutType != .crossTraining
+                && workout.workoutType != .mobility
+        }
+        return open.min { a, b in
+            abs((a.distanceKm ?? 0) - distanceKm) < abs((b.distanceKm ?? 0) - distanceKm)
+        }
+    }
+
     private func markPlannedWorkoutComplete(
         for run: ServerRunDTO,
         on runDate: Date,
@@ -369,8 +409,12 @@ final class RunPullService {
                     && workout.workoutType != .mobility
             }
         // Prefer a title match when the server run is tied to a specific session
-        let workout = candidates.first { $0.title == run.plannedWorkoutTitle } ?? candidates.first
-        guard let workout else { return }
+        var matched = candidates.first { $0.title == run.plannedWorkoutTitle } ?? candidates.first
+        if matched == nil, plan.isFlexibleSchedule, run.distanceKm >= 0.2 {
+            matched = flexibleWeekMatch(for: runDate, distanceKm: run.distanceKm, in: plan, calendar: calendar)
+            if let m = matched, !calendar.isDate(m.date, inSameDayAs: runDate) { m.date = runDate }
+        }
+        guard let workout = matched else { return }
 
         workout.isCompleted = true
         workout.completedAt = runDate

@@ -48,13 +48,13 @@ struct FitbitDashboardView: View {
             // Start scanning for the watch broadcast unless a run already owns it
             if !hrManager.isConnected && !hrManager.isScanning {
                 dashboardStartedScan = true
-                hrManager.startScanning()
+                hrManager.startScanning(owner: "dashboard")
             }
         }
         .onDisappear {
             // Only tear down a scan this screen started — never a run's capture
             if dashboardStartedScan {
-                hrManager.stopAndDisconnect()
+                hrManager.stopAndDisconnect(owner: "dashboard")
                 dashboardStartedScan = false
             }
         }

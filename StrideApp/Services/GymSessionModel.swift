@@ -102,9 +102,28 @@ enum GymSessionModel {
             .filter { !$0.isEmpty }
     }
 
+    private static func equipmentUnit(in item: String) -> String? {
+        let text = item.lowercased()
+        if text.range(of: #"\b(medicine\s*balls?|med[ –-]?balls?)\b"#, options: .regularExpression) != nil {
+            return "kg"
+        }
+        if text.range(of: #"\b(dumbbells?|kettlebells?|db|kb)\b"#, options: .regularExpression) != nil {
+            return "lbs"
+        }
+        return nil
+    }
+
+    /// Correct equipment labels only; preserve the athlete's prescribed numbers.
+    static func equipmentUnits(in item: String) -> String {
+        guard let unit = equipmentUnit(in: item) else { return item }
+        return item.replacingOccurrences(of: #"\b(?:kg|kgs|lb|lbs)\b"#, with: unit,
+                                         options: [.regularExpression, .caseInsensitive])
+    }
+
     // MARK: - Per-exercise parsing
 
     static func parseExercise(_ item: String) -> ParsedExercise {
+        let item = equipmentUnits(in: item)
         var name = item
         var scheme = ""
         if let digitIdx = item.firstIndex(where: \.isNumber), digitIdx != item.startIndex {
@@ -131,9 +150,11 @@ enum GymSessionModel {
             } else if let numRange = loadText.range(of: #"^[\d.]+"#, options: .regularExpression) {
                 let value = Double(loadText[numRange]) ?? 0
                 let unit = String(loadText[numRange.upperBound...]).trimmingCharacters(in: .whitespaces)
-                if unit.lowercased().hasPrefix("kg") {
+                if unit.lowercased().hasPrefix("kg")
+                    || (equipmentUnit(in: item) != nil && unit.lowercased().hasPrefix("lb")) {
                     weightKg = value
-                    weightSuffix = unit.contains("/hand") ? "kg/hand" : "kg"
+                    let baseUnit = unit.lowercased().hasPrefix("kg") ? "kg" : "lbs"
+                    weightSuffix = baseUnit + (unit.contains("/hand") ? "/hand" : "")
                 } else {
                     weightSuffix = unit.isEmpty ? "" : unit   // "lb" — fixed increments, not adjustable
                     repsText += repsText.isEmpty ? "\(Int(value)) \(unit)" : " @ \(Int(value)) \(unit)"

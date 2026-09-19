@@ -9,6 +9,8 @@ struct GymWorkoutPlayerView: View {
     /// Called once when the athlete finishes the whole session.
     let onFinished: (_ summary: String) -> Void
 
+    @ObservedObject private var heartRate = HeartRateManager.shared
+
     @Environment(\.dismiss) private var dismiss
 
     @State private var stages: [GymSessionModel.Stage] = []
@@ -52,6 +54,7 @@ struct GymWorkoutPlayerView: View {
         .background((isRedMode ? Color.stridePrimary : Color(.systemBackground)).ignoresSafeArea())
         .animation(.easeInOut(duration: 0.25), value: isRedMode)
         .onAppear {
+            heartRate.startScanning(owner: "gym")
             UIApplication.shared.isIdleTimerDisabled = true
             stages = GymSessionModel.stages(fromPrescription: workout.details ?? workout.title)
             prefillWeights()
@@ -60,6 +63,7 @@ struct GymWorkoutPlayerView: View {
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             timer?.invalidate()
+            heartRate.stopAndDisconnect(owner: "gym")
         }
         .confirmationDialog("Leave this session?", isPresented: $showAbandonConfirm) {
             Button("Leave without finishing", role: .destructive) { dismiss() }
@@ -197,6 +201,8 @@ struct GymWorkoutPlayerView: View {
                     .background(Capsule().fill(isRedMode ? Color.white : Color.stridePrimary))
             }
 
+            LiveHeartRateLabel(bpm: heartRate.currentBPM, tint: isRedMode ? .white : .heartRatePink)
+
             switch stage.kind {
             case .timed:
                 Text(formatCountdown(remainingSeconds))
@@ -313,7 +319,7 @@ struct GymWorkoutPlayerView: View {
                 .monospacedDigit()
                 .contentTransition(.numericText())
 
-            Text("slide up or down · 5 kg steps")
+            Text("slide up or down · 5 \(suffix.components(separatedBy: "/").first ?? suffix) steps")
                 .font(.inter(size: 11))
                 .foregroundStyle(.tertiary)
         }

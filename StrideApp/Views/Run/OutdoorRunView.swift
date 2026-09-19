@@ -50,6 +50,8 @@ struct OutdoorRunView: View {
             if showCountdown {
                 countdownOverlay
                     .transition(.opacity)
+            } else if viewModel.isIntervalWorkout || viewModel.intervalPrescriptionWarning != nil {
+                RunView(viewModel: viewModel, onFinishRun: onFinishRun)
             } else if viewModel.isPaused {
                 pausedOverlay
                     .transition(.opacity)
@@ -73,6 +75,10 @@ struct OutdoorRunView: View {
         .animation(.easeInOut(duration: 0.25), value: showCountdown)
         .navigationBarHidden(true)
         .onAppear {
+            guard !viewModel.hasActiveProvider else {
+                showCountdown = false
+                return
+            }
             // Delay to let map calibrate, then start countdown
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                 startCountdown()
@@ -405,25 +411,16 @@ struct OutdoorRunView: View {
                         }
                         .frame(maxWidth: .infinity)
 
-                        // Live heart rate (BLE broadcast from the watch)
-                        if viewModel.heartRate > 0 {
-                            VStack(spacing: 2) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(viewModel.heartRateZone.color)
-                                    Text("\(viewModel.heartRate)")
-                                        .font(.barlowCondensed(size: 40, weight: .medium))
-                                        .foregroundColor(.primary)
-                                }
-                                Text(viewModel.heartRateZone.displayText)
-                                    .font(.inter(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
+
                     }
                     .padding(.horizontal, 24)
+
+                    HStack(spacing: 10) {
+                        LiveHeartRateLabel(bpm: viewModel.heartRate > 0 ? viewModel.heartRate : nil)
+                        if let type = viewModel.plannedWorkoutType, let band = HeartRateZones.band(for: type) {
+                            Text("Target HR \(band) bpm").font(.inter(size: 12)).foregroundStyle(.secondary)
+                        }
+                    }
 
                     // Pause button
                     Button {

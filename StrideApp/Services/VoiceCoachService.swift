@@ -234,21 +234,12 @@ final class VoiceCoachService {
             // Halfway
             if !hasAnnouncedHalfway && currentDistanceKm >= target / 2.0 {
                 hasAnnouncedHalfway = true
-                let doneKm = Int(currentDistanceKm.rounded())
-                let toGoKm = Int(remaining.rounded())
-
+                let done = Self.spokenDistance(currentDistanceKm)
+                let toGo = Self.spokenDistance(max(0, remaining))
                 var clips: [AudioClip] = [
                     .bundled("encourage_halfway", fallbackText: "Halfway home."),
+                    .text("\(done) kilometers down, \(toGo) kilometers to go."),
                 ]
-                // "10k down, 10k to go"
-                if doneKm > 0 && doneKm <= 60 {
-                    clips.append(.bundled("num_\(doneKm)"))
-                    clips.append(.bundled("kilometers"))
-                }
-                if toGoKm > 0 && toGoKm <= 60 {
-                    clips.append(.bundled("num_\(toGoKm)"))
-                    clips.append(.bundled("kilometers_to_go", fallbackText: "kilometers to go."))
-                }
                 clips.append(.bundled("time_label", fallbackText: "Time:"))
                 clips.append(contentsOf: timeClips(elapsedTime))
                 tts.speakSequence(clips)
@@ -705,6 +696,17 @@ final class VoiceCoachService {
     /// Clears the voice cache.
     func clearCache() {
         tts.clearCache()
+    }
+
+    static func spokenDistance(_ kilometers: Double) -> String {
+        // Preserve fractional kilometers (5 km halfway is 2.5, not 3).
+        String(format: "%.2f", kilometers)
+            .replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
+    }
+
+    func announceWorkoutCompleted() {
+        guard settings.isEnabled else { return }
+        tts.speakSequence([.bundled("run_complete", fallbackText: "Workout completed. Nice work.")])
     }
 
     // MARK: - Reset

@@ -122,3 +122,21 @@ struct HeartRateGraphView: View {
         )
     }
 }
+
+
+extension Color {
+    static let heartRatePink = Color(red: 0.94, green: 0.48, blue: 0.64)
+}
+
+struct LiveHeartRateLabel: View {
+    let bpm: Int?
+    var tint: Color = .heartRatePink
+
+    var body: some View {
+        Label(bpm.map { "\($0) bpm" } ?? "— bpm", systemImage: "heart.fill")
+            .font(.inter(size: 14, weight: .semibold))
+            .monospacedDigit()
+            .foregroundStyle(tint)
+            .accessibilityLabel(bpm.map { "Current heart rate \($0) beats per minute" } ?? "Heart rate unavailable")
+    }
+}

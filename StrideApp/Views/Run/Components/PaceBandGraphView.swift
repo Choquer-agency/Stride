@@ -10,6 +10,9 @@ struct PaceBandGraphView: View {
     let targetMinSec: Double?
     let targetMaxSec: Double?
 
+    var heartRates: [Int?] = []
+    var distances: [Double] = []
+
     private let graphHeight: CGFloat = 150
 
     var body: some View {
@@ -80,12 +83,12 @@ struct PaceBandGraphView: View {
                 if paces.count > 1 {
                     Path { path in
                         for (index, pace) in paces.enumerated() {
-                            let x = CGFloat(index) / CGFloat(paces.count - 1) * width
+                            let x = xPosition(index, width: width)
                             let point = CGPoint(x: x, y: y(pace, height))
                             if index == 0 {
                                 path.move(to: point)
                             } else {
-                                let prevX = CGFloat(index - 1) / CGFloat(paces.count - 1) * width
+                                let prevX = xPosition(index - 1, width: width)
                                 let prev = CGPoint(x: prevX, y: y(paces[index - 1], height))
                                 path.addQuadCurve(
                                     to: point,
@@ -94,8 +97,10 @@ struct PaceBandGraphView: View {
                         }
                     }
                     .stroke(Color.stridePrimary,
-                            style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
+                            style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 }
+
+                heartRateTrace(width: width, height: height)
 
                 // Current position dot
                 if let last = paces.last {
@@ -124,20 +129,55 @@ struct PaceBandGraphView: View {
             let height = geo.size.height
             let lo = (paces.min() ?? 0) - 10
             let hi = (paces.max() ?? 1) + 10
+            ZStack {
             if paces.count > 1, hi > lo {
                 Path { path in
                     for (index, pace) in paces.enumerated() {
-                        let x = CGFloat(index) / CGFloat(paces.count - 1) * width
+                        let x = xPosition(index, width: width)
                         let yPos = CGFloat((pace - lo) / (hi - lo)) * height
                         index == 0 ? path.move(to: CGPoint(x: x, y: yPos))
                                    : path.addLine(to: CGPoint(x: x, y: yPos))
                     }
                 }
                 .stroke(Color.stridePrimary,
-                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round))
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            }
+            heartRateTrace(width: width, height: height)
             }
         }
         .frame(height: graphHeight)
+    }
+
+    private func xPosition(_ index: Int, width: CGFloat) -> CGFloat {
+        if distances.count == paces.count, let first = distances.first,
+           let last = distances.last, last > first {
+            return CGFloat((distances[index] - first) / (last - first)) * width
+        }
+        return CGFloat(index) / CGFloat(max(paces.count - 1, 1)) * width
+    }
+
+    @ViewBuilder
+    private func heartRateTrace(width: CGFloat, height: CGFloat) -> some View {
+        let readings = heartRates.compactMap { $0 }
+        if heartRates.count == paces.count, !readings.isEmpty {
+            let low = max(0, (readings.min() ?? 60) - 10)
+            let high = (readings.max() ?? 180) + 10
+            Path { path in
+                var connected = false
+                for (index, bpm) in heartRates.enumerated() {
+                    guard let bpm else { connected = false; continue }
+                    let point = CGPoint(x: xPosition(index, width: width),
+                        y: height * (1 - CGFloat(bpm - low) / CGFloat(high - low)))
+                    if connected { path.addLine(to: point) } else { path.move(to: point) }
+                    connected = true
+                }
+            }
+            .stroke(Color.heartRatePink, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+            Text("HR \(low)–\(high) bpm")
+                .font(.inter(size: 9, weight: .semibold))
+                .foregroundStyle(Color.heartRatePink)
+                .frame(width: width, height: height, alignment: .bottomTrailing)
+        }
     }
 
     private static func formatPace(_ secPerKm: Double) -> String {

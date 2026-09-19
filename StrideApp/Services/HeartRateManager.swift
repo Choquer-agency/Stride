@@ -36,6 +36,10 @@ final class HeartRateManager: NSObject, ObservableObject {
     private(set) var samples: [Sample] = []
     private var samplingStart: Date?
 
+    private var owners = Set<String>()
+    private var lastReading: Date?
+    private var freshnessTimer: Timer?
+
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
 
@@ -45,7 +49,15 @@ final class HeartRateManager: NSObject, ObservableObject {
     // MARK: - Public control
 
     /// Begin scanning for a heart-rate broadcaster and start a fresh sample log.
-    func startScanning() {
+    func startScanning(owner: String = "run") {
+        owners.insert(owner)
+        guard freshnessTimer == nil else { return }
+        freshnessTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, let last = self.lastReading else { return }
+                if Date().timeIntervalSince(last) > 10 { self.currentBPM = nil }
+            }
+        }
         samples = []
         samplingStart = Date()
         currentBPM = nil
@@ -57,7 +69,12 @@ final class HeartRateManager: NSObject, ObservableObject {
     }
 
     /// Stop scanning/disconnect but keep the recorded samples for the caller.
-    func stopAndDisconnect() {
+    func stopAndDisconnect(owner: String = "run") {
+        owners.remove(owner)
+        guard owners.isEmpty else { return }
+        freshnessTimer?.invalidate()
+        freshnessTimer = nil
+        lastReading = nil
         isScanning = false
         central?.stopScan()
         if let peripheral {
@@ -87,7 +104,7 @@ final class HeartRateManager: NSObject, ObservableObject {
     // MARK: - Internals
 
     private func scanIfPoweredOn() {
-        guard let central, central.state == .poweredOn else { return }
+        guard !owners.isEmpty, peripheral == nil, let central, central.state == .poweredOn else { return }
         isScanning = true
         bluetoothUnavailable = false
         central.scanForPeripherals(withServices: [heartRateServiceUUID])
@@ -95,6 +112,8 @@ final class HeartRateManager: NSObject, ObservableObject {
     }
 
     private func record(bpm: Int) {
+        guard !owners.isEmpty else { return }
+        lastReading = Date()
         currentBPM = bpm
         guard let samplingStart, samples.count < Self.maxSamples else { return }
         samples.append(Sample(t: Date().timeIntervalSince(samplingStart), bpm: bpm))
@@ -108,6 +127,9 @@ extension HeartRateManager: CBCentralManagerDelegate {
             case .poweredOn:
                 self.scanIfPoweredOn()
             case .unauthorized, .unsupported, .poweredOff:
+                self.currentBPM = nil
+                self.isConnected = false
+                self.peripheral = nil
                 self.bluetoothUnavailable = true
                 self.isScanning = false
             default:
@@ -123,7 +145,7 @@ extension HeartRateManager: CBCentralManagerDelegate {
         rssi RSSI: NSNumber
     ) {
         Task { @MainActor in
-            guard self.peripheral == nil else { return }
+            guard !self.owners.isEmpty, self.peripheral == nil else { return }
             self.peripheral = peripheral
             self.deviceName = peripheral.name
             central.stopScan()
@@ -134,10 +156,20 @@ extension HeartRateManager: CBCentralManagerDelegate {
 
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor in
+            guard !self.owners.isEmpty else { central.cancelPeripheralConnection(peripheral); return }
             self.isConnected = true
             self.isScanning = false
             peripheral.delegate = self
             peripheral.discoverServices([heartRateServiceUUID])
+        }
+    }
+
+    nonisolated func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        Task { @MainActor in
+            self.peripheral = nil
+            self.isConnected = false
+            self.currentBPM = nil
+            self.scanIfPoweredOn()
         }
     }
 

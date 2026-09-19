@@ -271,8 +271,8 @@ struct WorkoutDetailView: View {
                         }
 
                         Text(workout.isCompleted
-                             ? (workout.isPeloton ? "Ride Completed" : (isGymWorkout ? "Gym Completed" : "\(workout.title) Completed"))
-                             : (workout.isPeloton ? "Peloton Ride" : (isGymWorkout ? "Gym" : workout.workoutType.displayName)))
+                             ? (workout.isPeloton ? (workout.isPelotonStrength ? "Strength Completed" : "Ride Completed") : (isGymWorkout ? "Gym Completed" : "\(workout.title) Completed"))
+                             : (workout.isPeloton ? (workout.isPelotonStrength ? "Peloton Strength" : "Peloton Ride") : (isGymWorkout ? "Gym" : workout.workoutType.displayName)))
                             .font(.inter(size: 14, weight: .medium))
                             .foregroundStyle(.primary)
                     }
@@ -611,7 +611,7 @@ struct WorkoutDetailView: View {
                         }
                         Spacer(minLength: 12)
                         if let scheme = item.scheme {
-                            Text(scheme)
+                            Text(GymSessionModel.equipmentUnits(in: "\(item.name) \(scheme)").dropFirst(item.name.count + 1))
                                 .font(.barlowCondensed(size: 16, weight: .medium))
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.trailing)

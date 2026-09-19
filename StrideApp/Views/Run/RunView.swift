@@ -58,13 +58,26 @@ struct RunView: View {
                         // ── Pace story: hero number + verdict pill + corridor ──
                         // (the corridor's labeled edges ARE the target — no
                         // redundant "Target: 6:00-6:30" text row)
+                        if let prescription = viewModel.intervalPrescriptionWarning {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Interval guidance unavailable").font(.headline)
+                                Text("This workout could not be read automatically. Follow the prescription below.")
+                                Text(prescription)
+                            }
+                            .font(.subheadline)
+                            .padding()
+                            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                        }
+
                         paceBlock
                             .padding(.bottom, 2)
 
                         PaceBandGraphView(
                             paces: viewModel.paceGraphPaces,
                             targetMinSec: viewModel.targetPaceMinSec,
-                            targetMaxSec: viewModel.targetPaceMaxSec
+                            targetMaxSec: viewModel.targetPaceMaxSec,
+                            heartRates: viewModel.paceGraphHeartRates,
+                            distances: viewModel.paceGraphDistances
                         )
                         .padding(.bottom, 26)
 
@@ -122,9 +135,9 @@ struct RunView: View {
                 HStack(spacing: 12) {
                     // Pause Run (red)
                     Button {
-                        // Visual placeholder — treadmill controls pacing
+                        viewModel.isPaused ? viewModel.resumeRun() : viewModel.pauseRun()
                     } label: {
-                        Text("Pause Run")
+                        Text(viewModel.isPaused ? "Resume Run" : "Pause Run")
                             .font(.inter(size: 16, weight: .semibold))
                             .foregroundColor(isWorkPhase ? Color.stridePrimary : .white)
                             .frame(maxWidth: .infinity)
@@ -228,6 +241,10 @@ struct RunView: View {
                             Text(String(format: "%.2f / %.1f km", viewModel.intervalPhaseDistanceDone, target))
                                 .font(.barlowCondensed(size: 64, weight: .medium))
                                 .foregroundColor(intervalFg)
+                            Text(formatTime(viewModel.intervalPhaseElapsed))
+                                .font(.barlowCondensed(size: 28, weight: .medium))
+                                .foregroundColor(intervalFgSoft)
+                                .monospacedDigit()
                             GeometryReader { geo in
                                 ZStack(alignment: .leading) {
                                     Capsule().fill(Color(.systemGray5)).frame(height: 8)
@@ -279,6 +296,8 @@ struct RunView: View {
 
             Spacer()
 
+            heartRateLine.padding(.bottom, 12)
+
             // What's coming — removes the "what's next?" anxiety
             if !viewModel.intervalComplete, let next = viewModel.nextIntervalSegment {
                 Text("Next: \(nextLabel(next))")
@@ -296,10 +315,12 @@ struct RunView: View {
         switch segment.kind {
         case .warmup: return "warm-up"
         case .work(let rep, let of):
-            let dur = segment.durationSec.map { formatCountdownShort($0) } ?? ""
+            let dur = segment.durationSec.map { formatCountdownShort($0) }
+                ?? segment.distanceKm.map { String(format: "%g km", $0) } ?? ""
             return "rep \(rep)/\(of) — \(dur) at \(segment.paceText)"
         case .float:
-            let dur = segment.durationSec.map { formatCountdownShort($0) } ?? ""
+            let dur = segment.durationSec.map { formatCountdownShort($0) }
+                ?? segment.distanceKm.map { String(format: "%g km", $0) } ?? ""
             return "\(dur) recovery"
         case .cooldown:
             let km = segment.distanceKm.map { String(format: "%.1f", $0) } ?? ""
@@ -421,34 +442,21 @@ struct RunView: View {
     @ViewBuilder
     private var heartRateLine: some View {
         let band = viewModel.plannedWorkoutType.flatMap { HeartRateZones.band(for: $0) }
-        if viewModel.heartRate > 0 {
-            HStack(spacing: 6) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 13))
-                    .foregroundColor(viewModel.heartRateZone.color)
-                Text("\(viewModel.heartRate) bpm")
-                    .font(.barlowCondensed(size: 20, weight: .medium))
-                Text("· \(viewModel.heartRateZone.displayText)")
-                    .font(.inter(size: 13, weight: .medium))
-                    .foregroundColor(viewModel.heartRateZone.color)
-                if let band {
-                    Text("· target \(band)")
-                        .font(.inter(size: 13, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                LiveHeartRateLabel(bpm: viewModel.heartRate > 0 ? viewModel.heartRate : nil,
+                                   tint: isWorkPhase ? .white : .heartRatePink)
+                if let band { Text("Target HR \(band) bpm").font(.inter(size: 12)).foregroundStyle(intervalFgSoft) }
             }
-        } else if let band {
-            HStack(spacing: 6) {
-                Image(systemName: "heart.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                Text("Target HR \(band) bpm")
-                    .font(.inter(size: 14, weight: .medium))
-                    .foregroundColor(.secondary)
+            VStack(spacing: 4) {
+                LiveHeartRateLabel(bpm: viewModel.heartRate > 0 ? viewModel.heartRate : nil,
+                                   tint: isWorkPhase ? .white : .heartRatePink)
+                if let band { Text("Target HR \(band) bpm").font(.inter(size: 12)).foregroundStyle(intervalFgSoft) }
             }
         }
     }
     
+
     // MARK: - Metrics Row
     private var metricsRow: some View {
         HStack(spacing: 32) {

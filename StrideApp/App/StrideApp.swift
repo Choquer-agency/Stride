@@ -293,6 +293,9 @@ struct StrideApp: App {
                     if newPhase == .active, case .signedIn = authService.authState {
                         PreRunIntroPrefetcher.shared.warmUpIfNeeded(container: modelContainer)
                         Task { await pushManager.reregisterIfAuthorized() }
+                        // Every foreground: pull coach-logged runs and self-heal
+                        // plan checkmarks, not only when the Plan tab is rebuilt.
+                        Task { await RunPullService.shared.reconcile(context: modelContainer.mainContext) }
                     }
                 }
                 // Handle stride:// URLs opened from external sources (universal links

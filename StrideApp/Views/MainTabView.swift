@@ -3,9 +3,12 @@ import SwiftData
 import PostHog
 
 struct MainTabView: View {
+    @ObservedObject private var heartRate = HeartRateManager.shared
     @State private var selectedTab: Tab =
         ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }) ? .run : .plan
     @State private var hideTabBar: Bool = false
+    @State private var runInProgress = false
+    @StateObject private var runViewModel = RunViewModel()
 
     // Coach deep links (push taps) presented as sheets over whatever tab is active.
     @ObservedObject private var deepLinkRouter = DeepLinkRouter.shared
@@ -34,12 +37,24 @@ struct MainTabView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            Group {
+            ZStack {
+                // Keep the run view and its session mounted across tab changes.
+                // Recreating this branch would discard the run and replay countdowns.
+                NavigationStack {
+                    RunTabContainer(
+                        viewModel: runViewModel,
+                        hideTabBar: $hideTabBar,
+                        selectedTab: $selectedTab,
+                        runInProgress: $runInProgress
+                    )
+                }
+                .opacity(selectedTab == .run ? 1 : 0)
+                .allowsHitTesting(selectedTab == .run)
+                .accessibilityHidden(selectedTab != .run)
+
                 switch selectedTab {
                 case .run:
-                    NavigationStack {
-                        RunTabContainer(hideTabBar: $hideTabBar, selectedTab: $selectedTab)
-                    }
+                    EmptyView()
                 case .plan:
                     PlanTabContainer()
                 case .stats:
@@ -53,13 +68,49 @@ struct MainTabView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .safeAreaInset(edge: .bottom, spacing: 0) {
+            .safeAreaInset(edge: .top, spacing: 0) {
                 if !hideTabBar {
+                    LiveHeartRateLabel(bpm: heartRate.currentBPM)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 4)
+                }
+                if runInProgress && selectedTab != .run {
+                    Button {
+                        selectedTab = .run
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: runViewModel.isPaused ? "pause.circle.fill" : "figure.run")
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(runViewModel.isPaused ? "Run paused" : "Run in progress")
+                                    .font(.inter(size: 14, weight: .semibold))
+                                Text(String(format: "%.2f km · %d:%02d",
+                                            runViewModel.distance,
+                                            Int(runViewModel.elapsedTime) / 60,
+                                            Int(runViewModel.elapsedTime) % 60))
+                                    .font(.inter(size: 12, weight: .medium))
+                                    .monospacedDigit()
+                            }
+                            Spacer()
+                            Text("Return to run")
+                                .font(.inter(size: 14, weight: .semibold))
+                            Image(systemName: "chevron.right")
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 12)
+                        .background(Color.stridePrimary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if selectedTab != .run || !hideTabBar {
                     Color.clear.frame(height: 72)
                 }
             }
             .overlay(alignment: .bottom) {
-                if !hideTabBar {
+                if selectedTab != .run || !hideTabBar {
                     CustomTabBar(selectedTab: $selectedTab, screenWidth: geometry.size.width)
                         .offset(y: geometry.safeAreaInsets.bottom)
                         .animation(.none, value: selectedTab)
@@ -73,7 +124,11 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .strideSwitchToRunTab)) { _ in
             selectedTab = .run
         }
-        .onAppear { consumeDeepLinkIfNeeded(deepLinkRouter.pendingLink) }
+        .onAppear {
+            heartRate.startScanning(owner: "app")
+            consumeDeepLinkIfNeeded(deepLinkRouter.pendingLink)
+        }
+        .onDisappear { heartRate.stopAndDisconnect(owner: "app") }
         .onChange(of: deepLinkRouter.pendingLink) { _, link in
             consumeDeepLinkIfNeeded(link)
         }
@@ -251,12 +306,18 @@ struct RunTabContainer: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Workout.date) private var allWorkouts: [Workout]
     @Query(filter: #Predicate<Shoe> { $0.isRetired == false }, sort: \Shoe.name) private var shoes: [Shoe]
-    @StateObject private var viewModel = RunViewModel()
+    @ObservedObject var viewModel: RunViewModel
     @State private var runState: RunState = .lobby
     @State private var isOutdoorMode: Bool = false
 
     @Binding var hideTabBar: Bool
     @Binding var selectedTab: MainTabView.Tab
+    @Binding var runInProgress: Bool
+
+    private var isActiveRun: Bool {
+        if case .active = runState { return true }
+        return false
+    }
 
     enum RunState {
         case lobby
@@ -267,7 +328,34 @@ struct RunTabContainer: View {
     @ViewBuilder
     var body: some View {
         content
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if isActiveRun {
+                    HStack {
+                        Button {
+                            selectedTab = .plan
+                        } label: {
+                            Label("Browse app", systemImage: "chevron.down")
+                                .font(.inter(size: 14, weight: .semibold))
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial)
+                }
+            }
+            .onChange(of: isActiveRun, initial: true) { _, active in
+                runInProgress = active
+            }
             .onAppear { seedDemoRunIfRequested() }
+            .onChange(of: viewModel.workoutCompleted) { _, completed in
+                guard completed, case .active = runState else { return }
+                let result = viewModel.buildRunResult()
+                withAnimation {
+                    runState = .summary(result, RunScoringService.calculateScore(result: result))
+                    selectedTab = .run
+                }
+            }
     }
 
     /// UI-iteration hook: launch with --runview-demo to land straight on the
@@ -351,6 +439,7 @@ struct RunTabContainer: View {
             case .active:
                 if isOutdoorMode {
                     OutdoorRunView(viewModel: viewModel, onStartRun: {
+                        guard !viewModel.hasActiveProvider else { return }
                         let provider = makeProvider(outdoor: true)
                         viewModel.attach(provider: provider)
                     }, onFinishRun: {
@@ -464,6 +553,12 @@ struct RunTabContainer: View {
 
         // B) For planned runs, also update Workout as a display cache
         if let workout {
+            // Flexible week: a session run on a different day than scheduled
+            // moves to the day it was actually done.
+            if workout.week?.plan?.isFlexibleSchedule == true,
+               !Calendar.current.isDateInToday(workout.date) {
+                workout.date = Date()
+            }
             workout.isCompleted = true
             workout.completedAt = Date()
             workout.actualDistanceKm = result.distanceKm

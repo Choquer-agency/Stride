@@ -19,7 +19,9 @@ struct DayCardView: View {
     }
     
     private var isRestDay: Bool {
-        workouts.count == 1 && workouts.first?.workoutType == .rest
+        // An empty day (flexible week: its session was done on another day)
+        // renders as rest.
+        workouts.isEmpty || (workouts.count == 1 && workouts.first?.workoutType == .rest)
     }
     
     private var allWorkoutsCompleted: Bool {

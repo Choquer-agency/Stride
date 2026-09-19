@@ -40,6 +40,11 @@ final class Workout {
         let text = "\(title) \(details ?? "")".lowercased()
         return text.contains("peloton")
     }
+
+    /// A Peloton strength class (vs. a ride) — same logo, different label.
+    var isPelotonStrength: Bool {
+        isPeloton && "\(title) \(details ?? "")".lowercased().contains("strength")
+    }
     
     var dayOfWeek: String {
         let formatter = DateFormatter()
@@ -162,6 +167,13 @@ final class Workout {
     func toggleCompletion() {
         isCompleted.toggle()
         completedAt = isCompleted ? Date() : nil
+        // Flexible week: a session checked off on a different day than
+        // scheduled moves to the day it was actually done.
+        if isCompleted,
+           week?.plan?.isFlexibleSchedule == true,
+           !Calendar.current.isDateInToday(date) {
+            date = Date()
+        }
     }
 }
 

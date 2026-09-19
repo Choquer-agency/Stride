@@ -18,6 +18,8 @@ struct RunLobbyView: View {
 
     @AppStorage("lastRunMode") private var runModeRaw: String = RunMode.outdoor.rawValue
     @State private var selectedTab: LobbyTab = .todaysWorkout
+    /// Flexible week: the run the athlete picked from this week's list.
+    @State private var selectedWeekWorkoutId: UUID? = nil
     @State private var freeRunDistance: Double = 12.0
     @State private var freeRunDurationMinutes: Int = 30
     @State private var freeRunGoalMode: FreeRunGoalMode = .distance
@@ -63,30 +65,57 @@ struct RunLobbyView: View {
         || locationManager.authorizationStatus == .authorizedAlways
     }
 
-    private var todaysWorkout: Workout? {
-        guard let plan = plans.first,
-              let currentWeek = plan.currentWeek else { return nil }
-        return currentWeek.sortedWorkouts.first { workout in
-            workout.isToday
-            && !workout.isCompleted
-            && workout.workoutType != .rest
+    /// Flexible week (plan flag): every run in the current Monday–Sunday week
+    /// is startable on any day, in any order. Past weeks are closed, next
+    /// week opens Monday.
+    private var isFlexibleWeek: Bool {
+        plans.first?.isFlexibleSchedule ?? false
+    }
+
+    private static func isRunSession(_ workout: Workout) -> Bool {
+        workout.workoutType != .rest
             && workout.workoutType != .gym
             && workout.workoutType != .crossTraining
             && workout.workoutType != .mobility
+    }
+
+    /// This week's runs still to do (flexible week only), in calendar order.
+    private var remainingWeekRuns: [Workout] {
+        guard isFlexibleWeek,
+              let plan = plans.first,
+              let currentWeek = plan.currentWeek else { return [] }
+        return currentWeek.sortedWorkouts.filter { !$0.isCompleted && Self.isRunSession($0) }
+    }
+
+    private var todaysWorkout: Workout? {
+        guard let plan = plans.first,
+              let currentWeek = plan.currentWeek else { return nil }
+        if isFlexibleWeek {
+            let remaining = remainingWeekRuns
+            if let picked = remaining.first(where: { $0.id == selectedWeekWorkoutId }) { return picked }
+            return remaining.first
+        }
+        return currentWeek.sortedWorkouts.first { workout in
+            workout.isToday
+            && !workout.isCompleted
+            && Self.isRunSession(workout)
         }
     }
 
     /// Today's planned run when it's already done — drives the "in the books" state.
+    /// Flexible week: the most recent run done this week, once none remain.
     private var completedTodaysWorkout: Workout? {
         guard let plan = plans.first,
               let currentWeek = plan.currentWeek else { return nil }
+        if isFlexibleWeek {
+            return currentWeek.sortedWorkouts
+                .filter { $0.isCompleted && Self.isRunSession($0) }
+                .max { ($0.completedAt ?? $0.date) < ($1.completedAt ?? $1.date) }
+        }
         return currentWeek.sortedWorkouts.first { workout in
             workout.isToday
             && workout.isCompleted
-            && workout.workoutType != .rest
-            && workout.workoutType != .gym
-            && workout.workoutType != .crossTraining
-            && workout.workoutType != .mobility
+            && Self.isRunSession(workout)
         }
     }
 
@@ -217,7 +246,7 @@ struct RunLobbyView: View {
                 Button {
                     selectedTab = .todaysWorkout
                 } label: {
-                    Text("Today")
+                    Text(isFlexibleWeek ? "This Week" : "Today")
                         .font(.inter(size: 14, weight: .semibold))
                         .foregroundColor(selectedTab == .todaysWorkout ? .primary : .secondary)
                         .frame(maxWidth: .infinity)
@@ -249,6 +278,50 @@ struct RunLobbyView: View {
 
     // MARK: - Today's Workout Content
 
+    // MARK: - Flexible Week Picker
+
+    /// Chips for every run still open this week; the athlete taps the one
+    /// she's about to do. Suggested day is shown, never enforced.
+    private func weekRunPicker(current: Workout) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(remainingWeekRuns, id: \.id) { run in
+                    let isSelected = run.id == current.id
+                    Button {
+                        selectedWeekWorkoutId = run.id
+                    } label: {
+                        VStack(spacing: 2) {
+                            Text(run.shortDayOfWeek.uppercased())
+                                .font(.inter(size: 10, weight: .semibold))
+                                .foregroundColor(isSelected ? .white.opacity(0.85) : .secondary)
+                            Text(weekChipLabel(for: run))
+                                .font(.inter(size: 13, weight: .semibold))
+                                .foregroundColor(isSelected ? .white : .primary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(isSelected ? Color.stridePrimary : Color(.secondarySystemBackground).opacity(0.9))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .frame(maxWidth: 340)
+    }
+
+    private func weekChipLabel(for run: Workout) -> String {
+        if let km = run.distanceKm, km > 0 {
+            let dist = km == floor(km) ? "\(Int(km)) km" : String(format: "%.1f km", km)
+            return "\(run.workoutType.displayName) · \(dist)"
+        }
+        if let mins = run.durationMinutes, mins > 0 {
+            return "\(run.workoutType.displayName) · \(mins) min"
+        }
+        return run.workoutType.displayName
+    }
+
     // MARK: - Completed Today Card
 
     private func completedTodayCard(_ workout: Workout) -> some View {
@@ -262,14 +335,16 @@ struct RunLobbyView: View {
                     .foregroundStyle(.green)
             }
 
-            Text("Today's session is in the books")
+            Text(isFlexibleWeek ? "This week's runs are in the books" : "Today's session is in the books")
                 .font(.inter(size: 18, weight: .semibold))
 
             Text(completedSummary(for: workout))
                 .font(.inter(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
 
-            Text("Rest up for tomorrow — or log a bonus free run below.")
+            Text(isFlexibleWeek
+                 ? "Next week opens Monday — or log a bonus free run below."
+                 : "Rest up for tomorrow — or log a bonus free run below.")
                 .font(.inter(size: 12.5, weight: .regular))
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -306,6 +381,10 @@ struct RunLobbyView: View {
                     Text(workout.workoutType.displayName)
                         .font(.inter(size: 13, weight: .medium))
                         .foregroundStyle(Color(workout.workoutType.color))
+                }
+
+                if isFlexibleWeek && remainingWeekRuns.count > 1 {
+                    weekRunPicker(current: workout)
                 }
 
                 HStack(alignment: .top, spacing: 12) {
@@ -640,7 +719,7 @@ struct RunLobbyView: View {
 
     private var startButtonTitle: String {
         if runMode == .treadmill && !isConnected { return "Connect Treadmill to Start" }
-        if selectedTab == .todaysWorkout, todaysWorkout != nil { return "Start Today's Run" }
+        if selectedTab == .todaysWorkout, todaysWorkout != nil { return isFlexibleWeek ? "Start This Run" : "Start Today's Run" }
         return runMode == .outdoor ? "Start Outdoor Run" : "Start Treadmill Run"
     }
 

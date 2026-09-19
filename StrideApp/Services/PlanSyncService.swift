@@ -93,6 +93,18 @@ final class PlanSyncService: ObservableObject {
               let content = remote.rawPlanContent,
               let plan = activeLocalPlan(context: context) else { return }
 
+        // A server edit may re-anchor the block (coach moved the start date)
+        // or change the target race — adopt those before re-parsing, since
+        // every workout date is derived from startDate.
+        if let remoteStart = Self.parseISODate(remote.startDate) {
+            plan.startDate = remoteStart
+        }
+        if let remoteRace = Self.parseISODate(remote.raceDate) {
+            plan.raceDate = remoteRace
+        }
+        if let name = remote.raceName { plan.raceName = name }
+        if let flexible = remote.flexibleSchedule { plan.isFlexibleSchedule = flexible }
+
         let parsedWeeks = PlanParser.parse(
             content: content,
             startDate: plan.startDate,
@@ -164,15 +176,8 @@ final class PlanSyncService: ObservableObject {
     private func adoptServerPlan(_ remote: RemotePlanDTO, context: ModelContext) {
         guard let content = remote.rawPlanContent, !content.isEmpty else { return }
 
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        // ISO strings may carry a time component — keep the date prefix only.
-        func parseDate(_ s: String?) -> Date? {
-            guard let s = s else { return nil }
-            return df.date(from: String(s.prefix(10)))
-        }
-        guard let startDate = parseDate(remote.startDate),
-              let raceDate = parseDate(remote.raceDate) else { return }
+        guard let startDate = Self.parseISODate(remote.startDate),
+              let raceDate = Self.parseISODate(remote.raceDate) else { return }
 
         let goalType = remote.goalType.flatMap { GoalType(rawValue: $0) }
         let parsedWeeks = PlanParser.parse(
@@ -194,7 +199,8 @@ final class PlanSyncService: ObservableObject {
             fitnessLevel: remote.fitnessLevel.flatMap { FitnessLevel(rawValue: $0) } ?? .intermediate,
             startDate: startDate,
             isBeginnerMode: remote.beginnerMode ?? false,
-            goalType: goalType
+            goalType: goalType,
+            isFlexibleSchedule: remote.flexibleSchedule ?? false
         )
         plan.rawPlanContent = content
 
@@ -231,6 +237,15 @@ final class PlanSyncService: ObservableObject {
     }
 
     // MARK: - Helpers
+
+    /// "yyyy-MM-dd" (an ISO string may carry a time component — only the date
+    /// prefix is used) → local-calendar Date, or nil.
+    private static func parseISODate(_ s: String?) -> Date? {
+        guard let s = s, s.count >= 10 else { return nil }
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        return df.date(from: String(s.prefix(10)))
+    }
 
     private func activeLocalPlan(context: ModelContext) -> TrainingPlan? {
         let descriptor = FetchDescriptor<TrainingPlan>(

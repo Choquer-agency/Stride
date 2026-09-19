@@ -2911,6 +2911,7 @@ struct RemotePlanDTO: Codable {
     let fitnessLevel: String?
     let currentWeeklyMileage: Int?
     let longestRecentRun: Int?
+    let flexibleSchedule: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, source
@@ -2927,6 +2928,7 @@ struct RemotePlanDTO: Codable {
         case beginnerMode = "beginner_mode"
         case fitnessLevel = "fitness_level"
         case currentWeeklyMileage = "current_weekly_mileage"
+        case flexibleSchedule = "flexible_schedule"
         case longestRecentRun = "longest_recent_run"
     }
 

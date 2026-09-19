@@ -186,6 +186,9 @@ class RunViewModel: ObservableObject {
     @Published var hrSourceConnected: Bool = false        // true while a BLE HR broadcaster is attached
     @Published var kilometerSplits: [KilometerSplit] = []
     @Published var paceGraphDataPoints: [Double] = []     // normalized 0-1 for PaceGraphView
+    @Published var paceGraphHeartRates: [Int?] = []
+    @Published var paceGraphDistances: [Double] = []
+    @Published var intervalPrescriptionWarning: String?
     @Published var paceGraphPaces: [Double] = []          // raw sec/km window for the target-band graph
     @Published var splitFeedback: SplitFeedback? = nil
 
@@ -208,6 +211,8 @@ class RunViewModel: ObservableObject {
     private var lastCountdownTick: Int = -1
     private var basePaceMin: Double?
     private var basePaceMax: Double?
+
+    var intervalPhaseElapsed: Double { max(0, elapsedTime - segmentStartTime) }
 
     var isIntervalWorkout: Bool { !intervalSegments.isEmpty }
     var currentIntervalSegment: IntervalSegment? {
@@ -273,6 +278,9 @@ class RunViewModel: ObservableObject {
     /// Whether a data provider is already attached (guards double-attach on re-appear).
     var hasActiveProvider: Bool { dataProvider != nil }
     private let paceSmoother = PaceSmoother()
+    private let liveSpeedSmoother = LiveSpeedSmoother()
+    @Published private(set) var workoutCompleted = false
+    private var runStopped = false
     private let autoPauseService = AutoPauseService()
     private let voiceCoach = VoiceCoachService()
     private lazy var midRunCoach = MidRunCoachingService(voiceCoach: voiceCoach)
@@ -286,6 +294,7 @@ class RunViewModel: ObservableObject {
     private struct PaceGraphSample {
         let distanceMeters: Double   // cumulative distance at this sample
         let pace: Double             // smoothed pace in sec/km
+        let bpm: Int?
     }
     private var paceGraphSamples: [PaceGraphSample] = []
     /// The graph shows the last 500 metres of pace data
@@ -295,9 +304,6 @@ class RunViewModel: ObservableObject {
 
     // Split feedback auto-dismiss timer
     private var splitFeedbackTimer: Timer?
-
-    // Speed samples for current km segment (used to compute split pace from speed, not elapsed time)
-    private var currentKmSpeedSamples: [Double] = []      // raw speed in m/s
 
     // Pace drift: 50m rolling window, only after 1+ km completed
     private var driftSamples: [(distance: Double, time: Double)] = []
@@ -328,6 +334,7 @@ class RunViewModel: ObservableObject {
     /// Call this once to wire up a data provider (Bluetooth or GPS).
     func attach(provider: RunDataProvider) {
         self.dataProvider = provider
+        runStopped = false
         startHeartRateCapture()
 
         // Wire auto-pause for GPS outdoor runs
@@ -378,8 +385,9 @@ class RunViewModel: ObservableObject {
             manager.$currentBPM
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] bpm in
-                    guard let self, let bpm, bpm > 0 else { return }
-                    self.recordHeartRate(bpm)
+                    guard let self else { return }
+                    if let bpm, bpm > 0 { self.recordHeartRate(bpm) }
+                    else { self.heartRate = 0 }
                 }
                 .store(in: &self.hrCancellables)
 
@@ -422,7 +430,7 @@ class RunViewModel: ObservableObject {
     }
 
     private func tickDisplayTimer() {
-        guard let start = displayTimerStart else { return }
+        guard !runStopped, let start = displayTimerStart else { return }
         if isPaused {
             // Update current pause duration
             if let pauseStart = displayTimerPauseStart {
@@ -431,6 +439,8 @@ class RunViewModel: ObservableObject {
             return
         }
         elapsedTime = Date().timeIntervalSince(start) - displayTimerPausedDuration
+        updateIntervalEngine()
+        checkWorkoutCompletion()
     }
 
     /// Load a planned workout's targets into the view model.
@@ -444,7 +454,14 @@ class RunViewModel: ObservableObject {
         targetDurationMinutes = workout.durationMinutes
 
         // Structured workout? Build the auto-advancing segment list.
-        intervalSegments = IntervalWorkoutParser.parse(workout.details)
+        intervalSegments = IntervalWorkoutParser.parse(workout.details ?? workout.title)
+        intervalPrescriptionWarning = nil
+        if intervalSegments.isEmpty, [.intervals, .fartlek, .hillRepeats].contains(workout.workoutType) {
+            intervalPrescriptionWarning = workout.details ?? workout.title
+        }
+        segmentStartTime = 0
+        segmentStartDistance = 0
+        intervalPhaseDistanceDone = 0
         intervalIndex = 0
         intervalComplete = false
         if let first = intervalSegments.first {
@@ -464,6 +481,7 @@ class RunViewModel: ObservableObject {
         }
         basePaceMin = targetPaceMinSec
         basePaceMax = targetPaceMaxSec
+        if let first = intervalSegments.first { applyIntervalPace(first) }
     }
 
     /// Snapshot the current run state into a RunResult for the summary screen.
@@ -528,6 +546,10 @@ class RunViewModel: ObservableObject {
         dataProvider?.stop()
         dataProvider = nil
 
+        workoutCompleted = false
+        consolePace = nil
+        consolePaceTimestamp = nil
+        runStopped = false
         elapsedTime = 0
         distance = 0.0
         currentPace = "--:--"
@@ -539,6 +561,9 @@ class RunViewModel: ObservableObject {
         kilometerSplits = []
         paceGraphDataPoints = []
         paceGraphPaces = []
+        paceGraphHeartRates = []
+        paceGraphDistances = []
+        intervalPrescriptionWarning = nil
         paceGraphSamples = []
         intervalSegments = []
         intervalIndex = 0
@@ -550,9 +575,9 @@ class RunViewModel: ObservableObject {
         lastRecordedKm = 0
         lastKmElapsedTime = 0
         lastKmDistance = 0
-        currentKmSpeedSamples = []
         driftSamples = []
         paceSmoother.reset()
+        liveSpeedSmoother.reset()
 
         // Reset split feedback
         splitFeedbackTimer?.invalidate()
@@ -606,6 +631,7 @@ class RunViewModel: ObservableObject {
     /// Stops the data provider, timer, and voice coach without clearing state.
     /// Call this after buildRunResult() so the summary screen still has data.
     func stopRun() {
+        runStopped = true
         dataProvider?.stop()
         stopHeartRateCapture()
         displayTimer?.invalidate()
@@ -618,6 +644,7 @@ class RunViewModel: ObservableObject {
     // MARK: - Pause / Resume
 
     func pauseRun() {
+        guard !runStopped else { return }
         dataProvider?.pause()
         isPaused = true
         displayTimerPauseStart = Date()
@@ -625,6 +652,9 @@ class RunViewModel: ObservableObject {
     }
 
     func resumeRun() {
+        guard !runStopped else { return }
+        liveSpeedSmoother.reset()
+        paceSmoother.reset()
         dataProvider?.resume()
         if let pauseStart = displayTimerPauseStart {
             let pauseDuration = Date().timeIntervalSince(pauseStart)
@@ -640,9 +670,12 @@ class RunViewModel: ObservableObject {
     // MARK: - Unified Data Handler
 
     private func handleRunSample(_ sample: RunSample) {
+        guard !runStopped, !isPaused else { return }
         // Start the app-side fallback timer on the very first data packet
         if runStartTime == nil {
             runStartTime = Date()
+            // Interval countdowns must tick even between treadmill packets.
+            if isIntervalWorkout, displayTimer == nil { startDisplayTimer() }
         }
 
         // Update app-side elapsed time on every packet (independent of provider)
@@ -717,13 +750,30 @@ class RunViewModel: ObservableObject {
             recordHeartRate(bpm)
         }
 
-        // 4. Pace — smooth raw speed, then format
-        if let rawSpeedMps = sample.speedMps, rawSpeedMps > 0 {
-            let (_, pace) = paceSmoother.addSample(speedMps: rawSpeedMps, elapsedTime: elapsedTime)
+        // Live console speed describes current effort; odometer pace describes
+        // distance over time. Do not force these different measurements to agree.
+        let fallback = paceSmoother.addSample(
+            distanceMeters: distance * 1000.0,
+            elapsedTime: elapsedTime
+        ).smoothedPace
+        let pace: Double
+        if dataProvider?.dataSourceType == "bluetooth_ftms" {
+            if let speed = sample.speedMps, speed.isFinite, speed >= 0 {
+                pace = liveSpeedSmoother.addSample(speedMps: speed, timestamp: sample.timestamp)
+            } else {
+                // A continuation packet may omit speed; retain the latest live
+                // value briefly instead of alternating with odometer estimates.
+                pace = lastConsolePace(at: sample.timestamp) ?? fallback
+            }
+            if let speed = sample.speedMps, speed.isFinite, speed >= 0 {
+                consolePace = pace
+                consolePaceTimestamp = sample.timestamp
+            }
+        } else {
+            pace = fallback
+        }
+        if pace > 0 {
             currentPace = formatPace(secondsPerKm: pace)
-
-            // Accumulate raw speed for per-km split pace calculation
-            currentKmSpeedSamples.append(rawSpeedMps)
 
             // Feed pace graph (pass current distance in metres for distance-based windowing)
             appendPaceGraphSample(pace, atDistanceMeters: distance * 1000.0)
@@ -733,8 +783,8 @@ class RunViewModel: ObservableObject {
 
             // 6. Pace Zone — compare current pace to target range
             updatePaceZone(pace)
-        } else if let rawSpeedMps = sample.speedMps, rawSpeedMps <= 0 {
-            // Stopped/paused — show --:-- for pace
+        } else {
+            // Stopped, or not enough window yet — show --:-- for pace
             currentPace = "--:--"
             paceDrift = "--"
         }
@@ -744,6 +794,8 @@ class RunViewModel: ObservableObject {
 
         // 7. Kilometer Split Detection
         checkForKilometerSplit()
+
+        if checkWorkoutCompletion() { return }
 
         // 8. Voice: progress milestones (halfway, "X km to go", time checkpoints)
         voiceCoach.checkProgressMilestones(
@@ -775,6 +827,37 @@ class RunViewModel: ObservableObject {
             kmSplits: kilometerSplits,
             isGPSRun: isGPS
         )
+    }
+
+    private var consolePace: Double?
+    private var consolePaceTimestamp: Date?
+
+    private func lastConsolePace(at timestamp: Date) -> Double? {
+        guard let last = consolePaceTimestamp,
+              timestamp.timeIntervalSince(last) <= 3 else { return nil }
+        return consolePace
+    }
+
+    /// Structured sessions finish after their final phase, including cooldown.
+    /// Otherwise distance takes precedence over an estimated duration.
+    @discardableResult
+    private func checkWorkoutCompletion() -> Bool {
+        guard !runStopped, !isPaused else { return false }
+        let reached: Bool
+        if isIntervalWorkout {
+            reached = intervalComplete
+        } else if let target = targetDistanceKm, target > 0 {
+            reached = distance >= target
+        } else if let minutes = targetDurationMinutes, minutes > 0 {
+            reached = elapsedTime >= Double(minutes) * 60
+        } else {
+            reached = false
+        }
+        guard reached else { return false }
+        stopRun()
+        voiceCoach.announceWorkoutCompleted()
+        workoutCompleted = true
+        return true
     }
 
     // MARK: - Pace Formatting
@@ -984,9 +1067,6 @@ class RunViewModel: ObservableObject {
             kilometerSplits.append(split)
             lastKmElapsedTime = kmElapsedTime
             lastKmDistance = distance * 1000.0
-
-            // Reset speed samples for the next km segment
-            currentKmSpeedSamples.removeAll()
         }
 
         lastRecordedKm = currentKm
@@ -1150,7 +1230,7 @@ class RunViewModel: ObservableObject {
     // MARK: - Interval Engine
 
     private func updateIntervalEngine() {
-        guard isIntervalWorkout, !intervalComplete,
+        guard !isPaused, !runStopped, isIntervalWorkout, !intervalComplete,
               intervalIndex < intervalSegments.count else { return }
         let segment = intervalSegments[intervalIndex]
 
@@ -1163,7 +1243,14 @@ class RunViewModel: ObservableObject {
                 lastCountdownTick = whole
                 UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
             }
-            if inPhase >= duration { advanceIntervalSegment() }
+            if inPhase >= duration {
+                let boundary = segmentStartTime + duration
+                advanceIntervalSegment()
+                if !intervalComplete {
+                    segmentStartTime = boundary
+                    updateIntervalEngine()
+                }
+            }
         } else if let dist = segment.distanceKm {
             intervalPhaseDistanceDone = max(0, distance - segmentStartDistance)
             if intervalPhaseDistanceDone >= dist { advanceIntervalSegment() }
@@ -1181,24 +1268,24 @@ class RunViewModel: ObservableObject {
             intervalIndex += 1
             let segment = intervalSegments[intervalIndex]
             intervalPhaseRemaining = segment.durationSec ?? 0
-            // Keep the pace-zone machinery (and voice coach) aligned with the phase
-            if case .work = segment.kind, let bounds = segment.paceBounds {
-                targetPaceMinSec = bounds.min
-                targetPaceMaxSec = bounds.max
-            } else {
-                targetPaceMinSec = basePaceMin
-                targetPaceMaxSec = basePaceMax
-            }
+            applyIntervalPace(segment)
         } else {
             intervalComplete = true
         }
+    }
+
+    private func applyIntervalPace(_ segment: IntervalSegment) {
+        // Every phase owns its target, including warm-up, recovery and cool-down.
+        targetPaceMinSec = segment.paceBounds?.min
+        targetPaceMaxSec = segment.paceBounds?.max
+        paceZone = .noTarget
     }
 
     private func appendPaceGraphSample(_ paceSecPerKm: Double, atDistanceMeters currentDistance: Double) {
         guard paceSecPerKm > 0 && paceSecPerKm < 3600 else { return }
 
         // Store sample with its cumulative distance
-        paceGraphSamples.append(PaceGraphSample(distanceMeters: currentDistance, pace: paceSecPerKm))
+        paceGraphSamples.append(PaceGraphSample(distanceMeters: currentDistance, pace: paceSecPerKm, bpm: heartRate > 0 ? heartRate : nil))
 
         // Trim to the last 500 metres of data
         let cutoff = currentDistance - graphWindowMeters
@@ -1208,6 +1295,8 @@ class RunViewModel: ObservableObject {
 
         let paces = paceGraphSamples.map { $0.pace }
         paceGraphPaces = paces
+        paceGraphHeartRates = paceGraphSamples.map { $0.bpm }
+        paceGraphDistances = paceGraphSamples.map { $0.distanceMeters }
 
         // Normalize: faster pace (lower sec/km) = higher on graph (closer to 1.0)
         guard let rawMin = paces.min(),

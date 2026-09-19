@@ -70,10 +70,21 @@ struct PlanView: View {
     private var workoutsByDay: [(date: Date, workouts: [Workout])] {
         guard let week = selectedWeek else { return [] }
         
+        let calendar = Calendar.current
         let grouped = Dictionary(grouping: week.sortedWorkouts) { workout in
-            Calendar.current.startOfDay(for: workout.date)
+            calendar.startOfDay(for: workout.date)
         }
-        
+
+        // Flexible week: a session moved to the day it was done can leave its
+        // scheduled day empty — always show all seven days, empty ones as rest.
+        if plan.isFlexibleSchedule, let monday = week.mondayStart {
+            return (0..<7).compactMap { offset -> (date: Date, workouts: [Workout])? in
+                guard let date = calendar.date(byAdding: .day, value: offset, to: monday) else { return nil }
+                let day = calendar.startOfDay(for: date)
+                return (date: day, workouts: (grouped[day] ?? []).sorted { $0.date < $1.date })
+            }
+        }
+
         return grouped.keys.sorted().map { date in
             (date: date, workouts: grouped[date]!.sorted { $0.date < $1.date })
         }
@@ -329,6 +340,10 @@ struct PlanView: View {
             HStack(spacing: 10) {
                 Button {
                     withAnimation { planSync.applyPendingServerPlan(context: modelContext) }
+                    // Runs pulled while the old plan was in place (e.g. a run
+                    // the coach logged server-side) get matched to the new
+                    // plan's sessions right away, not on the next cold launch.
+                    Task { await RunPullService.shared.reconcile(context: modelContext) }
                 } label: {
                     Text("Apply update")
                         .font(.interSemibold(14))
@@ -387,11 +402,13 @@ struct PlanView: View {
     private var weekSelectorView: some View {
         ScrollViewReader { proxy in
             ScrollView(.horizontal, showsIndicators: false) {
+                let currentWeekNumber = plan.currentWeek?.weekNumber
                 HStack(spacing: 16) {
                     ForEach(1...totalWeeks, id: \.self) { weekNumber in
                         WeekPillView(
                             weekNumber: weekNumber,
                             isSelected: weekNumber == selectedWeekNumber,
+                            isCurrentWeek: weekNumber == currentWeekNumber,
                             isRaceWeek: plan.sortedWeeks.first { $0.weekNumber == weekNumber }?.isRaceWeek ?? false
                         )
                         .id(weekNumber)
@@ -523,9 +540,14 @@ struct WeekScrollPreferenceKey: PreferenceKey {
 }
 
 // MARK: - Week Pill View
+/// Week pill colour language (Bryce, Sep 2026): the CURRENT week is always
+/// the red bubble, wherever you've scrolled — tap it to get home. The week
+/// you're viewing is the dark bubble; when that's the current week the red
+/// bubble gets a dark ring.
 struct WeekPillView: View {
     let weekNumber: Int
     let isSelected: Bool
+    var isCurrentWeek: Bool = false
     let isRaceWeek: Bool
     
     // Ratio approximately 26:35 (w:h)
@@ -534,18 +556,24 @@ struct WeekPillView: View {
     
     var body: some View {
         Text("W\(weekNumber)")
-            .font(.inter(size: 13, weight: isSelected ? .bold : .medium))
+            .font(.inter(size: 13, weight: (isSelected || isCurrentWeek) ? .bold : .medium))
             .foregroundColor(foregroundColor)
             .frame(width: pillWidth, height: pillHeight)
             .background(
                 RoundedRectangle(cornerRadius: pillWidth / 2, style: .continuous)
                     .fill(backgroundColor)
             )
+            .overlay(
+                RoundedRectangle(cornerRadius: pillWidth / 2, style: .continuous)
+                    .stroke(Color.primary, lineWidth: (isSelected && isCurrentWeek) ? 2 : 0)
+            )
     }
     
     private var foregroundColor: Color {
-        if isSelected {
+        if isCurrentWeek {
             return .white
+        } else if isSelected {
+            return Color(.systemBackground)
         } else if isRaceWeek {
             return .stridePrimary
         } else {
@@ -554,8 +582,10 @@ struct WeekPillView: View {
     }
     
     private var backgroundColor: Color {
-        if isSelected {
+        if isCurrentWeek {
             return .stridePrimary
+        } else if isSelected {
+            return .primary
         } else {
             return Color(.tertiarySystemBackground)
         }

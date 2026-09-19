@@ -645,48 +645,42 @@ struct RunSummaryView: View {
                 .font(.inter(size: 15, weight: .semibold))
                 .foregroundColor(.primary)
 
-            Menu {
+            VStack(spacing: 8) {
                 Button {
                     selectedShoe = nil
                 } label: {
-                    if selectedShoe == nil {
-                        Label("None", systemImage: "checkmark")
-                    } else {
+                    HStack {
                         Text("None")
+                        Spacer()
+                        if selectedShoe == nil { Image(systemName: "checkmark.circle.fill") }
                     }
+                    .padding(14)
                 }
 
                 ForEach(eligibleShoes, id: \.id) { shoe in
                     Button {
                         selectedShoe = shoe
                     } label: {
-                        if selectedShoe?.id == shoe.id {
-                            Label(shoe.name, systemImage: "checkmark")
-                        } else {
+                        HStack(spacing: 12) {
+                            ShoePhotoView(shoe: shoe, size: 56)
                             Text(shoe.name)
+                                .font(.inter(size: 14, weight: .medium))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if selectedShoe?.id == shoe.id {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.stridePrimary)
+                            }
                         }
+                        .padding(12)
+                        .background(Color(hex: "F9F9F9"))
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
+                    .accessibilityAddTraits(selectedShoe?.id == shoe.id ? .isSelected : [])
                 }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "shoe.2")
-                        .font(.system(size: 14))
-                        .foregroundColor(.stridePrimary)
-
-                    Text(selectedShoe?.name ?? "None")
-                        .font(.inter(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .padding(14)
-                .background(Color(hex: "F9F9F9"))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            .buttonStyle(.plain)
+
         }
     }
 
