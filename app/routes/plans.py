@@ -547,6 +547,9 @@ class ActivePlanResponse(_BaseModel):
     fitness_level: _Optional[str] = None
     current_weekly_mileage: _Optional[int] = None
     longest_recent_run: _Optional[int] = None
+    # Flexible week: any of the current week's sessions may be started on any
+    # day (new-parent schedules); the app moves a session to the day it was done.
+    flexible_schedule: bool = False
 
 
 @router.get("/plans/active", response_model=ActivePlanResponse)
@@ -580,6 +583,7 @@ async def get_active_plan(
         fitness_level=profile.get("fitness_level"),
         current_weekly_mileage=profile.get("current_weekly_mileage"),
         longest_recent_run=profile.get("longest_recent_run"),
+        flexible_schedule=bool(profile.get("flexible_schedule", False)),
     )
 
 
