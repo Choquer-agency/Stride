@@ -524,6 +524,7 @@ from uuid import UUID as _UUID
 
 from pydantic import BaseModel as _BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession
+from sqlalchemy import select as _select
 
 from app.database import get_db as _get_db
 
@@ -612,7 +613,10 @@ async def sync_plan(
     if not body.raw_plan_content.strip():
         raise HTTPException(status_code=400, detail="raw_plan_content is required")
 
+    await db.scalar(_select(User.id).where(User.id == current_user.id).with_for_update())
     existing = await plan_store.get_active(db, current_user.id)
+    if existing is not None and existing.source == "server_edit" and existing.raw_plan_content != body.raw_plan_content:
+        raise HTTPException(status_code=409, detail="Server plan changed; pull the current version")
     if existing is not None and existing.raw_plan_content == body.raw_plan_content:
         record = existing
     else:

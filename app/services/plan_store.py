@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session
 from app.models.training_plan import TrainingPlanRecord
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ async def save_plan(
     athlete_profile: Optional[dict] = None,
 ) -> TrainingPlanRecord:
     """Insert a new active plan row, deactivating any prior active plan."""
+    await db.scalar(select(User.id).where(User.id == user_id).with_for_update())
     await db.execute(
         update(TrainingPlanRecord)
         .where(TrainingPlanRecord.user_id == user_id, TrainingPlanRecord.is_active.is_(True))

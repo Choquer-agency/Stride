@@ -59,6 +59,7 @@ class User(Base):
     # Community
     leaderboard_opt_in = Column(Boolean, default=False, nullable=False)
     display_name = Column(String(50), nullable=True)
+    timezone_name = Column(String(64), nullable=True)
 
     # Social
     bio = Column(String(255), nullable=True)

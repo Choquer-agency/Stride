@@ -21,6 +21,7 @@ from app.routes.nutrition import router as nutrition_router, hydration_router
 from app.routes.race_prep import router as race_prep_router
 from app.routes.strength import router as strength_router
 from app.routes.voice import router as voice_router
+from app.routes.external_plans import router as external_plans_router
 from sqlalchemy import text
 from app.database import init_db, async_session, engine
 from app.models.shoe import Shoe  # noqa: F401 — ensure table is created
@@ -53,6 +54,7 @@ from app.models.strength_session import StrengthSession  # noqa: F401
 from app.models.strength_set import StrengthSet  # noqa: F401
 from app.models.weekly_checkin import WeeklyCheckin  # noqa: F401
 from app.models.training_plan import TrainingPlanRecord  # noqa: F401
+from app.models.coach_access import CoachCredential, CoachAthleteGrant, ExternalPlanProposal, CoachAccessAudit  # noqa: F401
 from app.services import analytics
 from app.services.achievement_service import seed_achievement_definitions
 from app.services.challenge_service import auto_generate_weekly_challenges, auto_generate_monthly_challenge
@@ -114,6 +116,7 @@ app.include_router(hydration_router)
 app.include_router(race_prep_router)
 app.include_router(strength_router)
 app.include_router(voice_router)
+app.include_router(external_plans_router)
 
 
 @app.on_event("startup")
