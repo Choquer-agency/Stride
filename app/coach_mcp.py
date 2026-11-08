@@ -177,8 +177,8 @@ async def propose_plan_change(athlete_id: str, expected_version: str, new_plan_t
 
 class ProtectedMCP:
     """Bearer API key gate at the HTTP boundary; credentials remain server-side."""
-    def __init__(self):
-        self.inner = server.streamable_http_app(streamable_http_path="/mcp",
+    def __init__(self, path: str = "/mcp"):
+        self.inner = server.streamable_http_app(streamable_http_path=path,
             json_response=True, stateless_http=True, host="0.0.0.0")
 
     async def __call__(self, scope, receive, send):
@@ -227,3 +227,4 @@ class ProtectedMCP:
 # Run as a separate service: uvicorn app.coach_mcp:asgi_app --host 0.0.0.0 --port 8001
 # Its lifespan is forwarded to the SDK's Streamable HTTP session manager.
 asgi_app = ProtectedMCP()
+mounted_app = ProtectedMCP(path="/")
