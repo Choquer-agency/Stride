@@ -22,6 +22,7 @@ from app.routes.race_prep import router as race_prep_router
 from app.routes.strength import router as strength_router
 from app.routes.voice import router as voice_router
 from app.routes.external_plans import router as external_plans_router
+from app.coach_mcp import mounted_app as coach_mcp_app
 from sqlalchemy import text
 from app.database import init_db, async_session, engine
 from app.models.shoe import Shoe  # noqa: F401 — ensure table is created
@@ -117,6 +118,7 @@ app.include_router(race_prep_router)
 app.include_router(strength_router)
 app.include_router(voice_router)
 app.include_router(external_plans_router)
+app.mount("/mcp", coach_mcp_app)
 
 
 @app.on_event("startup")
@@ -206,6 +208,18 @@ async def startup():
     register_race_prep_jobs()
     register_weekly_checkin_jobs()
     start_scheduler()
+
+
+@app.on_event("startup")
+async def start_coach_mcp():
+    context = coach_mcp_app.inner.router.lifespan_context(coach_mcp_app.inner)
+    app.state.coach_mcp_context = context
+    await context.__aenter__()
+
+
+@app.on_event("shutdown")
+async def stop_coach_mcp():
+    await app.state.coach_mcp_context.__aexit__(None, None, None)
 
 
 @app.on_event("shutdown")

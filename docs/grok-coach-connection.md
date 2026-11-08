@@ -13,14 +13,13 @@ is a local, broad-access script and must **not** be exposed or configured in Gro
    production database. The file is idempotent, but review it before execution.
 3. Deploy the FastAPI app with the new `/api/external-plans/*` routes. The iOS
    build containing the Plan approval card must be distributed to athletes.
-4. Deploy `app.coach_mcp:asgi_app` as a **separate HTTPS service** behind a
-   reverse proxy. Its Streamable HTTP endpoint is `https://<mcp-host>/mcp`.
-   Start command: `uvicorn app.coach_mcp:asgi_app --host 0.0.0.0 --port 8001`.
-   Restrict the service to TLS at the proxy; do not expose port 8001 directly.
-5. Configure the MCP service environment: `DATABASE_URL`, `JWT_SECRET_KEY`, `APNS_KEY_ID`,
+4. The production FastAPI app hosts the bearer-protected Streamable HTTP MCP
+   endpoint at `https://stridecoach.app/mcp/`. It reuses the existing server
+   environment, including `DATABASE_URL`, `JWT_SECRET_KEY`, `APNS_KEY_ID`,
    `APNS_TEAM_ID`, `APNS_BUNDLE_ID`, `APNS_USE_SANDBOX`, and either
-   `APNS_KEY_PATH` or `APNS_KEY_BASE64`. These are server variables; none go
-   into Grok. The main FastAPI service retains its existing environment.
+   `APNS_KEY_PATH` or `APNS_KEY_BASE64`. None of these variables go into Grok.
+   The standalone `app.coach_mcp:asgi_app` entrypoint remains available for a
+   later dedicated deployment if traffic isolation is needed.
 6. Configure each athlete's IANA timezone explicitly using
    `PYTHONPATH=. python scripts/manage_coach_access.py set-timezone --athlete-id <uuid> --timezone <IANA-name>`.
    This is the athlete's **plan timezone**, not the current travel timezone.

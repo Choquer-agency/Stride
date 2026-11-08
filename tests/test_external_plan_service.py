@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 from starlette.testclient import TestClient
 
-from app.coach_mcp import _caller, _grant, asgi_app
+from app.coach_mcp import _caller, _grant, asgi_app, mounted_app
 from app.services.external_plan_service import decide, mark_applied, plan_impact, validate_plan_text
 
 
@@ -54,6 +54,43 @@ def test_mcp_authentication_and_tool_discovery():
             response = client.post("/mcp", headers=headers,
                 json={"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}})
         assert response.status_code == 401
+
+
+def test_mcp_mount_on_existing_https_service():
+    from contextlib import asynccontextmanager
+    from fastapi import FastAPI
+
+    @asynccontextmanager
+    async def lifespan(app):
+        async with mounted_app.inner.router.lifespan_context(mounted_app.inner):
+            yield
+
+    app = FastAPI(lifespan=lifespan)
+    app.mount("/mcp", mounted_app)
+    with TestClient(app) as client:
+        response = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1,
+            "method": "tools/list", "params": {}})
+        assert response.status_code == 401
+
+        class DB:
+            calls = 0
+            async def __aenter__(self): return self
+            async def __aexit__(self, *args): pass
+            async def scalar(self, statement):
+                DB.calls += 1
+                return SimpleNamespace(id=uuid4(), revoked_at=None) if DB.calls % 2 else 0
+            def add(self, record): pass
+            async def commit(self): pass
+
+        with patch("app.coach_mcp.async_session", new=lambda: DB()):
+            response = client.post("/mcp/", headers={
+                "Authorization": "Bearer stride_" + "a" * 48,
+                "Accept": "application/json, text/event-stream",
+                "Mcp-Protocol-Version": "2025-11-25"},
+                json={"jsonrpc": "2.0", "id": 1,
+                      "method": "tools/list", "params": {}})
+        assert response.status_code == 200
+        assert "propose_plan_change" in response.text
 
 
 def test_cross_athlete_access_denied():
