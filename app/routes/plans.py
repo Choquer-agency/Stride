@@ -629,7 +629,6 @@ async def sync_plan(
     await db.scalar(_select(User.id).where(User.id == current_user.id).with_for_update())
     existing = await plan_store.get_active(db, current_user.id)
     if existing is not None and existing.source == "server_edit" and existing.raw_plan_content != body.raw_plan_content:
-        # A stale phone must not overwrite a coach version the athlete approved.
         raise HTTPException(status_code=409, detail="Server plan changed; pull the current version")
     if existing is not None and existing.raw_plan_content == body.raw_plan_content:
         record = existing
