@@ -46,12 +46,14 @@ struct ExerciseLibraryView: View {
                     }
                 }
                 .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
                 .searchable(text: $searchText, prompt: "Search exercises")
             }
-            .navigationTitle("Exercise library")
+            .navigationTitle("EXERCISE LIBRARY")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } } }
         }
+        .strideSecondaryScreen()
         .task { await viewModel.loadLibrary() }
     }
 

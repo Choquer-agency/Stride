@@ -7,9 +7,31 @@ struct TreadmillDiagnosticsView: View {
     @EnvironmentObject private var bluetoothManager: BluetoothManager
     @ObservedObject private var diag = BLEDiagnosticsLog.shared
     @State private var copied = false
+    @State private var captureFiles: [URL] = []
 
     var body: some View {
         List {
+            Section {
+                if captureFiles.isEmpty {
+                    Text("No treadmill captures yet")
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(captureFiles, id: \.self) { file in
+                        ShareLink(item: file) {
+                            Label(file.lastPathComponent, systemImage: "square.and.arrow.up")
+                                .lineLimit(2)
+                        }
+                    }
+                }
+                Button("Refresh Captures") {
+                    captureFiles = TreadmillRawCapture.shared.files()
+                }
+            } header: {
+                Text("Raw treadmill data · Share CSV")
+            } footer: {
+                Text("Each indoor run records every received FTMS packet, including its original hex bytes and timestamp. Share the file after ending the run.")
+            }
+
             Section {
                 statusRow("Link", bluetoothManager.connectionState)
                 statusRow("Subscription", bluetoothManager.subscriptionState)
@@ -59,7 +81,9 @@ struct TreadmillDiagnosticsView: View {
             }
         }
         .navigationTitle("Treadmill Diagnostics")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { captureFiles = TreadmillRawCapture.shared.files() }
     }
 
     private var lastPacketText: String {

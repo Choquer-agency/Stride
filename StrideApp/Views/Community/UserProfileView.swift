@@ -24,6 +24,7 @@ struct UserProfileView: View {
             }
         }
         .navigationTitle("")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { loadProfile() }
     }
@@ -97,7 +98,7 @@ struct UserProfileView: View {
             )
         }
         .padding(.vertical, 12)
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(12)
     }
 

@@ -8,6 +8,26 @@ private let hrLog = Logger(subsystem: "com.stride.app", category: "HeartRate")
 private let heartRateServiceUUID = CBUUID(string: "180D")
 private let heartRateMeasurementUUID = CBUUID(string: "2A37")
 
+/// A Bluetooth choice belongs to one Stride account; discovery never grants consent.
+struct HeartRateDeviceSelection {
+    let accountID: String
+    let defaults: UserDefaults
+    private var key: String { "heartRateMonitor.\(accountID)" }
+    var deviceID: UUID? { defaults.string(forKey: key).flatMap(UUID.init(uuidString:)) }
+    var name: String? { defaults.string(forKey: key + ".name") }
+    func allows(_ id: UUID, accountID: String?) -> Bool {
+        accountID == self.accountID && deviceID == id
+    }
+    func save(id: UUID, name: String) {
+        defaults.set(id.uuidString, forKey: key)
+        defaults.set(name, forKey: key + ".name")
+    }
+    func forget() {
+        defaults.removeObject(forKey: key)
+        defaults.removeObject(forKey: key + ".name")
+    }
+}
+
 /// Live heart-rate over Bluetooth LE using the standard Heart Rate Profile
 /// (service 0x180D / measurement characteristic 0x2A37).
 ///
@@ -33,8 +53,67 @@ final class HeartRateManager: NSObject, ObservableObject {
     @Published private(set) var isScanning = false
     @Published private(set) var bluetoothUnavailable = false
 
+    struct DiscoveredDevice: Identifiable {
+        let id: UUID
+        let name: String
+    }
+    @Published private(set) var discoveredDevices: [DiscoveredDevice] = []
+    @Published private(set) var selectedDeviceName: String?
+    private var discoveredPeripherals: [UUID: CBPeripheral] = [:]
+    private var selection: HeartRateDeviceSelection?
+
+    func accountDidChange() {
+        guard selection?.accountID != AuthService.shared.currentUserID else { return }
+        owners.removeAll()
+        stopAndDisconnect(owner: "app")
+        samples = []
+        discoveredDevices = []
+        discoveredPeripherals = [:]
+        deviceName = nil
+        selection = AuthService.shared.currentUserID.map {
+            HeartRateDeviceSelection(accountID: $0, defaults: .standard)
+        }
+        selectedDeviceName = selection?.name
+    }
+
+    func selectDevice(id: UUID) {
+        accountDidChange()
+        guard let selection, let device = discoveredPeripherals[id] else { return }
+        selection.save(id: id, name: device.name ?? "Heart rate monitor")
+        selectedDeviceName = selection.name
+        samples = []
+        samplingStart = Date()
+        retryConnection()
+        connectIfSelected(device)
+    }
+
+    func forgetSelectedDevice() {
+        selection?.forget()
+        selectedDeviceName = nil
+        samples = []
+        retryConnection()
+    }
+
+    private func connectIfSelected(_ device: CBPeripheral) {
+        guard !owners.isEmpty, peripheral == nil,
+              selection?.allows(device.identifier, accountID: AuthService.shared.currentUserID) == true,
+              let central, central.state == .poweredOn else { return }
+        peripheral = device
+        connectionStartedAt = Date()
+        lastReading = nil
+        isScanning = false
+        deviceName = device.name
+        central.stopScan()
+        central.connect(device)
+    }
+
     private(set) var samples: [Sample] = []
     private var samplingStart: Date?
+
+    private var owners = Set<String>()
+    private var lastReading: Date?
+    private var freshnessTimer: Timer?
+    private var connectionStartedAt: Date?
 
     private var central: CBCentralManager?
     private var peripheral: CBPeripheral?
@@ -45,7 +124,16 @@ final class HeartRateManager: NSObject, ObservableObject {
     // MARK: - Public control
 
     /// Begin scanning for a heart-rate broadcaster and start a fresh sample log.
-    func startScanning() {
+    func startScanning(owner: String = "run") {
+        accountDidChange()
+        guard selection != nil else { return }
+        owners.insert(owner)
+        guard freshnessTimer == nil else { return }
+        freshnessTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.checkConnection()
+            }
+        }
         samples = []
         samplingStart = Date()
         currentBPM = nil
@@ -57,7 +145,13 @@ final class HeartRateManager: NSObject, ObservableObject {
     }
 
     /// Stop scanning/disconnect but keep the recorded samples for the caller.
-    func stopAndDisconnect() {
+    func stopAndDisconnect(owner: String = "run") {
+        owners.remove(owner)
+        guard owners.isEmpty else { return }
+        freshnessTimer?.invalidate()
+        freshnessTimer = nil
+        lastReading = nil
+        connectionStartedAt = nil
         isScanning = false
         central?.stopScan()
         if let peripheral {
@@ -87,14 +181,45 @@ final class HeartRateManager: NSObject, ObservableObject {
     // MARK: - Internals
 
     private func scanIfPoweredOn() {
-        guard let central, central.state == .poweredOn else { return }
+        guard !owners.isEmpty, peripheral == nil, let central, central.state == .poweredOn else { return }
+        guard !central.isScanning else { return }
         isScanning = true
         bluetoothUnavailable = false
         central.scanForPeripherals(withServices: [heartRateServiceUUID])
         hrLog.info("Scanning for BLE heart-rate broadcasters")
     }
 
+    private func checkConnection(now: Date = Date()) {
+        guard !owners.isEmpty else { return }
+        if let last = lastReading, now.timeIntervalSince(last) > 10 {
+            isConnected = false
+            currentBPM = nil
+        }
+        // A connected GATT link is not proof that measurements are arriving.
+        // Retry stuck connection, service discovery and notification setup too.
+        if let started = lastReading ?? connectionStartedAt,
+           now.timeIntervalSince(started) > 20 {
+            retryConnection()
+        } else if peripheral == nil {
+            scanIfPoweredOn()
+        }
+    }
+
+    private func retryConnection() {
+        let previous = peripheral
+        peripheral = nil
+        connectionStartedAt = nil
+        lastReading = nil
+        isConnected = false
+        currentBPM = nil
+        if let previous { central?.cancelPeripheralConnection(previous) }
+        scanIfPoweredOn()
+    }
+
     private func record(bpm: Int) {
+        guard !owners.isEmpty else { return }
+        lastReading = Date()
+        isConnected = true
         currentBPM = bpm
         guard let samplingStart, samples.count < Self.maxSamples else { return }
         samples.append(Sample(t: Date().timeIntervalSince(samplingStart), bpm: bpm))
@@ -108,6 +233,9 @@ extension HeartRateManager: CBCentralManagerDelegate {
             case .poweredOn:
                 self.scanIfPoweredOn()
             case .unauthorized, .unsupported, .poweredOff:
+                self.currentBPM = nil
+                self.isConnected = false
+                self.peripheral = nil
                 self.bluetoothUnavailable = true
                 self.isScanning = false
             default:
@@ -123,21 +251,32 @@ extension HeartRateManager: CBCentralManagerDelegate {
         rssi RSSI: NSNumber
     ) {
         Task { @MainActor in
-            guard self.peripheral == nil else { return }
-            self.peripheral = peripheral
-            self.deviceName = peripheral.name
-            central.stopScan()
-            central.connect(peripheral)
-            hrLog.info("Connecting to HR broadcaster: \(peripheral.name ?? "unknown")")
+            guard !self.owners.isEmpty,
+                  self.selection?.accountID == AuthService.shared.currentUserID else { return }
+            self.discoveredPeripherals[peripheral.identifier] = peripheral
+            if !self.discoveredDevices.contains(where: { $0.id == peripheral.identifier }) {
+                self.discoveredDevices.append(DiscoveredDevice(
+                    id: peripheral.identifier,
+                    name: peripheral.name ?? "Heart rate monitor"))
+            }
+            self.connectIfSelected(peripheral)
         }
     }
 
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         Task { @MainActor in
-            self.isConnected = true
+            guard !self.owners.isEmpty, self.peripheral === peripheral, self.selection?.allows(peripheral.identifier, accountID: AuthService.shared.currentUserID) == true else { central.cancelPeripheralConnection(peripheral); return }
+            self.isConnected = false
             self.isScanning = false
             peripheral.delegate = self
             peripheral.discoverServices([heartRateServiceUUID])
+        }
+    }
+
+    nonisolated func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
+        Task { @MainActor in
+            guard self.peripheral === peripheral else { return }
+            self.retryConnection()
         }
     }
 
@@ -147,20 +286,22 @@ extension HeartRateManager: CBCentralManagerDelegate {
         error: Error?
     ) {
         Task { @MainActor in
-            self.isConnected = false
-            self.currentBPM = nil
-            self.peripheral = nil
-            // Watch broadcasts stop between exercises — quietly rescan so we
-            // reattach if the broadcast comes back mid-run.
-            self.scanIfPoweredOn()
+            guard self.peripheral === peripheral else { return }
+            self.retryConnection()
         }
     }
 }
 
 extension HeartRateManager: CBPeripheralDelegate {
     nonisolated func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        guard let service = peripheral.services?.first(where: { $0.uuid == heartRateServiceUUID }) else { return }
-        peripheral.discoverCharacteristics([heartRateMeasurementUUID], for: service)
+        Task { @MainActor in
+            guard self.peripheral === peripheral, !self.owners.isEmpty else { return }
+            guard error == nil, let service = peripheral.services?.first(where: { $0.uuid == heartRateServiceUUID }) else {
+                self.retryConnection()
+                return
+            }
+            peripheral.discoverCharacteristics([heartRateMeasurementUUID], for: service)
+        }
     }
 
     nonisolated func peripheral(
@@ -168,8 +309,24 @@ extension HeartRateManager: CBPeripheralDelegate {
         didDiscoverCharacteristicsFor service: CBService,
         error: Error?
     ) {
-        guard let ch = service.characteristics?.first(where: { $0.uuid == heartRateMeasurementUUID }) else { return }
-        peripheral.setNotifyValue(true, for: ch)
+        Task { @MainActor in
+            guard self.peripheral === peripheral, !self.owners.isEmpty else { return }
+            guard error == nil, let ch = service.characteristics?.first(where: { $0.uuid == heartRateMeasurementUUID }) else {
+                self.retryConnection()
+                return
+            }
+            peripheral.setNotifyValue(true, for: ch)
+        }
+    }
+
+    nonisolated func peripheral(_ peripheral: CBPeripheral,
+                                didUpdateNotificationStateFor characteristic: CBCharacteristic,
+                                error: Error?) {
+        Task { @MainActor in
+            guard self.peripheral === peripheral,
+                  characteristic.uuid == heartRateMeasurementUUID else { return }
+            if error != nil || !characteristic.isNotifying { self.retryConnection() }
+        }
     }
 
     nonisolated func peripheral(
@@ -177,7 +334,7 @@ extension HeartRateManager: CBPeripheralDelegate {
         didUpdateValueFor characteristic: CBCharacteristic,
         error: Error?
     ) {
-        guard characteristic.uuid == heartRateMeasurementUUID,
+        guard error == nil, characteristic.uuid == heartRateMeasurementUUID,
               let data = characteristic.value, data.count >= 2 else { return }
         // Standard HR Measurement: flag bit 0 selects UInt8 vs UInt16 value
         let bpm: Int
@@ -189,6 +346,8 @@ extension HeartRateManager: CBPeripheralDelegate {
         }
         guard bpm > 0 else { return }
         Task { @MainActor in
+            guard self.peripheral === peripheral,
+                  self.selection?.allows(peripheral.identifier, accountID: AuthService.shared.currentUserID) == true else { return }
             self.record(bpm: bpm)
         }
     }

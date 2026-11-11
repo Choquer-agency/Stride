@@ -45,6 +45,7 @@ struct ChallengesView: View {
             .padding(.top, 12)
         }
         .navigationTitle("Challenges")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
             viewModel.loadActiveChallenges()

@@ -334,13 +334,26 @@ def _build_post_run_user_prompt(req: PostRunCoachRequest) -> str:
         f"- Average pace: {req.avg_pace}/km",
     ]
 
-    if best_split:
+    if req.planned_workout_title or req.planned_workout_details:
+        lines.extend(["", "PRESCRIBED SESSION:"])
+        if req.planned_workout_title:
+            lines.append(f"- Title: {req.planned_workout_title}")
+        if req.planned_workout_details:
+            lines.append(f"- Instructions: {req.planned_workout_details}")
+    elif req.run_type == "free run":
+        lines.append("- This was an athlete-chosen free run, not a prescribed session. Do not claim it met or missed a training-plan target.")
+    if req.phase_execution:
+        lines.extend(["", "MEASURED EXECUTION BY PRESCRIBED PHASE:", req.phase_execution])
+        lines.append("Use phase measurements for pacing feedback when present. Kilometer splits cross phase boundaries and do not measure interval adherence.")
+
+    if best_split and not req.phase_execution:
         lines.append(f"- Best split: Kilometer {best_split.kilometer} at {best_split.pace}/km")
-    if slowest_split:
+    if slowest_split and not req.phase_execution:
         lines.append(f"- Slowest split: Kilometer {slowest_split.kilometer} at {slowest_split.pace}/km")
-    if req.pace_consistency_pct is not None:
+    if req.pace_consistency_pct is not None and not req.phase_execution:
         lines.append(f"- Pace consistency: {req.pace_consistency_pct:.1f}% variance across splits")
-    lines.append(f"- Negative split: {req.negative_split}")
+    if not req.phase_execution:
+        lines.append(f"- Negative split: {req.negative_split}")
     if req.avg_hr:
         lines.append(f"- Average heart rate: {req.avg_hr} bpm")
     if req.max_hr:

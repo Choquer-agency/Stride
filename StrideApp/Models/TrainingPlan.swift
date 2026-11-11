@@ -31,6 +31,11 @@ final class TrainingPlan {
     var isBeginnerMode: Bool = false
     var goalTypeRaw: String? = nil
 
+    /// Flexible week: every session in the current Monday–Sunday week can be
+    /// started on any day; a session done off-schedule moves to the day it was
+    /// done. Past weeks are closed; next week opens Monday.
+    var isFlexibleSchedule: Bool = false
+
     // MARK: - Raw Plan Content (from AI)
     var rawPlanContent: String?
 
@@ -121,18 +126,7 @@ final class TrainingPlan {
     }
     
     var currentWeek: Week? {
-        let calendar = Calendar.current
-        let todayStart = calendar.startOfDay(for: Date())
-        
-        return weeks.first { week in
-            guard let firstWorkout = week.sortedWorkouts.first,
-                  let lastWorkout = week.sortedWorkouts.last else { return false }
-            
-            let weekStart = calendar.startOfDay(for: firstWorkout.date)
-            let weekEnd = calendar.startOfDay(for: lastWorkout.date)
-            
-            return todayStart >= weekStart && todayStart <= weekEnd
-        }
+        weeks.first { $0.isCurrentWeek }
     }
     
     // MARK: - Initializer
@@ -150,7 +144,8 @@ final class TrainingPlan {
         startDate: Date,
         planMode: PlanMode? = nil,
         isBeginnerMode: Bool = false,
-        goalType: GoalType? = nil
+        goalType: GoalType? = nil,
+        isFlexibleSchedule: Bool = false
     ) {
         self.id = UUID()
         self.createdAt = Date()
@@ -168,6 +163,7 @@ final class TrainingPlan {
         self.planModeRaw = planMode?.rawValue
         self.isBeginnerMode = isBeginnerMode
         self.goalTypeRaw = goalType?.rawValue
+        self.isFlexibleSchedule = isFlexibleSchedule
         self.weeks = []
     }
 }

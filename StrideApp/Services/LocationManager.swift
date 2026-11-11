@@ -20,8 +20,14 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
     /// Maximum acceptable horizontal accuracy (meters). Reject noisy GPS fixes.
     private let maxAccuracy: CLLocationAccuracy = 20.0
 
-    /// Minimum distance between updates (meters). Reduces noise + saves battery.
-    private let distanceFilter: CLLocationDistance = 5.0
+    /// Take every fix. A 5 m filter suppressed intermediate updates, so each
+    /// surviving segment was a straight chord across ~5 m of ground — every
+    /// curve, weave and corner cut off, and the odometer ran ~9% short against
+    /// an independent Fitbit recording of the same runs. Jitter is rejected
+    /// downstream in GPSRunDataProvider, where it can be done without throwing
+    /// real distance away; Apple's guidance for `activityType = .fitness` is
+    /// to filter nothing here.
+    private let distanceFilter: CLLocationDistance = kCLDistanceFilterNone
 
     // MARK: - Init
 
@@ -40,6 +46,12 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
 
     func requestPermission() {
         manager.requestWhenInUseAuthorization()
+    }
+
+    /// One-shot lobby fix without starting or resetting a recorded run.
+    func requestCurrentLocation() {
+        guard !isTracking, authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else { return }
+        manager.requestLocation()
     }
 
     func requestAlwaysPermission() {

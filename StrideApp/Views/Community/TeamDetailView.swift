@@ -24,6 +24,7 @@ struct TeamDetailView: View {
             }
         }
         .navigationTitle(viewModel.teamDetail?.name ?? "Team")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { viewModel.loadDetail(teamId: teamId) }
         .alert("Leave Team", isPresented: $showLeaveAlert) {
@@ -108,7 +109,7 @@ struct TeamDetailView: View {
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity)
-                .background(Color(.secondarySystemBackground))
+                .background { StrideSecondaryCard() }
                 .cornerRadius(12)
             }
         }

@@ -211,6 +211,9 @@ struct PostRunCoachRequest: Codable {
     let totalTime: String
     let avgPace: String
     let kmSplits: [PostRunSplitData]
+    let plannedWorkoutTitle: String?
+    let plannedWorkoutDetails: String?
+    let phaseExecution: String?
     let paceConsistencyPct: Double?
     let negativeSplit: Bool
     let avgHr: Int?
@@ -248,6 +251,9 @@ struct PostRunCoachRequest: Codable {
         case totalTime = "total_time"
         case avgPace = "avg_pace"
         case kmSplits = "km_splits"
+        case plannedWorkoutTitle = "planned_workout_title"
+        case plannedWorkoutDetails = "planned_workout_details"
+        case phaseExecution = "phase_execution"
         case paceConsistencyPct = "pace_consistency_pct"
         case negativeSplit = "negative_split"
         case avgHr = "avg_hr"

@@ -29,6 +29,7 @@ struct ManualEntryView: View {
                 }
             }
             .navigationTitle("Manual entry")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }

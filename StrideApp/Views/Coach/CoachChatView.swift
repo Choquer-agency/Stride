@@ -29,6 +29,7 @@ struct CoachChatView: View {
                 inputBar
             }
             .navigationTitle("Ask Coach")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

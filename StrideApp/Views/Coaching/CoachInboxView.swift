@@ -22,6 +22,7 @@ struct CoachInboxView: View {
                 }
             }
             .navigationTitle("Coach inbox")
+        .strideSecondaryScreen()
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

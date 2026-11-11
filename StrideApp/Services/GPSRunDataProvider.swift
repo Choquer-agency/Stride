@@ -27,6 +27,10 @@ final class GPSRunDataProvider: RunDataProvider {
 
     // MARK: - Private State
 
+    /// Below this Doppler speed (m/s) the runner is treated as stationary and no
+    /// distance is banked. 0.5 m/s is ~1.8 km/h — well under any walk.
+    private let stationarySpeedThreshold: Double = 0.5
+
     private let locationManager: LocationManager
     private var totalDistanceMeters: Double = 0
     private var lastLocation: CLLocation?
@@ -116,13 +120,39 @@ final class GPSRunDataProvider: RunDataProvider {
             // Accuracy-aware jitter floor plus a speed-based teleport ceiling.
             let jitterFloor = max(1.5, min(5, (location.horizontalAccuracy + last.horizontalAccuracy) * 0.12))
             let maximumPlausibleDistance = max(25, segmentDuration * 8 + location.horizontalAccuracy)
-            if segmentDistance >= jitterFloor && segmentDistance <= maximumPlausibleDistance {
+
+            if location.speed >= 0 && location.speed < stationarySpeedThreshold {
+                // Doppler says we aren't moving. Holding the anchor below lets
+                // position noise random-walk past the jitter floor and bank
+                // phantom metres while standing at a light, so re-anchor on the
+                // spot instead. (Advancing the anchor every fix used to make
+                // this impossible — it's the cost of the fix below.)
+                lastLocation = location
+            } else if segmentDistance > maximumPlausibleDistance {
+                // Teleport — the chord is nonsense, but time really passed. Credit
+                // the Doppler speed over the interval instead of dropping it.
+                let dopplerDistance = min(rawSpeed * segmentDuration, maximumPlausibleDistance)
+                totalDistanceMeters += dopplerDistance
+                gpsLog.debug("Teleport \(segmentDistance)m over \(segmentDuration)s — credited \(dopplerDistance)m from speed")
+                lastLocation = location
+            } else if segmentDistance >= jitterFloor {
                 totalDistanceMeters += segmentDistance
+                lastLocation = location
             } else {
-                gpsLog.debug("Rejected GPS segment: \(segmentDistance)m over \(segmentDuration)s")
+                // Below the jitter floor this fix is indistinguishable from noise,
+                // so we can't bank it — but the ground it covers is real. HOLD the
+                // anchor so the next fix measures displacement accumulated since
+                // the last banked point and clears the floor on its own.
+                //
+                // This previously advanced the anchor anyway, which silently
+                // deleted those metres for good. With a 5 m distanceFilter that
+                // was several metres lost every time accuracy sagged — the bulk
+                // of the ~9% shortfall against Fitbit.
+                gpsLog.debug("Sub-jitter segment \(segmentDistance)m — holding anchor")
             }
+        } else {
+            lastLocation = location
         }
-        lastLocation = location
 
         // Low-pass altitude before accumulating gain/loss or feeding route coaching.
         // Poor vertical fixes get less influence than good fixes.

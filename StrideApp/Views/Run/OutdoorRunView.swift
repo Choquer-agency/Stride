@@ -5,15 +5,14 @@ struct OutdoorRunView: View {
     @ObservedObject var viewModel: RunViewModel
     var onStartRun: () -> Void
     var onFinishRun: () -> Void
+    var onOpenApp: () -> Void = {}
 
     // Mapbox viewport tracks the runner with 45° pitch for 3D
     @State private var viewport: Viewport = .followPuck(
         zoom: 18,
         bearing: .heading,
         pitch: 45
-    )
-
-    private static let styleURI = StyleURI(rawValue: "mapbox://styles/choquer/cmnrp6hea002p01suci3bhyid")!
+    ).padding(.top, 330)
 
     private static let redPuckImage: UIImage = {
         let size: CGFloat = 28
@@ -28,19 +27,10 @@ struct OutdoorRunView: View {
 
     @State private var showCountdown = true
     @State private var countdownNumber = 3
-    @State private var countdownPaused = false
-    @State private var countdownScale: CGFloat = 0.5
-    @State private var countdownOpacity: Double = 0
-    @State private var introPhase: IntroPhase = .fetching
-    @State private var hasPlayedIntro = false
-
-    enum IntroPhase {
-        case fetching     // red screen, no orb — API/audio not yet ready
-        case speaking     // red screen + fire orb — Claude's voice is playing
-        case numbers      // 3 → 2 → 1 fallback animation
-    }
-
-    private var tts: ElevenLabsTTSService { .shared }
+    @State private var orbPulse: CGFloat = 1
+    @State private var numberPulse: CGFloat = 1
+    @State private var countdownTask: Task<Void, Never>?
+    @State private var showEndConfirmation = false
 
     var body: some View {
         ZStack {
@@ -50,6 +40,8 @@ struct OutdoorRunView: View {
             if showCountdown {
                 countdownOverlay
                     .transition(.opacity)
+            } else if viewModel.intervalPrescriptionWarning != nil {
+                RunView(viewModel: viewModel, onFinishRun: onFinishRun, onOpenApp: onOpenApp)
             } else if viewModel.isPaused {
                 pausedOverlay
                     .transition(.opacity)
@@ -69,222 +61,135 @@ struct OutdoorRunView: View {
                 .animation(.easeInOut(duration: 0.3), value: viewModel.splitFeedback != nil)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: viewModel.isPaused)
+        .animation(nil, value: viewModel.isPaused)
         .animation(.easeInOut(duration: 0.25), value: showCountdown)
         .navigationBarHidden(true)
+        .preferredColorScheme(.dark)
+        .alert("End Run?", isPresented: $showEndConfirmation) {
+            Button("Keep Running", role: .cancel) { }
+            Button("End Run", role: .destructive) { onFinishRun() }
+        } message: {
+            Text("This saves your current distance. Hold to end was required to open this confirmation.")
+        }
         .onAppear {
-            // Delay to let map calibrate, then start countdown
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                startCountdown()
+            if ProcessInfo.processInfo.arguments.contains("--runview-demo-outdoor") {
+                viewport = .camera(center: CLLocationCoordinate2D(latitude: 49.2827, longitude: -123.1207), zoom: 16, bearing: 22, pitch: 45)
+                    .padding(.top, 330)
+                showCountdown = false
+                return
             }
+            guard !viewModel.hasActiveProvider else {
+                showCountdown = false
+                return
+            }
+            startCountdown()
+        }
+        .onDisappear {
+            countdownTask?.cancel()
+            countdownTask = nil
+            if showCountdown { IntervalCuePlayer.shared.stopStartRunCountdown() }
         }
     }
 
     // MARK: - Countdown
 
     private func startCountdown() {
-        guard !countdownPaused else { return }
-
-        // On resume (pause → unpause), skip the AI intro and use the bundled countdown.
-        if hasPlayedIntro {
-            playBundledCountdown()
-            return
-        }
-        hasPlayedIntro = true
-        introPhase = .fetching
-
-        // Build the request that matches THIS run (planned workout vs free run).
-        let liveRequest = buildPreRunRequest()
-
-        // Fast path: cache hit only if signature, date, and time-bucket all match.
-        // Otherwise we'd play an intro that talks about a different workout.
-        if let cachedText = PreRunIntroPrefetcher.shared.cachedIntro(matching: liveRequest) {
-            print("[PreRunCoach] Using cached intro from prefetcher")
-            speakIntro(text: cachedText)
-            return
-        }
-
-        // Fallback: cache miss → live fetch + speak.
-        Task {
-            let introText = await fetchPreRunIntro(request: liveRequest)
-            await MainActor.run {
-                guard !countdownPaused else { return }
-                if let text = introText, !text.isEmpty {
-                    speakIntro(text: text)
-                } else {
-                    playBundledCountdown()
-                }
+        guard countdownTask == nil, !viewModel.hasActiveProvider else { return }
+        countdownTask = Task { @MainActor in
+            countdownNumber = 3
+            IntervalCuePlayer.shared.startRunCountdown()
+            for number in [3, 2, 1] {
+                guard !Task.isCancelled else { return }
+                countdownNumber = number
+                pulseOrb()
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
             }
+            guard !Task.isCancelled else { return }
+            countdownNumber = 0
+            pulseOrb()
+            // Let the bundled 3.65-second cue finish before starting the provider,
+            // whose audio session setup can cut off the final GO beat.
+            do { try await Task.sleep(for: .milliseconds(650)) } catch { return }
+            onStartRun()
+            withAnimation(.easeOut(duration: 0.25)) { showCountdown = false }
+            countdownTask = nil
         }
     }
 
-    private func speakIntro(text: String) {
-        tts.speakSequence(
-            [.text(text)],
-            onStart: {
-                // Flip the orb on only once audible playback actually begins.
-                withAnimation(.easeIn(duration: 0.2)) {
-                    introPhase = .speaking
-                }
-            },
-            onComplete: {
-                guard !countdownPaused else { return }
-                startRunNow()
-            }
-        )
-    }
-
-    /// Final handoff: Claude's spoken countdown just landed — start the run.
-    private func startRunNow() {
-        onStartRun()
-        withAnimation {
-            showCountdown = false
+    private func pulseOrb() {
+        orbPulse = 0.94
+        numberPulse = 0.76
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.53)) {
+            orbPulse = 1.13
+            numberPulse = 1
         }
-    }
-
-    /// Bucket the current local hour into a label the coach prompt understands.
-    private static func currentTimeOfDay() -> String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 4..<9:   return "early morning"
-        case 9..<12:  return "morning"
-        case 12..<17: return "afternoon"
-        case 17..<21: return "evening"
-        default:      return "night"
-        }
-    }
-
-    private func playBundledCountdown() {
-        guard !countdownPaused else { return }
-        introPhase = .numbers
-        countdownNumber = 3
-        animateCountdownNumber()
-
-        // Play the full bundled countdown audio (3...2...1...let's go)
-        tts.speakSequence([.bundled("countdown_2")])
-
-        // Animate numbers visually: 3 at 0s, 2 at 1s, 1 at 2s, dismiss at 3s
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-            guard !self.countdownPaused else { return }
-            self.countdownNumber = 2
-            self.animateCountdownNumber()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            guard !self.countdownPaused else { return }
-            self.countdownNumber = 1
-            self.animateCountdownNumber()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
-            guard !self.countdownPaused else { return }
-            // "Let's go" just landed — start the run.
-            self.onStartRun()
-            withAnimation {
-                self.showCountdown = false
-            }
-        }
-    }
-
-    /// Build the PreRunCoachRequest for the run the user just started.
-    @MainActor
-    private func buildPreRunRequest() -> PreRunCoachRequest {
-        let athleteName: String? = {
-            if case .signedIn(let user) = AuthService.shared.authState { return user.name }
-            if case .needsProfile(let user) = AuthService.shared.authState { return user.name }
-            return nil
-        }()
-        return PreRunCoachRequest(
-            athleteName: athleteName,
-            workoutType: viewModel.plannedWorkoutType?.displayName,
-            workoutTitle: viewModel.plannedWorkoutTitle,
-            targetDistanceKm: viewModel.targetDistanceKm,
-            targetDurationMinutes: viewModel.targetDurationMinutes,
-            targetPace: viewModel.targetPaceDescription,
-            isFreeRun: !viewModel.isPlannedRun,
-            goalRace: nil,
-            weeksToRace: nil,
-            timeOfDay: Self.currentTimeOfDay()
-        )
-    }
-
-    /// Live-fetch fallback when the prefetcher didn't have a matching cache hit.
-    @MainActor
-    private func fetchPreRunIntro(request: PreRunCoachRequest) async -> String? {
-        do {
-            let text = try await APIService.shared.preRunCoach(request: request)
-            print("[PreRunCoach] AI intro received (\(text.count) chars): \(text)")
-            return text
-        } catch {
-            print("[PreRunCoach] Falling back to bundled countdown — intro fetch failed: \(error)")
-            return nil
-        }
-    }
-
-    private func animateCountdownNumber() {
-        countdownScale = 0.5
-        countdownOpacity = 0
-        withAnimation(.easeOut(duration: 0.3)) {
-            countdownScale = 1.0
-            countdownOpacity = 1.0
-        }
-        withAnimation(.easeIn(duration: 0.2).delay(0.7)) {
-            countdownOpacity = 0.3
-        }
+        withAnimation(.easeOut(duration: 0.55).delay(0.36)) { orbPulse = 1 }
     }
 
     // MARK: - Countdown Overlay
 
     private var countdownOverlay: some View {
-        ZStack {
-            Color.stridePrimary.opacity(0.80)
-                .ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                Color.stridePrimary.opacity(0.92).ignoresSafeArea()
+                LinearGradient(colors: [.black.opacity(0.16), .clear, .black.opacity(0.22)],
+                               startPoint: .top, endPoint: .bottom).ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                StrideLogoView(height: 35, color: .white)
-                    .padding(.top, 30)
-
-                Text("Crush It!")
-                    .font(.inter(size: 18, weight: .medium))
-                    .foregroundColor(.white)
-                    .padding(.top, 16)
-
-                Spacer()
-
-                switch introPhase {
-                case .numbers:
-                    Text("\(countdownNumber)")
-                        .font(.barlowCondensed(size: 280, weight: .medium))
-                        .foregroundColor(.white)
-                        .scaleEffect(countdownScale)
-                        .opacity(countdownOpacity)
-                        .transition(.opacity)
-                case .speaking:
-                    VoiceOrbView()
-                        .frame(width: 220, height: 220)
-                        .transition(.opacity)
-                case .fetching:
-                    // No visual — just the logo + "Crush It!" up top while we wait.
-                    Color.clear.frame(height: 1)
+                VStack(spacing: 0) {
+                    StrideLogoView(height: 35, color: .white)
+                        .padding(.top, 20)
+                    Spacer(minLength: 28)
+                    Text("GET READY.")
+                        .font(.barlowCondensed(size: 43))
+                        .foregroundStyle(.white)
+                    Spacer(minLength: 12)
+                    countdownOrb
+                        .frame(width: min(geometry.size.width - 44, 350),
+                               height: min(geometry.size.height * 0.51, 430))
+                    Spacer(minLength: 12)
+                    Text("GO CRUSH IT.")
+                        .font(.barlowCondensed(size: 29))
+                        .foregroundStyle(.white)
+                        .padding(.bottom, 48)
                 }
-
-                Spacer()
-
-                Button {
-                    countdownPaused.toggle()
-                    if countdownPaused {
-                        tts.stopSpeaking()
-                    } else {
-                        startCountdown()
-                    }
-                } label: {
-                    Text(countdownPaused ? "Resume" : "Pause")
-                        .font(.inter(size: 16, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(width: 201, height: 56)
-                        .background(Color.black)
-                        .clipShape(Capsule())
-                }
-                .padding(.bottom, 50)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(countdownNumber == 0 ? "Go. Go crush it." : "Get ready. \(countdownNumber)")
+    }
+
+    private var countdownOrb: some View {
+        GeometryReader { geometry in
+            let size = geometry.size
+            ZStack {
+                Ellipse()
+                    .stroke(.white.opacity(0.26), lineWidth: 1)
+                    .padding(8)
+                Ellipse()
+                    .trim(from: 0.04, to: 0.40)
+                    .stroke(.white.opacity(0.55), style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
+                    .rotationEffect(.degrees(-150))
+                    .padding(3)
+                ForEach(0..<72, id: \.self) { index in
+                    let angle = Double(index) * 2 * .pi / 72 - .pi / 2
+                    let wave = (sin(Double(index) * 0.54) + 1) * 1.5
+                    let diameter: CGFloat = 3.4 + CGFloat(wave)
+                    Circle()
+                        .fill(.white.opacity(index < 42 ? 0.96 : 0.62))
+                        .frame(width: diameter, height: diameter)
+                        .position(x: size.width / 2 + CGFloat(cos(angle)) * (size.width / 2 - 18),
+                                  y: size.height / 2 + CGFloat(sin(angle)) * (size.height / 2 - 20))
+                }
+                Text(countdownNumber == 0 ? "GO" : "\(countdownNumber)")
+                    .font(.barlowCondensed(size: countdownNumber == 0 ? 116 : 205))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+                    .scaleEffect(numberPulse)
+                    .contentTransition(.numericText())
+            }
+            .scaleEffect(orbPulse)
+            .shadow(color: .white.opacity(0.25), radius: 24)
         }
     }
 
@@ -294,6 +199,9 @@ struct OutdoorRunView: View {
         Map(viewport: $viewport) {
             if viewModel.routeCoordinates.count >= 2 {
                 PolylineAnnotationGroup {
+                    PolylineAnnotation(lineCoordinates: viewModel.routeCoordinates)
+                        .lineColor(StyleColor(UIColor(Color.stridePrimary.opacity(0.22))))
+                        .lineWidth(13)
                     PolylineAnnotation(lineCoordinates: viewModel.routeCoordinates)
                         .lineColor(StyleColor(UIColor(Color.stridePrimary)))
                         .lineWidth(4)
@@ -306,21 +214,33 @@ struct OutdoorRunView: View {
                 .topImage(Self.redPuckImage)
                 .scale(0.7)
 
+            // Simulator previews have no Core Location puck; render one only
+            // for the seeded design fixture so the live route can be reviewed.
+            if ProcessInfo.processInfo.arguments.contains("--runview-demo-outdoor"),
+               let location = viewModel.routeCoordinates.last {
+                MapViewAnnotation(coordinate: location) {
+                    Circle().fill(Color.stridePrimary)
+                        .frame(width: 19, height: 19)
+                        .overlay(Circle().stroke(.white, lineWidth: 3))
+                        .background(Circle().fill(Color.stridePrimary.opacity(0.28)).frame(width: 38, height: 38))
+                }.allowOverlap(true)
+            }
+
             if let startCoord = viewModel.routeCoordinates.first,
                viewModel.routeCoordinates.count > 5 {
                 MapViewAnnotation(coordinate: startCoord) {
                     Circle()
-                        .fill(Color.green)
+                        .fill(Color.blue)
                         .frame(width: 10, height: 10)
                         .overlay(Circle().stroke(Color.white, lineWidth: 2))
                 }
                 .allowOverlap(true)
             }
         }
-        .mapStyle(MapStyle(uri: Self.styleURI))
+        .mapStyle(.dark)
         .ornamentOptions(OrnamentOptions(
             scaleBar: ScaleBarViewOptions(visibility: .hidden),
-            compass: CompassViewOptions(position: .topRight, margins: CGPoint(x: 16, y: 40)),
+            compass: CompassViewOptions(visibility: .hidden),
             logo: LogoViewOptions(margins: CGPoint(x: -10000, y: -10000)),
             attributionButton: AttributionButtonOptions(margins: CGPoint(x: -10000, y: -10000))
         ))
@@ -330,148 +250,221 @@ struct OutdoorRunView: View {
     // MARK: - Active Run Overlay
 
     private var activeRunOverlay: some View {
-        ZStack {
-            // Top gradient: blur + white fade from very top
-            VStack {
-                ZStack {
-                    Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .mask(
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .white, location: 0),
-                                    .init(color: .white, location: 0.5),
-                                    .init(color: .clear, location: 1)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-
-                    LinearGradient(
-                        stops: [
-                            .init(color: Color(.systemBackground), location: 0),
-                            .init(color: Color(.systemBackground).opacity(0.5), location: 0.5),
-                            .init(color: Color(.systemBackground).opacity(0), location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
+        GeometryReader { geometry in
+            ZStack {
+                Color.black.opacity(0.18)
+                LinearGradient(colors: [.black.opacity(0.42), .black.opacity(0.10), .clear],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: geometry.size.height * 0.61)
+                    .frame(maxHeight: .infinity, alignment: .top)
+                LinearGradient(colors: [.clear, .black.opacity(0.40)],
+                               startPoint: .top, endPoint: .bottom)
+                    .frame(height: geometry.size.height * 0.32)
+                    .frame(maxHeight: .infinity, alignment: .bottom)
+                Canvas { context, size in
+                    for x in stride(from: CGFloat(4), through: size.width, by: 8) {
+                        for y in stride(from: CGFloat(4), through: size.height, by: 8) {
+                            context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1, height: 1)),
+                                         with: .color(.white.opacity(0.09)))
+                        }
+                    }
                 }
-                .frame(height: 140)
-                .ignoresSafeArea(edges: .top)
-                .overlay(alignment: .top) {
-                    StrideLogoView(height: 35)
-                        .padding(.top, 55)
-                }
+                .allowsHitTesting(false)
 
-                Spacer()
-            }
-
-            // Bottom stats pinned to bottom
-            VStack {
-                Spacer()
-
-                VStack(spacing: 12) {
-                    // Distance (large)
-                    VStack(spacing: 2) {
-                        Text(String(format: "%.2f", viewModel.distance))
-                            .font(.barlowCondensed(size: 112, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("Distance (km)")
-                            .font(.inter(size: 12, weight: .medium))
-                            .foregroundColor(.secondary)
+                VStack(spacing: 0) {
+                    HStack {
+                        Button(action: onOpenApp) {
+                            Image("StrideLogoDark")
+                                .resizable()
+                                .scaledToFit()
+                                .frame(height: 24)
+                                .frame(minWidth: 95, minHeight: 44, alignment: .leading)
+                        }
+                        .accessibilityLabel("Open Stride app")
+                        Spacer()
+                        Text("OUTDOOR")
+                            .font(.runEyebrow(10))
+                            .tracking(1.5)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 8)
+                            .background(.black.opacity(0.38), in: Capsule())
+                            .overlay(Capsule().stroke(.white.opacity(0.24)))
                     }
 
-                    // Time + Avg Pace side by side
-                    HStack(spacing: 0) {
-                        VStack(spacing: 2) {
-                            Text(formatTime(viewModel.elapsedTime))
-                                .font(.barlowCondensed(size: 40, weight: .medium))
-                                .foregroundColor(.primary)
-                            Text("Time")
-                                .font(.inter(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
+                    HStack(alignment: .firstTextBaseline) {
+                        Text((viewModel.plannedWorkoutTitle ?? "FREE RUN").uppercased())
+                            .font(.barlowCondensed(size: 31, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                        Spacer(minLength: 10)
+                        Text(formatTime(viewModel.elapsedTime))
+                            .font(.barlowCondensed(size: 31, weight: .medium))
+                            .monospacedDigit()
+                    }
+                    .padding(.top, 22)
+
+                    Text("CURRENT PACE /KM")
+                        .font(.runEyebrow(11))
+                        .tracking(2)
+                        .foregroundStyle(.white.opacity(0.66))
+                        .padding(.top, 24)
+                    Text(viewModel.currentPace.replacingOccurrences(of: " /km", with: ""))
+                        .font(.barlowCondensed(size: min(143, geometry.size.height * 0.18), weight: .medium))
+                        .monospacedDigit()
+                        .minimumScaleFactor(0.8)
+                        .lineLimit(1)
                         .frame(maxWidth: .infinity)
 
-                        VStack(spacing: 2) {
-                            Text(viewModel.currentPace)
-                                .font(.barlowCondensed(size: 40, weight: .medium))
-                                .foregroundColor(.primary)
-                            Text("Avg Pace")
-                                .font(.inter(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("TARGET")
+                            .font(.runEyebrow(11))
+                            .foregroundStyle(.white.opacity(0.68))
+                        Text(targetPaceText)
+                            .font(.barlowCondensed(size: 28, weight: .medium))
+                            .monospacedDigit()
+                        Spacer(minLength: 4)
+                        if viewModel.targetPaceMinSec != nil {
+                            Circle().fill(Color(red: 0.24, green: 0.62, blue: 1)).frame(width: 8, height: 8)
+                            Text(targetStatus)
+                                .font(.runEyebrow(10))
+                                .foregroundStyle(Color(red: 0.30, green: 0.70, blue: 1))
                         }
-                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(.top, 4)
 
-                        // Live heart rate (BLE broadcast from the watch)
-                        if viewModel.heartRate > 0 {
-                            VStack(spacing: 2) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "heart.fill")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(viewModel.heartRateZone.color)
-                                    Text("\(viewModel.heartRate)")
-                                        .font(.barlowCondensed(size: 40, weight: .medium))
-                                        .foregroundColor(.primary)
+                    if viewModel.isIntervalWorkout {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(viewModel.intervalComplete ? "WORKOUT COMPLETE" :
+                                     (viewModel.currentIntervalSegment?.displayLabel.uppercased() ?? "INTERVAL"))
+                                    .font(.runEyebrow(10)).foregroundStyle(Color.stridePrimary)
+                                if let next = viewModel.nextIntervalSegment, !viewModel.intervalComplete {
+                                    Text("NEXT / \(next.displayLabel.uppercased())")
+                                        .font(.runEyebrow(9)).foregroundStyle(.white.opacity(0.62))
                                 }
-                                Text(viewModel.heartRateZone.displayText)
-                                    .font(.inter(size: 12, weight: .medium))
-                                    .foregroundColor(.secondary)
                             }
-                            .frame(maxWidth: .infinity)
+                            Spacer(minLength: 4)
+                            if !viewModel.intervalComplete {
+                                Text(String(format: "%d:%02d", Int(ceil(viewModel.intervalPhaseRemaining)) / 60,
+                                            Int(ceil(viewModel.intervalPhaseRemaining)) % 60))
+                                    .font(.barlowCondensed(size: 33)).monospacedDigit()
+                            }
                         }
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                        .background(.black.opacity(0.50), in: RoundedRectangle(cornerRadius: 16))
+                        .padding(.top, 10)
                     }
-                    .padding(.horizontal, 24)
 
-                    // Pause button
-                    Button {
-                        viewModel.pauseRun()
-                    } label: {
-                        Text("Pause Run")
-                            .font(.inter(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 201, height: 56)
-                            .background(Color.stridePrimary)
-                            .clipShape(Capsule())
+                    Rectangle()
+                        .fill(.white.opacity(0.25))
+                        .frame(height: 1)
+                        .padding(.top, 18)
+
+                    HStack(spacing: 0) {
+                        metric("AVERAGE PACE /KM", value: averagePaceText)
+                        metric("HEART RATE /BPM", value: viewModel.heartRate > 0 ? "\(viewModel.heartRate)" : "—", symbol: "heart.fill")
                     }
-                    .padding(.bottom, 0)
+                    .padding(.top, 17)
+
+                    HStack(spacing: 0) {
+                        metric("DISTANCE TO GO", value: remainingDistanceText, unit: "KM")
+                        metric("DISTANCE", value: distanceProgressText, compact: true)
+                    }
+                    .padding(.top, 22)
+
+                    Spacer(minLength: 32)
+
+                    HStack {
+                        Circle().fill(viewModel.hasActiveProvider ? Color(red: 0.24, green: 0.62, blue: 1) : .gray)
+                            .frame(width: 6, height: 6)
+                        Text(viewModel.hasActiveProvider ? "GPS LOCKED · ROUTE LIVE" : "WAITING FOR GPS")
+                        Spacer()
+                        Text("© MAPBOX · © OPENSTREETMAP")
+                    }
+                    .font(.runEyebrow(8))
+                    .tracking(0.4)
+                    .foregroundStyle(.white.opacity(0.64))
+                    .padding(.bottom, 14)
+
+                    Button { viewModel.pauseRun() } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "pause.fill").font(.system(size: 18))
+                            Text("PAUSE SESSION")
+                                .font(.barlowCondensed(size: 24, weight: .semibold))
+                                .tracking(1)
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 59)
+                        .background(Color.stridePrimary, in: Capsule())
+                    }
                 }
-                .padding(.top, 20)
-                .background(
-                    ZStack {
-                        // Blur layer
-                        Rectangle()
-                            .fill(.ultraThinMaterial)
-                            .mask(
-                                LinearGradient(
-                                    stops: [
-                                        .init(color: .clear, location: 0),
-                                        .init(color: .white, location: 0.2),
-                                        .init(color: .white, location: 1)
-                                    ],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
+                .foregroundStyle(.white)
+                .padding(.horizontal, 24)
+                .padding(.top, 55)
+                .padding(.bottom, 44)
+            }
+            .ignoresSafeArea(edges: [.top, .bottom])
+        }
+        .preferredColorScheme(.dark)
+    }
 
-                        // White layer
-                        LinearGradient(
-                            stops: [
-                                .init(color: Color(.systemBackground).opacity(0), location: 0),
-                                .init(color: Color(.systemBackground).opacity(0.6), location: 0.12),
-                                .init(color: Color(.systemBackground), location: 0.3),
-                                .init(color: Color(.systemBackground), location: 1)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    }
-                    .ignoresSafeArea(edges: .bottom)
-                )
+    private func metric(_ label: String, value: String, unit: String? = nil,
+                        symbol: String? = nil, compact: Bool = false) -> some View {
+        VStack(alignment: .center, spacing: 8) {
+            Text(label)
+                .font(.runEyebrow(10))
+                .tracking(1.3)
+                .foregroundStyle(.white.opacity(0.68))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                Text(value)
+                    .font(.barlowCondensed(size: compact ? 30 : 49, weight: .medium))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if let unit {
+                    Text(unit).font(.runEyebrow(11)).foregroundStyle(.white.opacity(0.7))
+                }
+                if let symbol {
+                    Image(systemName: symbol).font(.system(size: 19)).foregroundStyle(.pink)
+                }
             }
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var targetPaceText: String {
+        guard let min = viewModel.targetPaceMinSec, let max = viewModel.targetPaceMaxSec else { return "FREE RUN" }
+        func pace(_ seconds: Double) -> String { String(format: "%d:%02d", Int(seconds) / 60, Int(seconds) % 60) }
+        return "\(pace(min))–\(pace(max)) /km"
+    }
+
+    private var targetStatus: String {
+        switch viewModel.paceZone {
+        case .onPace, .slightlyFast: return "ON TARGET"
+        case .slightlySlow, .tooSlow: return "SLOW"
+        case .tooFast: return "FAST"
+        case .noTarget: return "ACQUIRING"
+        }
+    }
+
+    private var averagePaceText: String {
+        guard viewModel.distance > 0.05 else { return "—" }
+        let seconds = Int(viewModel.elapsedTime / viewModel.distance)
+        return String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    private var remainingDistanceText: String {
+        guard let target = viewModel.targetDistanceKm else { return "—" }
+        return String(format: "%.2f", max(0, target - viewModel.distance))
+    }
+
+    private var distanceProgressText: String {
+        let covered = String(format: "%.2f", viewModel.distance)
+        guard let target = viewModel.targetDistanceKm else { return "\(covered) KM" }
+        return "\(covered) / \(String(format: "%.0f", target)) KM"
     }
 
     // MARK: - Paused Overlay
@@ -479,13 +472,16 @@ struct OutdoorRunView: View {
     private var pausedOverlay: some View {
         ZStack {
             // Red overlay
-            Color.stridePrimary.opacity(0.80)
+            Color.stridePrimary
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 // Logo
-                StrideLogoView(height: 35, color: .white)
-                    .padding(.top, 30)
+                Button(action: onOpenApp) {
+                    StrideLogoView(height: 35, color: .white)
+                }
+                .accessibilityLabel("Open Stride app")
+                .padding(.top, 30)
 
                 // "Pause Run" label
                 Text("Pause Run")
@@ -551,16 +547,8 @@ struct OutdoorRunView: View {
                             .clipShape(Capsule())
                     }
 
-                    Button {
-                        onFinishRun()
-                    } label: {
-                        Text("End Run")
-                            .font(.inter(size: 16, weight: .semibold))
-                            .foregroundColor(Color.stridePrimary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(Color.white)
-                            .clipShape(Capsule())
+                    HoldToEndRunButton(foreground: .stridePrimary, background: .white) {
+                        showEndConfirmation = true
                     }
                 }
                 .padding(.horizontal, 24)

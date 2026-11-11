@@ -1,10 +1,12 @@
 import SwiftUI
+import SwiftData
 
 struct RunSummaryView: View {
+    @Environment(\.modelContext) private var modelContext
     let result: RunResult
     let score: Int?
     let shoes: [Shoe]
-    var onSave: (_ feedbackRating: Int?, _ notes: String, _ shoeId: UUID?, _ shoeName: String?) -> Void
+    var onSave: (_ feedbackRating: Int?, _ notes: String, _ shoeId: UUID?, _ shoeName: String?, _ coachNotes: String?) -> Void
 
     @State private var feedbackRating: Int? = nil
     @State private var feedbackNotes: String = ""
@@ -21,264 +23,209 @@ struct RunSummaryView: View {
     @State private var shareImage: UIImage?
     @StateObject private var coachVM = PostRunCoachViewModel()
     
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var style: StridePageStyle { .init(appearance: appearance) }
+
     var body: some View {
-        ScrollView {
-
-            VStack(spacing: 0) {
-                VStack(spacing: 0) {
-                    // Logo
-                    StrideLogoView(height: 32)
-                        .padding(.top, 32)
-                        .padding(.bottom, 8)
-                    
-                    // Title
-                    Text("Run Complete")
-                        .font(.inter(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .textCase(.uppercase)
-                        .tracking(1)
-                        .padding(.bottom, 24)
-                    
-                    // Score Ring (planned runs only)
-                    if let score = score {
-                        scoreRing(score: score)
-                            .padding(.bottom, 28)
-                    }
-                    
-                    // Primary Stats
-                    primaryStats
-                        .padding(.bottom, 28)
-
-                    // Route Map (outdoor GPS runs only)
-                    if let routeJSON = result.routeJSON {
-                        RouteMapView(
-                            routeJSON: routeJSON,
-                            paceData: result.kmSplits.map {
-                                CodableKilometerSplit(kilometer: $0.kilometer, pace: $0.pace, time: $0.time, isFastest: $0.isFastest)
-                            },
-                            showPaceColors: true
-                        )
-                        .padding(.bottom, 16)
-
-                        // Elevation Profile
-                        if result.elevationGainMeters != nil || result.elevationLossMeters != nil {
-                            ElevationProfileView(
-                                routeJSON: routeJSON,
-                                elevationGain: result.elevationGainMeters,
-                                elevationLoss: result.elevationLossMeters
-                            )
-                            .padding(.bottom, 20)
-                        }
-                    }
-
-                    // Heart Rate profile (any run that captured HR)
-                    if let hrJSON = result.hrSamplesJSON {
-                        HeartRateGraphView(
-                            hrSamplesJSON: hrJSON,
-                            avgHeartRate: result.avgHeartRate,
-                            maxHeartRate: result.maxHeartRate
-                        )
-                        .padding(.bottom, 20)
-                    }
-
-                    // Planned vs Actual (planned runs only)
-                    if result.isPlannedRun {
-                        plannedVsActualCard
-                            .padding(.bottom, 20)
-                    }
-                    
-                    // Kilometer Splits
-                    if !result.kmSplits.isEmpty {
-                        splitsSection
-                            .padding(.bottom, 20)
-                    }
-                    
-                    // AI Coach Summary
-                    aiCoachSection
-                        .padding(.bottom, 20)
-
-                    // How Did It Feel?
-                    feedbackSection
-                        .padding(.bottom, 20)
-                    
-                    // Shoe lifespan celebration — crossing the recommended max
-            if let shoe = selectedShoe,
-               shoe.effectiveMaxKm > 0,
-               shoe.totalDistanceKm + result.distanceKm >= shoe.effectiveMaxKm {
-                shoeRetirementBanner(shoe)
-            }
-
-            // Notes
-                    notesSection
-                        .padding(.bottom, 20)
-
-                    // Shoe Picker
-                    if !shoes.isEmpty {
-                        shoePickerSection
-                            .padding(.bottom, 28)
-                    } else {
-                        Spacer().frame(height: 8)
-                    }
-
-                    // Share + Save Buttons
-                    HStack(spacing: 12) {
-                        // Share Route (outdoor runs only)
-                        if result.isOutdoorRun {
-                            Button {
-                                Task {
-                                    shareImage = await RouteShareService.generateShareImage(result: result)
-                                    if shareImage != nil {
-                                        showShareSheet = true
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "square.and.arrow.up")
-                                        .font(.system(size: 14, weight: .semibold))
-                                    Text("Share")
-                                        .font(.inter(size: 16, weight: .semibold))
-                                }
-                                .foregroundColor(Color.stridePrimary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 18)
-                                .background(Color(.secondarySystemBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(Color.stridePrimary.opacity(0.3), lineWidth: 1.5)
-                                )
-                            }
-                        }
-
-                        // Save Workout
-                        Button {
-                            onSave(feedbackRating, feedbackNotes, selectedShoe?.id, selectedShoe?.name)
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.system(size: 16, weight: .semibold))
-                                Text("Save Workout")
-                                    .font(.inter(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(Color.stridePrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
-                    }
-                    .padding(.bottom, 60)
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 20) {
+                summaryHeader
+                summaryHero
+                if let score { summaryScore(score) }
+                if let notice = result.recoveryNotice {
+                    Text(notice).font(.inter(size: 12)).foregroundStyle(style.muted)
+                        .padding(15).frame(maxWidth: .infinity, alignment: .leading)
+                        .stridePageCard(style, radius: 18)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 24)
+                primaryStats
+                feedbackSection
+                if !shoes.isEmpty { shoePickerSection }
+                notesSection
+                aiCoachSection
+
+                if let routeJSON = result.routeJSON {
+                    RouteMapView(
+                        routeJSON: routeJSON,
+                        paceData: result.kmSplits.map {
+                            CodableKilometerSplit(kilometer: $0.kilometer, pace: $0.pace,
+                                                  time: $0.time, isFastest: $0.isFastest)
+                        },
+                        showPaceColors: false
+                    )
+                    if result.elevationGainMeters != nil || result.elevationLossMeters != nil {
+                        ElevationProfileView(routeJSON: routeJSON,
+                            elevationGain: result.elevationGainMeters,
+                            elevationLoss: result.elevationLossMeters)
+                    }
+                }
+                if result.speedSamples.count >= 2 {
+                    RunSpeedGraphView(samples: result.speedSamples, duration: result.durationSeconds)
+                }
+                if let hrJSON = result.hrSamplesJSON {
+                    HeartRateGraphView(hrSamplesJSON: hrJSON,
+                        avgHeartRate: result.avgHeartRate,
+                        maxHeartRate: result.maxHeartRate,
+                        duration: result.durationSeconds)
+                }
+                if result.isPlannedRun { plannedVsActualCard }
+                if !result.kmSplits.isEmpty { splitsSection }
+                if let shoe = selectedShoe,
+                   shoe.effectiveMaxKm > 0,
+                   shoe.totalDistanceKm + result.distanceKm >= shoe.effectiveMaxKm {
+                    shoeRetirementBanner(shoe)
+                }
+                if result.isOutdoorRun { shareButton }
             }
+            .padding(.horizontal, 22)
+            .padding(.top, 8)
+            .padding(.bottom, 24)
         }
-        .background(Color(.systemBackground))
+        .background { StridePageBackdrop().ignoresSafeArea() }
+        .foregroundStyle(style.ink)
+        .preferredColorScheme(appearance.colorScheme)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Button {
+                onSave(feedbackRating, feedbackNotes, selectedShoe?.id, selectedShoe?.name,
+                       coachVM.isGenerating ? nil : coachVM.coachText)
+            } label: {
+                Text("SAVE RUN")
+                    .font(.barlowCondensed(size: 26))
+                    .tracking(0.7)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 58)
+                    .background(Color.stridePrimary, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 22)
+            .padding(.top, 10)
+            .padding(.bottom, 10)
+            .background(appearance.background.opacity(0.96))
+        }
         .onAppear {
-            selectedShoe = eligibleShoes.first(where: \.isDefault) ?? eligibleShoes.first
-            // Auto-generate AI coaching summary
-            coachVM.generateCoaching(result: result)
+            guard !coachVM.isGenerating && coachVM.coachText.isEmpty && coachVM.error == nil else { return }
+            // A free run has no prescribed shoe. Ask the athlete to choose when
+            // several pairs exist instead of silently logging the default pair.
+            selectedShoe = !result.isPlannedRun && eligibleShoes.count > 1
+                ? nil : (eligibleShoes.first(where: \.isDefault) ?? eligibleShoes.first)
+            coachVM.generateCoaching(result: result) { review in
+                let sessionID = result.sessionID
+                guard let log = try? modelContext.fetch(FetchDescriptor<RunLog>(
+                    predicate: #Predicate { $0.id == sessionID })).first else { return }
+                log.coachNotes = review
+                try? modelContext.save()
+            }
         }
         .sheet(isPresented: $showShareSheet) {
-            if let image = shareImage {
-                ShareSheet(activityItems: [image])
+            if let image = shareImage { ShareSheet(activityItems: [image]) }
+        }
+    }
+
+    private var summaryHeader: some View {
+        HStack {
+            Image(appearance == .white ? "StrideLogo" : (appearance == .red ? "StrideLogoRed" : "StrideLogoDark"))
+                .resizable()
+                .aspectRatio(690.0 / 156.0, contentMode: .fit)
+                .frame(width: 120)
+                .accessibilityLabel("Stride")
+            Spacer()
+            Text(result.completedAt.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)).uppercased())
+                .font(.runEyebrow(10))
+                .foregroundStyle(style.muted)
+        }
+    }
+
+    private var summaryHero: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("RUN").foregroundStyle(style.ink)
+            Text("COMPLETE.").foregroundStyle(appearance == .red ? .white : Color.stridePrimary)
+            Text("\((result.plannedWorkoutTitle ?? "FREE RUN").uppercased()) · \(result.isOutdoorRun ? "OUTDOOR" : "INDOOR")")
+                .font(.runEyebrow(10))
+                .foregroundStyle(style.muted)
+                .padding(.top, 8)
+        }
+        .font(.barlowCondensed(size: 57))
+        .lineSpacing(-8)
+        .padding(.top, 18)
+    }
+
+    private func summaryScore(_ value: Int) -> some View {
+        HStack(alignment: .bottom, spacing: 18) {
+            Text("\(value)")
+                .font(.barlowCondensed(size: 77))
+                .monospacedDigit()
+                .foregroundStyle(style.ink)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("SESSION SCORE")
+                    .font(.runEyebrow(10))
+                    .foregroundStyle(style.muted)
+                Text(value >= 90 ? "CONSISTENT EFFORT" : value >= 75 ? "SOLID SESSION" : "SESSION LOGGED")
+                    .font(.runEyebrow(9))
+                    .foregroundStyle(appearance == .red ? .white : Color.stridePrimary)
             }
+            .padding(.bottom, 10)
+            Spacer()
         }
+        .padding(.top, 12)
+        .padding(.bottom, 5)
+        .overlay(alignment: .bottom) { Rectangle().fill(style.rule).frame(height: 0.5) }
     }
-    
-    // MARK: - Score Ring
-    
-    private func scoreRing(score: Int) -> some View {
-        ZStack {
-            // Background circle
-            Circle()
-                .stroke(Color(.systemGray5), lineWidth: 10)
-                .frame(width: 140, height: 140)
-            
-            // Progress arc
-            Circle()
-                .trim(from: 0, to: CGFloat(score) / 100.0)
-                .stroke(
-                    scoreColor(score),
-                    style: StrokeStyle(lineWidth: 10, lineCap: .round)
-                )
-                .frame(width: 140, height: 140)
-                .rotationEffect(.degrees(-90))
-            
-            // Score text
-            VStack(spacing: 2) {
-                Text("\(score)")
-                    .font(.barlowCondensed(size: 48, weight: .bold))
-                    .foregroundColor(.primary)
-                
-                Text("Score")
-                    .font(.inter(size: 12, weight: .medium))
-                    .foregroundColor(.secondary)
+
+    private var shareButton: some View {
+        Button {
+            Task {
+                shareImage = await RouteShareService.generateShareImage(result: result)
+                if shareImage != nil { showShareSheet = true }
             }
+        } label: {
+            HStack {
+                Text("SHARE ROUTE").font(.barlowCondensed(size: 22))
+                Spacer()
+                Image(systemName: "square.and.arrow.up").font(.system(size: 15))
+            }
+            .foregroundStyle(style.ink)
+            .padding(18)
+            .stridePageCard(style, radius: 20)
         }
+        .buttonStyle(.plain)
     }
-    
-    private func scoreColor(_ score: Int) -> Color {
-        switch score {
-        case 90...100: return .green
-        case 75..<90: return .stridePrimary
-        case 60..<75: return .orange
-        default: return .red
-        }
-    }
-    
+
     // MARK: - Primary Stats
-    
+
     private var primaryStats: some View {
-        HStack(spacing: 0) {
-            // Distance
-            VStack(spacing: 4) {
+        VStack(alignment: .leading, spacing: 13) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(result.distanceDisplay)
-                    .font(.barlowCondensed(size: 44, weight: .medium))
-                    .foregroundColor(.primary)
-                Text("km")
-                    .font(.inter(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .font(.barlowCondensed(size: 80))
+                    .monospacedDigit()
+                Text("KM").font(.barlowCondensed(size: 25)).foregroundStyle(style.muted)
+                Spacer(minLength: 0)
+                if let target = result.targetDistanceKm {
+                    Text("GOAL \(formatDistance(target).uppercased())")
+                        .font(.runEyebrow(10)).foregroundStyle(style.muted)
+                }
             }
-            .frame(maxWidth: .infinity)
-            
-            // Divider
-            Rectangle()
-                .fill(Color(.systemGray4))
-                .frame(width: 1, height: 50)
-            
-            // Time
-            VStack(spacing: 4) {
-                Text(result.durationDisplay)
-                    .font(.barlowCondensed(size: 44, weight: .medium))
-                    .foregroundColor(.primary)
-                Text("Time")
-                    .font(.inter(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
+            Rectangle().fill(style.rule).frame(height: 0.5)
+            HStack(spacing: 0) {
+                summaryMetric(result.durationDisplay, label: "TIME")
+                summaryMetric(result.avgPaceDisplay, label: "AVG /KM")
+                summaryMetric(result.avgHeartRate.map(String.init) ?? "—", label: "AVG BPM")
             }
-            .frame(maxWidth: .infinity)
-            
-            // Divider
-            Rectangle()
-                .fill(Color(.systemGray4))
-                .frame(width: 1, height: 50)
-            
-            // Pace
-            VStack(spacing: 4) {
-                Text(result.avgPaceDisplay)
-                    .font(.barlowCondensed(size: 44, weight: .medium))
-                    .foregroundColor(.primary)
-                Text("km pace")
-                    .font(.inter(size: 13, weight: .regular))
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity)
         }
-        .padding(16)
-        .background(Color(hex: "F9F9F9"))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(18)
+        .stridePageCard(style)
     }
-    
+
+    private func summaryMetric(_ value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value).font(.barlowCondensed(size: 30))
+                .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+            Text(label).font(.runEyebrow(9)).foregroundStyle(style.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     // MARK: - Planned vs Actual
     
     private var plannedVsActualCard: some View {
@@ -288,8 +235,8 @@ struct RunSummaryView: View {
                 Image(systemName: "target")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.stridePrimary)
-                Text("Plan Comparison")
-                    .font(.inter(size: 15, weight: .semibold))
+                Text("PLAN COMPARISON")
+                    .font(.barlowCondensed(size: 24))
                     .foregroundColor(.primary)
             }
             
@@ -332,8 +279,7 @@ struct RunSummaryView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
-        .background(Color(hex: "F9F9F9"))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .stridePageCard(style, radius: 20)
     }
     
     private func comparisonRow(label: String, planned: String, actual: String, isGood: Bool) -> some View {
@@ -378,8 +324,8 @@ struct RunSummaryView: View {
     
     private var splitsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Kilometer Splits")
-                .font(.inter(size: 15, weight: .semibold))
+            Text("KILOMETRE SPLITS")
+                .font(.barlowCondensed(size: 24))
                 .foregroundColor(.primary)
             
             // Header row
@@ -441,8 +387,7 @@ struct RunSummaryView: View {
             }
         }
         .padding(16)
-        .background(Color(hex: "F9F9F9"))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .stridePageCard(style, radius: 20)
     }
     
     // MARK: - AI Coach Section
@@ -453,8 +398,8 @@ struct RunSummaryView: View {
                 Image(systemName: "waveform")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.stridePrimary)
-                Text("AI Coach")
-                    .font(.inter(size: 15, weight: .semibold))
+                Text("COACH NOTES")
+                    .font(.barlowCondensed(size: 24))
                     .foregroundColor(.primary)
 
                 Spacer()
@@ -505,19 +450,29 @@ struct RunSummaryView: View {
                 Text(error)
                     .font(.inter(size: 12, weight: .regular))
                     .foregroundColor(.red)
+                Button("TRY COACH AGAIN") {
+                    coachVM.generateCoaching(result: result) { review in
+                        let sessionID = result.sessionID
+                        guard let log = try? modelContext.fetch(FetchDescriptor<RunLog>(
+                            predicate: #Predicate { $0.id == sessionID })).first else { return }
+                        log.coachNotes = review
+                        try? modelContext.save()
+                    }
+                }
+                .font(.runEyebrow(10))
+                .foregroundStyle(Color.stridePrimary)
             }
         }
         .padding(16)
-        .background(Color(hex: "F9F9F9"))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .stridePageCard(style, radius: 20)
     }
 
     // MARK: - Feedback Section
     
     private var feedbackSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("How did it feel?")
-                .font(.inter(size: 15, weight: .semibold))
+            Text("HOW DID IT FEEL?")
+                .font(.barlowCondensed(size: 24))
                 .foregroundColor(.primary)
             
             HStack(spacing: 0) {
@@ -549,7 +504,7 @@ struct RunSummaryView: View {
                 }
             }
             .padding(4)
-            .background(Color(hex: "F9F9F9"))
+            .background(style.card)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
@@ -606,8 +561,8 @@ struct RunSummaryView: View {
 
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Notes")
-                .font(.inter(size: 15, weight: .semibold))
+            Text("YOUR NOTES")
+                .font(.barlowCondensed(size: 24))
                 .foregroundColor(.primary)
 
             // Pause summary (non-editable)
@@ -617,7 +572,7 @@ struct RunSummaryView: View {
                     .foregroundColor(.secondary)
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(hex: "F9F9F9"))
+                    .background(style.card)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
 
@@ -632,7 +587,7 @@ struct RunSummaryView: View {
                     }
                 }
                 .padding(14)
-                .background(Color(hex: "F9F9F9"))
+                .background(style.card)
                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
     }
@@ -641,52 +596,51 @@ struct RunSummaryView: View {
 
     private var shoePickerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Shoe")
-                .font(.inter(size: 15, weight: .semibold))
+            Text("SHOES")
+                .font(.barlowCondensed(size: 24))
                 .foregroundColor(.primary)
+            if !result.isPlannedRun && eligibleShoes.count > 1 {
+                Text("Choose the pair you wore for this run.")
+                    .font(.inter(size: 12))
+                    .foregroundStyle(style.muted)
+            }
 
-            Menu {
+            VStack(spacing: 8) {
                 Button {
                     selectedShoe = nil
                 } label: {
-                    if selectedShoe == nil {
-                        Label("None", systemImage: "checkmark")
-                    } else {
+                    HStack {
                         Text("None")
+                        Spacer()
+                        if selectedShoe == nil { Image(systemName: "checkmark.circle.fill") }
                     }
+                    .padding(14)
                 }
 
                 ForEach(eligibleShoes, id: \.id) { shoe in
                     Button {
                         selectedShoe = shoe
                     } label: {
-                        if selectedShoe?.id == shoe.id {
-                            Label(shoe.name, systemImage: "checkmark")
-                        } else {
+                        HStack(spacing: 12) {
+                            ShoePhotoView(shoe: shoe, size: 56)
                             Text(shoe.name)
+                                .font(.inter(size: 14, weight: .medium))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if selectedShoe?.id == shoe.id {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.stridePrimary)
+                            }
                         }
+                        .padding(12)
+                        .background(style.card)
+                        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
+                    .accessibilityAddTraits(selectedShoe?.id == shoe.id ? .isSelected : [])
                 }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "shoe.2")
-                        .font(.system(size: 14))
-                        .foregroundColor(.stridePrimary)
-
-                    Text(selectedShoe?.name ?? "None")
-                        .font(.inter(size: 14, weight: .medium))
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
-                .padding(14)
-                .background(Color(hex: "F9F9F9"))
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
+            .buttonStyle(.plain)
+
         }
     }
 
@@ -764,6 +718,6 @@ struct RunSummaryView: View {
         ),
         score: 85,
         shoes: [],
-        onSave: { _, _, _, _ in }
+        onSave: { _, _, _, _, _ in }
     )
 }

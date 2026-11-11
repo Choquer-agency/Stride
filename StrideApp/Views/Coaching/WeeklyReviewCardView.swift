@@ -54,6 +54,7 @@ struct WeeklyReviewCardView: View {
                 .padding(.vertical, 24)
             }
             .navigationTitle(kind == .block ? "Block review" : "This week")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

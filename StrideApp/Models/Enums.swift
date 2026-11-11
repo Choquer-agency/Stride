@@ -247,4 +247,5 @@ enum RiskLevel: String, Codable {
 extension Notification.Name {
     /// Posted when a plan-page Start should land the athlete on the Run tab.
     static let strideSwitchToRunTab = Notification.Name("stride.switchToRunTab")
+    static let strideStartPlannedWorkout = Notification.Name("stride.startPlannedWorkout")
 }

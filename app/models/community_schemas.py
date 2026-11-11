@@ -87,6 +87,7 @@ class RunResponse(BaseModel):
     week_number: Optional[int] = None
     data_source: str
     treadmill_brand: Optional[str] = None
+    shoe_id: Optional[UUID] = None
     is_leaderboard_eligible: bool
     synced_at: datetime
 

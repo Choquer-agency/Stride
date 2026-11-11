@@ -14,6 +14,8 @@ final class Workout {
     var durationMinutes: Int?
     var paceDescription: String?
     var isCompleted: Bool
+    /// Confirmed by the coach when tracking was unavailable; actual metrics stay unknown.
+    var isCoachConfirmedCompletion: Bool = false
     var completedAt: Date?
     var notes: String?
     
@@ -23,6 +25,7 @@ final class Workout {
     var actualAvgPaceSecPerKm: Double?
     var completionScore: Int?
     var kmSplitsJSON: String?
+    var savedCoachNotes: String?
     var feedbackRating: Int?  // 0-5 subjective "how did it feel?" scale
     
     // MARK: - Relationships
@@ -39,6 +42,11 @@ final class Workout {
         guard workoutType == .crossTraining else { return false }
         let text = "\(title) \(details ?? "")".lowercased()
         return text.contains("peloton")
+    }
+
+    /// A Peloton strength class (vs. a ride) — same logo, different label.
+    var isPelotonStrength: Bool {
+        isPeloton && "\(title) \(details ?? "")".lowercased().contains("strength")
     }
     
     var dayOfWeek: String {
@@ -162,6 +170,13 @@ final class Workout {
     func toggleCompletion() {
         isCompleted.toggle()
         completedAt = isCompleted ? Date() : nil
+        // Flexible week: a session checked off on a different day than
+        // scheduled moves to the day it was actually done.
+        if isCompleted,
+           week?.plan?.isFlexibleSchedule == true,
+           !Calendar.current.isDateInToday(date) {
+            date = Date()
+        }
     }
 }
 

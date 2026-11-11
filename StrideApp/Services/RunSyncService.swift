@@ -114,7 +114,7 @@ class RunSyncService {
         }
 
         if httpResponse.statusCode == 401 {
-            AuthService.shared.signOut()
+            AuthService.shared.handleUnauthorized()
             throw RunSyncError.unauthorized
         }
 

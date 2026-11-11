@@ -17,6 +17,7 @@ struct WeeklyCheckinFlowView: View {
         NavigationStack {
             content
                 .navigationTitle("Weekly check-in")
+        .strideSecondaryScreen()
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {

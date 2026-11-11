@@ -40,6 +40,7 @@
 		09AEFF61B0A98C51DEEC0172 /* RunSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7FD1B8C2E01E2199E130253 /* RunSyncService.swift */; };
 		0AF23580D46CB9B856AF4383 /* mile_99.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 62A3454F9B0AD548209BAF7B /* mile_99.mp3 */; };
 		0B0E6E4CBD568EAE5DF060D6 /* km_90.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 121325A8C63A76E604327049 /* km_90.mp3 */; };
+		0B607977CDD98B5088850CD4 /* female_neck_isometric_front_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 6F86900BD98BCF99C30E7D9F /* female_neck_isometric_front_1.png */; };
 		0B60F542ABB0CFA5E9008DED /* Inter-VariableFont_opsz,wght.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 38F6B941F1713C27FA7F16C7 /* Inter-VariableFont_opsz,wght.ttf */; };
 		0B6E3ACE005CBBCE92BD91CD /* km_55.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 367EF92BF112395B431C7484 /* km_55.mp3 */; };
 		0BC5352B1B1566B2369CE102 /* auto_pause_on.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BD2A6309B4083D76254B08F8 /* auto_pause_on.mp3 */; };
@@ -61,12 +62,14 @@
 		102CFAAB8251872CD4CD90F3 /* robot_single_leg_calf_raise_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0543E36AA20FB660FA3A74D9 /* robot_single_leg_calf_raise_1.png */; };
 		11D23C8887DF8EB6E793030C /* km_75.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E3F59EBD65D99C127C4CD356 /* km_75.mp3 */; };
 		11FDFC65D9E31D6829C58709 /* per_kilometer.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 9ECEB8F7837D996B323342E9 /* per_kilometer.mp3 */; };
+		11FFB81D46314C668AF7E0D0 /* female_supported_wrist_extension_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0AC518C91394AD93C39942C6 /* female_supported_wrist_extension_1.png */; };
 		127262EBF87E5740066FCEBE /* type_long_run.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A391C8C447B46CA41A0D9796 /* type_long_run.mp3 */; };
 		12B1949ACC66A801D3EA184E /* slower_than_last.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3286EA82271170180144A345 /* slower_than_last.mp3 */; };
 		138C0C89ADFC50D8615C8151 /* mile_69.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 58267DB813B19E7C17F7E317 /* mile_69.mp3 */; };
 		13A3FF8616915FABF905CEEF /* HydrationLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = BDD92F0E4B7BA48899DF3854 /* HydrationLog.swift */; };
 		13AD439AD0729F605C3AA67C /* female_dead_bug_1.png in Resources */ = {isa = PBXBuildFile; fileRef = C1E340C16BA476140BA4B4F2 /* female_dead_bug_1.png */; };
 		13AF978A320DB36FC1548144 /* CoachingMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61C670E543DEBDD7534CBE0F /* CoachingMessage.swift */; };
+		13D3120D6574F86AAC088E19 /* female_bench_supported_db_row_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 1F8C6A5B644483D69C49CCB6 /* female_bench_supported_db_row_2.png */; };
 		14514CE3E5D71EE5B2B158BA /* robot_landmine_rotation_3.png in Resources */ = {isa = PBXBuildFile; fileRef = 392DB4A1B22225EB2B45F713 /* robot_landmine_rotation_3.png */; };
 		14CBF81C06D0E1C7A0D10192 /* km_72.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6BDEC8EFC5316E63C4429C6F /* km_72.mp3 */; };
 		1527812BCD0B70C8D498FEEE /* robot_single_leg_balance_reach_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 495C52CC5FD327080B21403E /* robot_single_leg_balance_reach_1.png */; };
@@ -103,6 +106,7 @@
 		1F0D3AF7DF5AFBF71476BC51 /* num_48.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6237953C082CDAA7EEC92515 /* num_48.mp3 */; };
 		1FBE792247681C2C35C99F09 /* robot_bulgarian_split_squat_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 9E9997D0BCE2B3BA9232CFD0 /* robot_bulgarian_split_squat_1.png */; };
 		1FF735C129E858367F65EB73 /* TeamsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53D45739DC9D72B2A5B6F1EB /* TeamsView.swift */; };
+		20242D25916A0159481F6E66 /* StatsDesignedPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EB44293E8F1AB8DD574F825 /* StatsDesignedPage.swift */; };
 		202ACFC96DF24A0BA7200B82 /* MapboxMaps in Frameworks */ = {isa = PBXBuildFile; productRef = D3D5A0C6E8FA4CF0ABB02959 /* MapboxMaps */; };
 		202CB98F42F6ACB84289B1E2 /* robot_back_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 5B42D8E4C9583BFF49B2BE9B /* robot_back_squat_2.png */; };
 		21080410606BC8EFC851856B /* km_30.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = DDA5A95DD9BEBFCCCE02D9DC /* km_30.mp3 */; };
@@ -117,10 +121,12 @@
 		22BC046AC93C6CA3DE12B07B /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EB90E244CCD02B0D2F1B2C /* Theme.swift */; };
 		22DFB6F3EED7004A4408A054 /* WeeklyReviewCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62AAE428F878E8ED6EE1C7BF /* WeeklyReviewCardView.swift */; };
 		230C660E2899DC71192100D7 /* SocialModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03FB8FFFD21642ECD33F613 /* SocialModels.swift */; };
+		233C3FDCC35F570396793840 /* female_supported_wrist_extension_2.png in Resources */ = {isa = PBXBuildFile; fileRef = B047C94EF8CF2417007F6EDA /* female_supported_wrist_extension_2.png */; };
 		234067A802A0D2877D8E48BA /* robot_db_split_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 8FA4846FF99DEF92288093BA /* robot_db_split_squat_2.png */; };
 		23B9C9D9C6A9DF98995F3D5A /* bulgarian_split_squat_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 40404DB047940398118752AF /* bulgarian_split_squat_1.png */; };
 		24C184E53136D60D8E61F04F /* km_24.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1F7537539571216D48A95A37 /* km_24.mp3 */; };
 		2584563622297A8F88E6E83C /* robot_pull_ups_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 035CB889A7449C28A47A91CD /* robot_pull_ups_1.png */; };
+		259B6AFB77ABA02981022D07 /* StrideRunLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928BF2D62CFB0BB3A1D208D2 /* StrideRunLiveActivityWidget.swift */; };
 		26710E1C4A33663F87FAF005 /* num_55.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 82C5F6E3A4E88F03AF633162 /* num_55.mp3 */; };
 		2674AFCF371E1C0A8F034A46 /* one_hour.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 53A072F7B736E495CD901918 /* one_hour.mp3 */; };
 		26B93E892B526EDA3BA46EB1 /* km_48.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5D49042AA3C9B8D3AE980876 /* km_48.mp3 */; };
@@ -188,8 +194,10 @@
 		39313A89C5AC9B5C470B8671 /* km_98.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C5CDD09680C6CEF35A721B1C /* km_98.mp3 */; };
 		393E3615D606BDAA44E2B845 /* female_suitcase_carry_1.png in Resources */ = {isa = PBXBuildFile; fileRef = E21E17350BA8C18081858D2F /* female_suitcase_carry_1.png */; };
 		3A21591FDB61EAAF99D1A4A8 /* km_19.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 2D654C0CA1D177B63F61EFFB /* km_19.mp3 */; };
+		3B3F71E8ADE69599F9CFA0EC /* female_neck_isometric_left_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 50E1603D04922B90EC9C8140 /* female_neck_isometric_left_1.png */; };
 		3B5B6924126316EFF62BF0F3 /* StatsSummarySection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 378D4B0EA3160B46C60C81F7 /* StatsSummarySection.swift */; };
 		3B6E622FB7A02B766F57D3B4 /* BarlowCondensed-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 0E26FF7EA84CBB3FC96F725B /* BarlowCondensed-Medium.ttf */; };
+		3C05D17E763999490E66D987 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBC708A283EDF8091574CD8D /* Foundation.framework */; };
 		3D490DC6256392CC2FA742D7 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B757279BE7CC57520B29786 /* ProfileView.swift */; };
 		3D6F8ACAB7B6EFCC9CC0F074 /* IntegrationsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96D16082297CA07A5B8871D1 /* IntegrationsSection.swift */; };
 		3D8F63C347F50F0924E3F49A /* num_1.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A061ABB98AC083C666101C2C /* num_1.mp3 */; };
@@ -199,6 +207,7 @@
 		3DD12FB6B50304F9B2AB207A /* mile_10.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 2A28737E9D56337A3C5C1B54 /* mile_10.mp3 */; };
 		3E78F3E95CF541F89D168F52 /* km_68.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = B14FB28B2800888B2A3389CE /* km_68.mp3 */; };
 		3EC924612107F12FD3EB001D /* mile_58.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D9875F51CCE80F7EE5BEFAFA /* mile_58.mp3 */; };
+		3FA0AB2AF382E1C9DFA651A1 /* StrideLiveActivityBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5EC336CA89B79C8377BDFB0 /* StrideLiveActivityBundle.swift */; };
 		400BF5493B3BD09C3C082570 /* pace_swing.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 3D5343F3176F0726B01653F6 /* pace_swing.mp3 */; };
 		400F18332BDEFDDB03A06E08 /* mile_55.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 85123FF2BB3F9694ECD1D97A /* mile_55.mp3 */; };
 		40470FEFE48180276FF11883 /* BLEDiagnosticsLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E4A7A926E7E6F5AF9428EBB /* BLEDiagnosticsLog.swift */; };
@@ -255,6 +264,7 @@
 		51ADF27D0182B7B11D9A2B24 /* mile_13.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 49B38A880F81033D06BD9FE9 /* mile_13.mp3 */; };
 		52B415F04313C0BAB423C479 /* BluetoothRunDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79D37B21E43D4631E6AEBA94 /* BluetoothRunDataProvider.swift */; };
 		52BBC5CAA872766FC35D15E2 /* num_27.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A8A82D23EB41A17E6D9EF6DA /* num_27.mp3 */; };
+		532AF5EA08DB297F8A5220C2 /* StrideRunAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C1A4CEF6AF7B9569E8C710 /* StrideRunAttributes.swift */; };
 		533113D7D9AAAF892475C556 /* robot_barbell_rdl_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 4E9221AF5CCAB9356578418D /* robot_barbell_rdl_1.png */; };
 		53562DDCCF50419D558238E0 /* ActivityFeedViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94426E5908B75FDCFD0BBB58 /* ActivityFeedViewModel.swift */; };
 		535FCAD742AE834E1503A837 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECA49B5DFAFBEF8B31BC12CB /* Extensions.swift */; };
@@ -271,6 +281,7 @@
 		58B495A282B034F2EC5C18AB /* km_78.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = ACA092574A13FD2B4ADFB296 /* km_78.mp3 */; };
 		590424CE866540D6AFFFB482 /* num_34.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 1515FC3BAF1C3AEC6794CC4F /* num_34.mp3 */; };
 		59745391629287773F85E61C /* km_56.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = D3E23C7F67E3D6E43ED7AD2B /* km_56.mp3 */; };
+		59A3029C9806A5C5D490C43D /* female_bench_supported_db_row_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 0751F3D2E464524A647B33C0 /* female_bench_supported_db_row_1.png */; };
 		5A01AABE989E469BB1CED382 /* km_7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = EB25872F211E340A9CC9AFB1 /* km_7.mp3 */; };
 		5A11DF0C1C5949D60E48DA0F /* CommunityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A47DF71A4C5B7CA1EF6E05 /* CommunityView.swift */; };
 		5A4C02233F111EAC279663F7 /* mile_39.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = BF70EB1515499405B0D213DB /* mile_39.mp3 */; };
@@ -289,8 +300,10 @@
 		5E65A2FB36C7EBABE17CB4BD /* youre_on_a.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 90C3353518C1DB657CE73893 /* youre_on_a.mp3 */; };
 		5E8C39F9470C6396017CB422 /* female_dead_bug_2.png in Resources */ = {isa = PBXBuildFile; fileRef = A7BF38EEC1B46D47C5A51281 /* female_dead_bug_2.png */; };
 		5EB9C57666467ECBDE9864A0 /* encourage_own_it.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 74234C3067F87B21BD4B4DCE /* encourage_own_it.mp3 */; };
+		5F05FFBA719E00BF8C4A98D7 /* female_thoracic_rotation_1.png in Resources */ = {isa = PBXBuildFile; fileRef = FA8D9462A753A4F3F1B29A80 /* female_thoracic_rotation_1.png */; };
 		5F31B0C1CB9C342FA1A86588 /* mile_25.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 81218BD6A6F91AAD126B708B /* mile_25.mp3 */; };
 		5F36E3F15372BFF46F0E5124 /* IconBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1AB1202FAF5CA52ED741430 /* IconBadge.swift */; };
+		5F541AA401DF2FB1DD35F3B0 /* StrideLiveActivity.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = 7A298DC7C27376F8B73BDC7C /* StrideLiveActivity.appex */; };
 		5F878B3ED5D302EF0B8CBC6B /* WorkoutSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B8EA88AD31125E7128E98C4 /* WorkoutSample.swift */; };
 		5F8B41B1DFE81501B387FAFD /* AILoaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B293E10EA0515FA169AB4FDB /* AILoaderView.swift */; };
 		60870E7B1093BA06897E7956 /* mile_60.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 175BA5D3DDE0C3991D37F21B /* mile_60.mp3 */; };
@@ -301,6 +314,7 @@
 		6281ECA838FFA1CE3E222D68 /* weekly_goal_hit.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 71D54C7E0FD83DF6BB02CB9E /* weekly_goal_hit.mp3 */; };
 		636A7C467D61EF4E94B2549B /* mile_98.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 438D5AF2ADAEB741A0C6F564 /* mile_98.mp3 */; };
 		64047A72B12D90EA2BE4708F /* km_58.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5EAFC0CE60A0A5D92AACDAD7 /* km_58.mp3 */; };
+		6437FA16CF142862E476332C /* RunLiveActivityCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB5562ECF4F2456B23ACED8C /* RunLiveActivityCoordinator.swift */; };
 		64C366E1678C872E36645A65 /* km_44.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5A3E9FF054C206226AE58F4C /* km_44.mp3 */; };
 		658948241652D44B48E29728 /* km_17.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 7DCDD751A411DA1244338D11 /* km_17.mp3 */; };
 		65A0B6B89A36B56B8B0A78B0 /* side_plank_abduction_2.png in Resources */ = {isa = PBXBuildFile; fileRef = FA751141893180818794BA35 /* side_plank_abduction_2.png */; };
@@ -361,6 +375,7 @@
 		76F29671ECF1FC701019829F /* mile_34.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6B03336210F29692E820DF13 /* mile_34.mp3 */; };
 		773228384957B199DD1FC684 /* num_43.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FDEBAEC18EFAC3A565B9136A /* num_43.mp3 */; };
 		779F73C5380333CF264B85B7 /* num_12.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6A0262CDBDCA4F370168734E /* num_12.mp3 */; };
+		77D5ED8F75C12188BFEFEF18 /* female_thoracic_rotation_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 48A9555EFDF44060967DB0A8 /* female_thoracic_rotation_2.png */; };
 		77F384EC419E4A24A23C8EB4 /* km_29.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 780A9110A8584C35CF22A6AA /* km_29.mp3 */; };
 		7837C1538DF8356984F81A70 /* RoutePoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0337043BF6C25A9034EF156B /* RoutePoint.swift */; };
 		78D6464DB31238EC40D3EDE6 /* single_leg_calf_raise_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 5D5C2EAF76BCCA7DA5436758 /* single_leg_calf_raise_1.png */; };
@@ -473,6 +488,7 @@
 		9D8D822273D4DE36C884E45A /* ShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60B001169C60BE650E0BF3CA /* ShareSheet.swift */; };
 		9DE7637F4FBC5ADDF24EA413 /* num_4.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 48465CAA74552E5E36F9433B /* num_4.mp3 */; };
 		9DE85C0A2112F3D016FB73E2 /* UserSearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D0DEC51B0534231401D01BD /* UserSearchViewModel.swift */; };
+		9E192B49509FF77876F2FC6F /* female_seated_plate_steering_2.png in Resources */ = {isa = PBXBuildFile; fileRef = E205603D1AEF1F48DA6ADD7B /* female_seated_plate_steering_2.png */; };
 		9E22414D7AEFC96B76DB4103 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 034FAAB960EF8EA212E1E74D /* Assets.xcassets */; };
 		9E2B9364EF2B996D8E680EED /* StrengthSet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84812E0B3E70AF75BCAA702E /* StrengthSet.swift */; };
 		9EA661162862ACE85D593863 /* target_time_today.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5E61F14FAEC5F619F00B5A4E /* target_time_today.mp3 */; };
@@ -508,6 +524,7 @@
 		A8E72C200C9A36091E80BE80 /* mile_64.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 07E5190B5884DA2FCD2AF8B0 /* mile_64.mp3 */; };
 		AAA5166A5127E539D5D01F7B /* kilometers.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6ECF895E8AF1DFC6D149BD27 /* kilometers.mp3 */; };
 		AC13812AE786EE158AA6E26B /* num_15.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 614FFF615474454BAC141ACA /* num_15.mp3 */; };
+		AC1D536CEF5D6BA4AE1AB241 /* female_neck_isometric_back_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 026215FD27142252311B313C /* female_neck_isometric_back_1.png */; };
 		AC3C6B2537EB3701C7F3717D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3658386F4CA1474CCEC1DDBF /* LaunchScreen.storyboard */; };
 		AC45E139C313532C3457542B /* robot_back_squat_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 506BC25AE47B99AA1EBC2527 /* robot_back_squat_1.png */; };
 		AC4DC8D3EBCF9443BF0A5A73 /* km_88.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 323E8BF49026C7D23F513305 /* km_88.mp3 */; };
@@ -532,6 +549,7 @@
 		B38D7EFC92E881EC5DE439C5 /* female_landmine_rotation_2.png in Resources */ = {isa = PBXBuildFile; fileRef = B6735251C971EE63B3E6932D /* female_landmine_rotation_2.png */; };
 		B45518490D3DC8A12BB1C330 /* encourage_grinding.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = FDF8330D30BE86F6E061EBDC /* encourage_grinding.mp3 */; };
 		B4739AAF6E3F96F08AF36A7F /* AchievementUnlockedSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91CA188CE1A1227679FFAF95 /* AchievementUnlockedSheet.swift */; };
+		B47BD425830C09D0C294BDC7 /* female_seated_plate_steering_1.png in Resources */ = {isa = PBXBuildFile; fileRef = D1443B1FBA24DBA608580C39 /* female_seated_plate_steering_1.png */; };
 		B53B0D7A3FA6E1D7215426B0 /* PlanRecommendationEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 428E0AB101BDA77030637406 /* PlanRecommendationEngine.swift */; };
 		B579E3FA09035B042A6CF2DE /* mile_93.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 5811D94215D7211DED92A95D /* mile_93.mp3 */; };
 		B5B7671A5A242B38EE3EF7CA /* ShoesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 525ABB368AA81D80E58E15BD /* ShoesViewModel.swift */; };
@@ -615,6 +633,7 @@
 		CDC8663A2F25D5CBD2361500 /* num_7.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = C74F6C72F34099FFA7274AC1 /* num_7.mp3 */; };
 		CDC8E667389F1E36BDB88AFC /* VoiceCoachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 374E18297DEF111FB499E384 /* VoiceCoachService.swift */; };
 		CE4B62767F01E19B7AE21B1D /* robot_pull_ups_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 63506CB3D330870FA285F30E /* robot_pull_ups_2.png */; };
+		CE4DE8B79070397B7670913E /* female_farmer_hold_1.png in Resources */ = {isa = PBXBuildFile; fileRef = 7FBFE8FEED0C971612F6B5A0 /* female_farmer_hold_1.png */; };
 		CEACE35EA92B4BCAD17E42A2 /* FitbitDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C392A1BCF8B0A2482F0A0EDB /* FitbitDashboardView.swift */; };
 		CF74C36B94D2D9523AE3A389 /* robot_dead_bug_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 9898D3531C541116D067D7AB /* robot_dead_bug_2.png */; };
 		D0625601AF045F765059D5C5 /* km_35.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 749F229A58B12D30B47307B4 /* km_35.mp3 */; };
@@ -633,6 +652,7 @@
 		D4CAC64923DCE0BD5A5F0AF0 /* AchievementsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4F3EB038732B61B830349E4 /* AchievementsViewModel.swift */; };
 		D56AD9B8A84FA9AB5B7FDFCB /* NutritionViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F1EF55E73D0F6AC5A079AEB /* NutritionViewModel.swift */; };
 		D5EEB0571BA0567B79C19592 /* WellnessCheckin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85944D3FE57216B1D6864167 /* WellnessCheckin.swift */; };
+		D65A98E98FBB615E2DE29056 /* StrideRunAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37C1A4CEF6AF7B9569E8C710 /* StrideRunAttributes.swift */; };
 		D6E79091BA3DD27DEA6A9802 /* km_12.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 6A2E1F56FCB075119B8DBA2C /* km_12.mp3 */; };
 		D6F2296E0B2FB564963D1F7E /* of_your_plan.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 8C5661F355C42D9BA8CE0CD7 /* of_your_plan.mp3 */; };
 		D721204F24622A4CAAB9C5D0 /* mile_91.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = F21F5864BB3AAD3932A04A44 /* mile_91.mp3 */; };
@@ -663,6 +683,7 @@
 		E0E5E8A4D65FA52FEC53571E /* second_s.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E3D0EF5155B12FB2B3E059DD /* second_s.mp3 */; };
 		E0FB5EAEEFB2E99431108C15 /* robot_goblet_squat_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 4FA857025147A6C765969FF7 /* robot_goblet_squat_2.png */; };
 		E18E4F83BC68F9A90B18B0FC /* NutritionLogHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3A06B4E62A364CCB237CC49 /* NutritionLogHubView.swift */; };
+		E1BBE1FB998D8F4D41542A46 /* female_neck_isometric_right_1.png in Resources */ = {isa = PBXBuildFile; fileRef = D05D0A8918C866727F0E5283 /* female_neck_isometric_right_1.png */; };
 		E1E51C53610B11E225DAE7DE /* PlanLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC0623CDA6C862A5CE166B6A /* PlanLogger.swift */; };
 		E23ADE9763A678D53A90E73E /* RunPullService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23437B64B2B21AFAB210DD7F /* RunPullService.swift */; };
 		E2605EE11C406CB6A2FE8EAD /* robot_barbell_rdl_2.png in Resources */ = {isa = PBXBuildFile; fileRef = 1A2E9A729083690F5F6D57FA /* robot_barbell_rdl_2.png */; };
@@ -712,6 +733,7 @@
 		F702FC672FA60D5215E7436D /* km_13.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 4CB365E64652AE013B9B56A2 /* km_13.mp3 */; };
 		F7030519A9A16FE5CF2B862A /* km_71.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 03AEE64421B852CEE82D6208 /* km_71.mp3 */; };
 		F93D24CF179907103CC521B8 /* run_saved.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 668113AD990EDCDED02DD82A /* run_saved.mp3 */; };
+		FA0011223344556677889901 /* IBMPlexMono-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = FA0011223344556677889902 /* IBMPlexMono-Regular.ttf */; };
 		FA0B407206BD81D46FA711B2 /* summary_intro.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = E6D8F71416488FAA655A5312 /* summary_intro.mp3 */; };
 		FA27CA54D30F5503F1745CB2 /* num_30.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = A622F66054935972CEC1F85F /* num_30.mp3 */; };
 		FB247FE730FB98CBFA0BB5A6 /* StrideApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4606D673C404874E395422F9 /* StrideApp.swift */; };
@@ -731,11 +753,36 @@
 		FF373F4A3C13C70836DABDA6 /* mile_56.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 42FC88A41F2D3167F8115E3B /* mile_56.mp3 */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		43ECBC4F77CDAAFEDB701E63 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B353CFFD8CD6663A42420EF0 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D82918350B23531B4370CBA4;
+			remoteInfo = StrideLiveActivity;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		48A6EEF13921B49DB57470B4 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5F541AA401DF2FB1DD35F3B0 /* StrideLiveActivity.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		0011DE6A3E4A0221F391BF10 /* single_leg_balance_reach_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_balance_reach_2.png; sourceTree = "<group>"; };
 		007F8AB6C78789E4EAEB42A3 /* num_51.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_51.mp3; sourceTree = "<group>"; };
 		01C54BE535375DAF70AC7FAD /* clamshells_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = clamshells_1.png; sourceTree = "<group>"; };
 		02138EE294E4FCE4C62270F6 /* mile_86.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_86.mp3; sourceTree = "<group>"; };
+		026215FD27142252311B313C /* female_neck_isometric_back_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_neck_isometric_back_1.png; sourceTree = "<group>"; };
 		02EB988C2A54978C546C1B40 /* num_60.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_60.mp3; sourceTree = "<group>"; };
 		0337043BF6C25A9034EF156B /* RoutePoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoutePoint.swift; sourceTree = "<group>"; };
 		034FAAB960EF8EA212E1E74D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -751,6 +798,7 @@
 		0607D147B90D037B5767069E /* mile_87.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_87.mp3; sourceTree = "<group>"; };
 		069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = hip_flexor_stretch_1.png; sourceTree = "<group>"; };
 		06ECB4813761A0D70044A98E /* RaceFuelingPlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RaceFuelingPlanView.swift; sourceTree = "<group>"; };
+		0751F3D2E464524A647B33C0 /* female_bench_supported_db_row_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_bench_supported_db_row_1.png; sourceTree = "<group>"; };
 		0775AFFAD6BF83F503C460FA /* EventModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventModels.swift; sourceTree = "<group>"; };
 		07AC44C4F732BAFD8626E9F3 /* PreRunCheckView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreRunCheckView.swift; sourceTree = "<group>"; };
 		07E5190B5884DA2FCD2AF8B0 /* mile_64.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_64.mp3; sourceTree = "<group>"; };
@@ -760,6 +808,7 @@
 		09190DC8E7F25D464326A76B /* num_36.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_36.mp3; sourceTree = "<group>"; };
 		0964B6EBB8AC46AC851CE846 /* female_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_plank_1.png; sourceTree = "<group>"; };
 		0A43E5D2F18A621A17677DA7 /* BeginnerOnboardingContainerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BeginnerOnboardingContainerView.swift; sourceTree = "<group>"; };
+		0AC518C91394AD93C39942C6 /* female_supported_wrist_extension_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_supported_wrist_extension_1.png; sourceTree = "<group>"; };
 		0B3EAD0E851B648F7FBD8EC0 /* mile_61.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_61.mp3; sourceTree = "<group>"; };
 		0B6D62F65351CC2AFD560357 /* km_47.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_47.mp3; sourceTree = "<group>"; };
 		0B8E197ACF52AF4E534FE8A4 /* mile_16.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_16.mp3; sourceTree = "<group>"; };
@@ -812,6 +861,7 @@
 		1F5D774A2E9FF4B0AB2E7353 /* km_84.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_84.mp3; sourceTree = "<group>"; };
 		1F659A90C57CCE3375976AD6 /* hour_s.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = hour_s.mp3; sourceTree = "<group>"; };
 		1F7537539571216D48A95A37 /* km_24.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_24.mp3; sourceTree = "<group>"; };
+		1F8C6A5B644483D69C49CCB6 /* female_bench_supported_db_row_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_bench_supported_db_row_2.png; sourceTree = "<group>"; };
 		1FA74670FB0531F061E4D008 /* robot_single_leg_calf_raise_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_single_leg_calf_raise_2.png; sourceTree = "<group>"; };
 		1FFC39ADA2C25DEA95731F6B /* mile_43.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_43.mp3; sourceTree = "<group>"; };
 		210FCF7E7205656749522730 /* mile_95.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_95.mp3; sourceTree = "<group>"; };
@@ -873,6 +923,7 @@
 		374E18297DEF111FB499E384 /* VoiceCoachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceCoachService.swift; sourceTree = "<group>"; };
 		376881930D01305A5F3071EC /* longest_duration.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = longest_duration.mp3; sourceTree = "<group>"; };
 		378D4B0EA3160B46C60C81F7 /* StatsSummarySection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsSummarySection.swift; sourceTree = "<group>"; };
+		37C1A4CEF6AF7B9569E8C710 /* StrideRunAttributes.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StrideRunAttributes.swift; sourceTree = "<group>"; };
 		38366866D76E0C376FA2B89C /* kilometers_away.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = kilometers_away.mp3; sourceTree = "<group>"; };
 		38F6B941F1713C27FA7F16C7 /* Inter-VariableFont_opsz,wght.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Inter-VariableFont_opsz,wght.ttf"; sourceTree = "<group>"; };
 		391F2665D9514475B4895980 /* km_39.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_39.mp3; sourceTree = "<group>"; };
@@ -927,6 +978,7 @@
 		4789CFFA1638EEF37A34890D /* mile_26.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_26.mp3; sourceTree = "<group>"; };
 		48465CAA74552E5E36F9433B /* num_4.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_4.mp3; sourceTree = "<group>"; };
 		484D08E45D68FA0762FC60FD /* auto_pause_off.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = auto_pause_off.mp3; sourceTree = "<group>"; };
+		48A9555EFDF44060967DB0A8 /* female_thoracic_rotation_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_thoracic_rotation_2.png; sourceTree = "<group>"; };
 		49186CEF891B3EFBBCEDDD23 /* km_86.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_86.mp3; sourceTree = "<group>"; };
 		493383E84632D781F54BB153 /* km_61.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_61.mp3; sourceTree = "<group>"; };
 		495C52CC5FD327080B21403E /* robot_single_leg_balance_reach_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_single_leg_balance_reach_1.png; sourceTree = "<group>"; };
@@ -958,6 +1010,7 @@
 		4FE61E896FB77539FE4893D7 /* km_33.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_33.mp3; sourceTree = "<group>"; };
 		4FEE33A1F161464EFEA1D5F9 /* type_tempo.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = type_tempo.mp3; sourceTree = "<group>"; };
 		506BC25AE47B99AA1EBC2527 /* robot_back_squat_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_back_squat_1.png; sourceTree = "<group>"; };
+		50E1603D04922B90EC9C8140 /* female_neck_isometric_left_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_neck_isometric_left_1.png; sourceTree = "<group>"; };
 		51A5298CDB1C7350E0C2ADD2 /* female_barbell_rdl_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_barbell_rdl_2.png; sourceTree = "<group>"; };
 		525ABB368AA81D80E58E15BD /* ShoesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShoesViewModel.swift; sourceTree = "<group>"; };
 		53559A9DEB562A57EA3345F0 /* StrengthQuickLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StrengthQuickLogView.swift; sourceTree = "<group>"; };
@@ -999,6 +1052,7 @@
 		5E36BA70B03EE06AB838B72E /* PlanAdjustmentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanAdjustmentViewModel.swift; sourceTree = "<group>"; };
 		5E61F14FAEC5F619F00B5A4E /* target_time_today.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = target_time_today.mp3; sourceTree = "<group>"; };
 		5EAFC0CE60A0A5D92AACDAD7 /* km_58.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_58.mp3; sourceTree = "<group>"; };
+		5EB44293E8F1AB8DD574F825 /* StatsDesignedPage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StatsDesignedPage.swift; sourceTree = "<group>"; };
 		5F104F2101D177115406D3CB /* km_94.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_94.mp3; sourceTree = "<group>"; };
 		5F2F3CCBE203EF05459031EC /* mile_15.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_15.mp3; sourceTree = "<group>"; };
 		5F66260BECBE7C4BEEAD147D /* GoalStepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoalStepView.swift; sourceTree = "<group>"; };
@@ -1049,6 +1103,7 @@
 		6E96A89F2B83176041D96748 /* run_ended.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = run_ended.mp3; sourceTree = "<group>"; };
 		6ECF895E8AF1DFC6D149BD27 /* kilometers.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = kilometers.mp3; sourceTree = "<group>"; };
 		6F1EF55E73D0F6AC5A079AEB /* NutritionViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionViewModel.swift; sourceTree = "<group>"; };
+		6F86900BD98BCF99C30E7D9F /* female_neck_isometric_front_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_neck_isometric_front_1.png; sourceTree = "<group>"; };
 		6FBCE392A9F8896783D58151 /* num_6.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_6.mp3; sourceTree = "<group>"; };
 		6FC6BA0C813A0D7265A4F062 /* robot_single_leg_balance_reach_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_single_leg_balance_reach_2.png; sourceTree = "<group>"; };
 		709B004F05B04C02AE298835 /* compliance_recovery_fast.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = compliance_recovery_fast.mp3; sourceTree = "<group>"; };
@@ -1083,6 +1138,7 @@
 		79AA34A15920073A420E31BB /* WeeklyCheckinFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyCheckinFlowView.swift; sourceTree = "<group>"; };
 		79D37B21E43D4631E6AEBA94 /* BluetoothRunDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothRunDataProvider.swift; sourceTree = "<group>"; };
 		7A02C7CC62B650FCC878558F /* robot_bird_dog_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_bird_dog_1.png; sourceTree = "<group>"; };
+		7A298DC7C27376F8B73BDC7C /* StrideLiveActivity.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StrideLiveActivity.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7B3D6605E0EB286AE3CB341D /* TeamDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeamDetailView.swift; sourceTree = "<group>"; };
 		7B47BAB58C18DBB3A447461E /* RouteShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteShareService.swift; sourceTree = "<group>"; };
 		7B4C547D731A65985EFED66E /* BarlowCondensed-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "BarlowCondensed-Regular.ttf"; sourceTree = "<group>"; };
@@ -1098,6 +1154,7 @@
 		7F2B37C9ABA42EA8C360C7A6 /* suitcase_carry_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = suitcase_carry_1.png; sourceTree = "<group>"; };
 		7F57DA1A2B3A790232CC417F /* TodayNutritionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayNutritionView.swift; sourceTree = "<group>"; };
 		7F9B882F93F1F6A4A70CB50F /* NutritionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionLog.swift; sourceTree = "<group>"; };
+		7FBFE8FEED0C971612F6B5A0 /* female_farmer_hold_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_farmer_hold_1.png; sourceTree = "<group>"; };
 		7FC1A4A9A68DB94AD8ADCFB3 /* km_40.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_40.mp3; sourceTree = "<group>"; };
 		8020A9DABE0CE8B4FFFAD04D /* robot_back_squat_3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_back_squat_3.png; sourceTree = "<group>"; };
 		80D5388D4D21CAB79870AA72 /* female_side_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_side_plank_1.png; sourceTree = "<group>"; };
@@ -1165,11 +1222,13 @@
 		9218D8EE2BB4C87E41353083 /* robot_landmine_press_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_landmine_press_1.png; sourceTree = "<group>"; };
 		9229AA9E7FF07EF8999FDDE3 /* fastest_split.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = fastest_split.mp3; sourceTree = "<group>"; };
 		92801125E9126C8D9ED4E9DA /* km_62.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_62.mp3; sourceTree = "<group>"; };
+		928BF2D62CFB0BB3A1D208D2 /* StrideRunLiveActivityWidget.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StrideRunLiveActivityWidget.swift; sourceTree = "<group>"; };
 		92C381EB3A02748402FA3FF8 /* mile_82.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_82.mp3; sourceTree = "<group>"; };
 		92FD5BBCBE28012D61F1FD78 /* trust_process.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = trust_process.mp3; sourceTree = "<group>"; };
 		930BEBC24EBF4D06D75EA683 /* taper_starts.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = taper_starts.mp3; sourceTree = "<group>"; };
 		942E21A56D40FA7F66CBC188 /* num_58.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_58.mp3; sourceTree = "<group>"; };
 		94426E5908B75FDCFD0BBB58 /* ActivityFeedViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityFeedViewModel.swift; sourceTree = "<group>"; };
+		946A18749F83B128B034AE10 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		948A740A4C44EAAA16974725 /* ParsedTreadmillSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParsedTreadmillSample.swift; sourceTree = "<group>"; };
 		94994AB0459C89B3F8588304 /* num_13.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_13.mp3; sourceTree = "<group>"; };
 		94EE261A701B9E2420A152A0 /* NutritionTodayCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionTodayCardView.swift; sourceTree = "<group>"; };
@@ -1239,6 +1298,7 @@
 		AEAF8878E0C3A39A326F5FC7 /* km_20.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_20.mp3; sourceTree = "<group>"; };
 		AFE1A9C47769BE9A3D51785E /* ActivityFeedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityFeedView.swift; sourceTree = "<group>"; };
 		B0469A0692B0B98FF14343AE /* steps_per_minute.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = steps_per_minute.mp3; sourceTree = "<group>"; };
+		B047C94EF8CF2417007F6EDA /* female_supported_wrist_extension_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_supported_wrist_extension_2.png; sourceTree = "<group>"; };
 		B14C34B4F6544569F278C20E /* km_65.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_65.mp3; sourceTree = "<group>"; };
 		B14FB28B2800888B2A3389CE /* km_68.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_68.mp3; sourceTree = "<group>"; };
 		B157084BA7791B67788A7B0D /* female_bird_dog_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_bird_dog_1.png; sourceTree = "<group>"; };
@@ -1270,6 +1330,7 @@
 		BB597D1C6DD45A4BF3AB1EDE /* num_46.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_46.mp3; sourceTree = "<group>"; };
 		BBA3CEED8AD8C4AA660E29B9 /* female_goblet_squat_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_goblet_squat_2.png; sourceTree = "<group>"; };
 		BBAA0E068E067C57CB1F3A7A /* EmailAuthView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailAuthView.swift; sourceTree = "<group>"; };
+		BBC708A283EDF8091574CD8D /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		BCB8F2E649690CFDAFA0B8E9 /* TextEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextEntryView.swift; sourceTree = "<group>"; };
 		BCED73B414B1C2637B9CF167 /* robot_copenhagen_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_copenhagen_plank_1.png; sourceTree = "<group>"; };
 		BD2A6309B4083D76254B08F8 /* auto_pause_on.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = auto_pause_on.mp3; sourceTree = "<group>"; };
@@ -1324,7 +1385,9 @@
 		CEAC904D322DF9C0DAEE40BB /* mile_97.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_97.mp3; sourceTree = "<group>"; };
 		CF7CC599F484B936047E6932 /* WellnessConcernView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellnessConcernView.swift; sourceTree = "<group>"; };
 		D02619DD7D3A6CE8F7C3A654 /* ConflictResolutionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolutionView.swift; sourceTree = "<group>"; };
+		D05D0A8918C866727F0E5283 /* female_neck_isometric_right_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_neck_isometric_right_1.png; sourceTree = "<group>"; };
 		D0ACFBC0E7D1E283734B3557 /* BluetoothManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BluetoothManager.swift; sourceTree = "<group>"; };
+		D1443B1FBA24DBA608580C39 /* female_seated_plate_steering_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_seated_plate_steering_1.png; sourceTree = "<group>"; };
 		D1836E6E2F5F2C8E1B89CCC6 /* AdjustmentReviewSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustmentReviewSheet.swift; sourceTree = "<group>"; };
 		D1BA9A4B2CF819309348221B /* total_time.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = total_time.mp3; sourceTree = "<group>"; };
 		D1BD45068A461CD4D3116935 /* km_26.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_26.mp3; sourceTree = "<group>"; };
@@ -1351,6 +1414,7 @@
 		DA0737823FAA90539557DE71 /* targetBarCount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = targetBarCount.swift; sourceTree = "<group>"; };
 		DA42B0F782F959947EE3D9A1 /* mile_50.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_50.mp3; sourceTree = "<group>"; };
 		DB3E94541EF6729B94B4CF20 /* robot_clamshells_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_clamshells_2.png; sourceTree = "<group>"; };
+		DB5562ECF4F2456B23ACED8C /* RunLiveActivityCoordinator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RunLiveActivityCoordinator.swift; sourceTree = "<group>"; };
 		DBB873260C0DE67A52CB5CA6 /* km_80.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_80.mp3; sourceTree = "<group>"; };
 		DD32DA1FE9503B0678727DB8 /* robot_box_step_up_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = robot_box_step_up_2.png; sourceTree = "<group>"; };
 		DD488E3D65BF840D7B9B9097 /* copenhagen_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = copenhagen_plank_1.png; sourceTree = "<group>"; };
@@ -1367,6 +1431,7 @@
 		E0D81D4D21885F2E0F8F878A /* female_single_leg_balance_reach_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_single_leg_balance_reach_1.png; sourceTree = "<group>"; };
 		E11D0D22BB10B231F2A1563F /* mile_18.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_18.mp3; sourceTree = "<group>"; };
 		E12C4563B3A9C86BC74AEF33 /* PlanView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlanView.swift; sourceTree = "<group>"; };
+		E205603D1AEF1F48DA6ADD7B /* female_seated_plate_steering_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_seated_plate_steering_2.png; sourceTree = "<group>"; };
 		E21E17350BA8C18081858D2F /* female_suitcase_carry_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_suitcase_carry_1.png; sourceTree = "<group>"; };
 		E26B4007113A0A2CB2873995 /* num_38.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = num_38.mp3; sourceTree = "<group>"; };
 		E2963EE289B525BCF7306D2A /* km_16.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = km_16.mp3; sourceTree = "<group>"; };
@@ -1429,6 +1494,7 @@
 		F568C1AD0B3BF19624902296 /* TrainingIntensityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingIntensityView.swift; sourceTree = "<group>"; };
 		F56DFDA61467B056449F139B /* single_leg_glute_bridge_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = single_leg_glute_bridge_2.png; sourceTree = "<group>"; };
 		F5B145042ABA3A42D409F89B /* mile_2.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_2.mp3; sourceTree = "<group>"; };
+		F5EC336CA89B79C8377BDFB0 /* StrideLiveActivityBundle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = StrideLiveActivityBundle.swift; sourceTree = "<group>"; };
 		F61EBF889EE98DF873BAD46A /* RacePrepChecklistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RacePrepChecklistView.swift; sourceTree = "<group>"; };
 		F63447662159FD8C81D6B9B9 /* female_med_ball_russian_twist_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_med_ball_russian_twist_2.png; sourceTree = "<group>"; };
 		F878A84B299521E1EFB9D92E /* RunDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunDataProvider.swift; sourceTree = "<group>"; };
@@ -1439,7 +1505,9 @@
 		F968FAEFE528D676AF1B42BF /* more_distance_today.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = more_distance_today.mp3; sourceTree = "<group>"; };
 		F9D36C8F32D3CAE17BFBC93A /* female_copenhagen_plank_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_copenhagen_plank_1.png; sourceTree = "<group>"; };
 		F9EB90E244CCD02B0D2F1B2C /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		FA0011223344556677889902 /* IBMPlexMono-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "IBMPlexMono-Regular.ttf"; sourceTree = "<group>"; };
 		FA751141893180818794BA35 /* side_plank_abduction_2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = side_plank_abduction_2.png; sourceTree = "<group>"; };
+		FA8D9462A753A4F3F1B29A80 /* female_thoracic_rotation_1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = female_thoracic_rotation_1.png; sourceTree = "<group>"; };
 		FB182A89F5C08283078A6732 /* mile_65.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_65.mp3; sourceTree = "<group>"; };
 		FBD4A995F803E34EE2D34C57 /* mile_14.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_14.mp3; sourceTree = "<group>"; };
 		FC95DB4D4A538E0B0052FCEA /* mile_80.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = mile_80.mp3; sourceTree = "<group>"; };
@@ -1462,6 +1530,14 @@
 			files = (
 				BDB97759295FE8CCC9B977AC /* PostHog in Frameworks */,
 				202ACFC96DF24A0BA7200B82 /* MapboxMaps in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		51E67EA6019268CBF1D79EE9 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3C05D17E763999490E66D987 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1500,6 +1576,9 @@
 				EB74701BDA5ABE5ECA7419BE /* ViewModels */,
 				37913F5DAA6DEB39646C8B7A /* Views */,
 				45A077DE83BF61402F71099A /* Products */,
+				48087D924F75E37F911AEE82 /* LiveActivity */,
+				ED01E81D2679A27355FEF2CD /* StrideLiveActivity */,
+				CE752851E48A45F305309604 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1515,12 +1594,21 @@
 			path = Strength;
 			sourceTree = "<group>";
 		};
+		2EADE6922A89E88F21E6BB3F /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				BBC708A283EDF8091574CD8D /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
 		3187B1B4DB7AF877B57E7D45 /* Stats */ = {
 			isa = PBXGroup;
 			children = (
 				378D4B0EA3160B46C60C81F7 /* StatsSummarySection.swift */,
 				B4DA98596FCFD4C9D5A84862 /* StatsView.swift */,
 				62DA07468AB5549D6BEC6A54 /* Components */,
+				5EB44293E8F1AB8DD574F825 /* StatsDesignedPage.swift */,
 			);
 			path = Stats;
 			sourceTree = "<group>";
@@ -1569,8 +1657,19 @@
 			isa = PBXGroup;
 			children = (
 				6CD7CC89563B45008C986776 /* StrideApp.app */,
+				7A298DC7C27376F8B73BDC7C /* StrideLiveActivity.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		48087D924F75E37F911AEE82 /* LiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				37C1A4CEF6AF7B9569E8C710 /* StrideRunAttributes.swift */,
+				DB5562ECF4F2456B23ACED8C /* RunLiveActivityCoordinator.swift */,
+			);
+			name = LiveActivity;
+			path = LiveActivity;
 			sourceTree = "<group>";
 		};
 		4E0A84B49624810590F28244 /* Run */ = {
@@ -1625,6 +1724,8 @@
 				B33FED795C905D15501F650B /* female_back_squat_3.png */,
 				9003AB35D85A7B67FED82BFD /* female_barbell_rdl_1.png */,
 				51A5298CDB1C7350E0C2ADD2 /* female_barbell_rdl_2.png */,
+				0751F3D2E464524A647B33C0 /* female_bench_supported_db_row_1.png */,
+				1F8C6A5B644483D69C49CCB6 /* female_bench_supported_db_row_2.png */,
 				B157084BA7791B67788A7B0D /* female_bird_dog_1.png */,
 				B7EC3C4D4035265BEC6E7161 /* female_bird_dog_2.png */,
 				82DBEA6E3CDCF7C478385442 /* female_box_step_up_1.png */,
@@ -1639,6 +1740,7 @@
 				30D9BA1B5F8BAEAA296AD197 /* female_db_split_squat_2.png */,
 				C1E340C16BA476140BA4B4F2 /* female_dead_bug_1.png */,
 				A7BF38EEC1B46D47C5A51281 /* female_dead_bug_2.png */,
+				7FBFE8FEED0C971612F6B5A0 /* female_farmer_hold_1.png */,
 				98B2A1BB9DABEF07F865EBA8 /* female_goblet_squat_1.png */,
 				BBA3CEED8AD8C4AA660E29B9 /* female_goblet_squat_2.png */,
 				4DF6DE0B0646B300252F2B95 /* female_hip_flexor_stretch_1.png */,
@@ -1649,9 +1751,15 @@
 				A75649591BFDEEFCC2EA60C7 /* female_landmine_rotation_3.png */,
 				423D97725E583F231DB70D03 /* female_med_ball_russian_twist_1.png */,
 				F63447662159FD8C81D6B9B9 /* female_med_ball_russian_twist_2.png */,
+				026215FD27142252311B313C /* female_neck_isometric_back_1.png */,
+				6F86900BD98BCF99C30E7D9F /* female_neck_isometric_front_1.png */,
+				50E1603D04922B90EC9C8140 /* female_neck_isometric_left_1.png */,
+				D05D0A8918C866727F0E5283 /* female_neck_isometric_right_1.png */,
 				0964B6EBB8AC46AC851CE846 /* female_plank_1.png */,
 				2AEAEBA148FF6B842E89BCA2 /* female_pull_ups_1.png */,
 				F402703741CC344344A3F0C6 /* female_pull_ups_2.png */,
+				D1443B1FBA24DBA608580C39 /* female_seated_plate_steering_1.png */,
+				E205603D1AEF1F48DA6ADD7B /* female_seated_plate_steering_2.png */,
 				80D5388D4D21CAB79870AA72 /* female_side_plank_1.png */,
 				C166510A558E917616B553BF /* female_side_plank_abduction_1.png */,
 				912B1D23271F266D0547A49E /* female_side_plank_abduction_2.png */,
@@ -1663,6 +1771,10 @@
 				C3A74A8D7C650051493989ED /* female_single_leg_glute_bridge_2.png */,
 				E21E17350BA8C18081858D2F /* female_suitcase_carry_1.png */,
 				8291FF3B7D60583BCEEF4236 /* female_suitcase_carry_2.png */,
+				0AC518C91394AD93C39942C6 /* female_supported_wrist_extension_1.png */,
+				B047C94EF8CF2417007F6EDA /* female_supported_wrist_extension_2.png */,
+				FA8D9462A753A4F3F1B29A80 /* female_thoracic_rotation_1.png */,
+				48A9555EFDF44060967DB0A8 /* female_thoracic_rotation_2.png */,
 				E4707DF31FD0F0859CC56D9C /* goblet_squat_1.png */,
 				148F42A218983175BC3121E7 /* goblet_squat_2.png */,
 				069C1A4CF6EECED0D2C9E540 /* hip_flexor_stretch_1.png */,
@@ -2210,6 +2322,7 @@
 				B6F869B9E012FA4FAF212E39 /* Inter-Bold.ttf */,
 				3CADF0916F4CC069C1A938FC /* Inter-Medium.ttf */,
 				61F9F27F007E18C3ADAA4E3D /* Inter-Regular.ttf */,
+				FA0011223344556677889902 /* IBMPlexMono-Regular.ttf */,
 				2403A009072F27A704EFAC83 /* Inter-SemiBold.ttf */,
 				38F6B941F1713C27FA7F16C7 /* Inter-VariableFont_opsz,wght.ttf */,
 			);
@@ -2300,6 +2413,14 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		CE752851E48A45F305309604 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				2EADE6922A89E88F21E6BB3F /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		CE88DE45A7900F68A6F1FC74 /* Onboarding */ = {
 			isa = PBXGroup;
 			children = (
@@ -2371,6 +2492,17 @@
 			path = Community;
 			sourceTree = "<group>";
 		};
+		ED01E81D2679A27355FEF2CD /* StrideLiveActivity */ = {
+			isa = PBXGroup;
+			children = (
+				928BF2D62CFB0BB3A1D208D2 /* StrideRunLiveActivityWidget.swift */,
+				F5EC336CA89B79C8377BDFB0 /* StrideLiveActivityBundle.swift */,
+				946A18749F83B128B034AE10 /* Info.plist */,
+			);
+			name = StrideLiveActivity;
+			path = StrideLiveActivity;
+			sourceTree = "<group>";
+		};
 		FDE81F1FC1EADBA92FD45F6F /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -2421,10 +2553,12 @@
 				E6D9BE4BBFC4D87CE8645629 /* Sources */,
 				E72062DF9F0F07B65408E268 /* Resources */,
 				0C3EEE1C919EAFC2A1B052F4 /* Frameworks */,
+				48A6EEF13921B49DB57470B4 /* Embed App Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3DDF58FFC5B28F20EBF00547 /* PBXTargetDependency */,
 			);
 			name = StrideApp;
 			packageProductDependencies = (
@@ -2434,6 +2568,23 @@
 			productName = StrideApp;
 			productReference = 6CD7CC89563B45008C986776 /* StrideApp.app */;
 			productType = "com.apple.product-type.application";
+		};
+		D82918350B23531B4370CBA4 /* StrideLiveActivity */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 98436660EDD0D7C7D76C5B44 /* Build configuration list for PBXNativeTarget "StrideLiveActivity" */;
+			buildPhases = (
+				99175A80389ED688EEEDC13D /* Sources */,
+				51E67EA6019268CBF1D79EE9 /* Frameworks */,
+				E97A2FF047BF9AA1851C124F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = StrideLiveActivity;
+			productName = StrideLiveActivity;
+			productReference = 7A298DC7C27376F8B73BDC7C /* StrideLiveActivity.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -2464,10 +2615,12 @@
 				AC54FF4B207C9AA8045E9910 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
+			productRefGroup = 45A077DE83BF61402F71099A /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				74F633CDAAFEAEED3B8E59B2 /* StrideApp */,
+				D82918350B23531B4370CBA4 /* StrideLiveActivity */,
 			);
 		};
 /* End PBXProject section */
@@ -2485,6 +2638,7 @@
 				C281A005AFF4D227617CB330 /* Inter-Bold.ttf in Resources */,
 				4BF47D9F50F92D3226E83440 /* Inter-Medium.ttf in Resources */,
 				CB8F9F75867C1FBF5A51D26C /* Inter-Regular.ttf in Resources */,
+				FA0011223344556677889901 /* IBMPlexMono-Regular.ttf in Resources */,
 				B29A4FEAF3DCEA590597D7D5 /* Inter-SemiBold.ttf in Resources */,
 				0B60F542ABB0CFA5E9008DED /* Inter-VariableFont_opsz,wght.ttf in Resources */,
 				AC3C6B2537EB3701C7F3717D /* LaunchScreen.storyboard in Resources */,
@@ -2542,6 +2696,8 @@
 				AF0B807F9027A818E8AF43C7 /* female_back_squat_3.png in Resources */,
 				330E73D15AEAD68CFE8CF71A /* female_barbell_rdl_1.png in Resources */,
 				763B0A42A814EFDE6B58F84B /* female_barbell_rdl_2.png in Resources */,
+				59A3029C9806A5C5D490C43D /* female_bench_supported_db_row_1.png in Resources */,
+				13D3120D6574F86AAC088E19 /* female_bench_supported_db_row_2.png in Resources */,
 				D77D7AE214F9696BA58BB039 /* female_bird_dog_1.png in Resources */,
 				9F2288716E04A7C6647AE7EC /* female_bird_dog_2.png in Resources */,
 				2D8A04FD96D9F19AF2A3C244 /* female_box_step_up_1.png in Resources */,
@@ -2556,6 +2712,7 @@
 				05C3130009937EE8783642F8 /* female_db_split_squat_2.png in Resources */,
 				13AD439AD0729F605C3AA67C /* female_dead_bug_1.png in Resources */,
 				5E8C39F9470C6396017CB422 /* female_dead_bug_2.png in Resources */,
+				CE4DE8B79070397B7670913E /* female_farmer_hold_1.png in Resources */,
 				071D1C77A7F37A38F63534AA /* female_goblet_squat_1.png in Resources */,
 				A64235F6451CBE2D2E3A6A63 /* female_goblet_squat_2.png in Resources */,
 				DE8047DCF71E9151C855280E /* female_hip_flexor_stretch_1.png in Resources */,
@@ -2566,9 +2723,15 @@
 				9FB174E6F7DCFE968A15F207 /* female_landmine_rotation_3.png in Resources */,
 				947ED42708FBAD42C3A38833 /* female_med_ball_russian_twist_1.png in Resources */,
 				E01A147BB6894DFE983071F3 /* female_med_ball_russian_twist_2.png in Resources */,
+				AC1D536CEF5D6BA4AE1AB241 /* female_neck_isometric_back_1.png in Resources */,
+				0B607977CDD98B5088850CD4 /* female_neck_isometric_front_1.png in Resources */,
+				3B3F71E8ADE69599F9CFA0EC /* female_neck_isometric_left_1.png in Resources */,
+				E1BBE1FB998D8F4D41542A46 /* female_neck_isometric_right_1.png in Resources */,
 				7545308448F2D7B80321BA6E /* female_plank_1.png in Resources */,
 				5AB765B1328CF4B0669B8757 /* female_pull_ups_1.png in Resources */,
 				93B8428818158551AE06A958 /* female_pull_ups_2.png in Resources */,
+				B47BD425830C09D0C294BDC7 /* female_seated_plate_steering_1.png in Resources */,
+				9E192B49509FF77876F2FC6F /* female_seated_plate_steering_2.png in Resources */,
 				BC978AE91E1785F6F46898F9 /* female_side_plank_1.png in Resources */,
 				F3040552EB703C4C97BCF032 /* female_side_plank_abduction_1.png in Resources */,
 				8FD150DE3A37596978BC5888 /* female_side_plank_abduction_2.png in Resources */,
@@ -2580,6 +2743,10 @@
 				76DBA9B6A70CD73D90C4EEA7 /* female_single_leg_glute_bridge_2.png in Resources */,
 				393E3615D606BDAA44E2B845 /* female_suitcase_carry_1.png in Resources */,
 				7CE9B8C11D5E7E6335B481F0 /* female_suitcase_carry_2.png in Resources */,
+				11FFB81D46314C668AF7E0D0 /* female_supported_wrist_extension_1.png in Resources */,
+				233C3FDCC35F570396793840 /* female_supported_wrist_extension_2.png in Resources */,
+				5F05FFBA719E00BF8C4A98D7 /* female_thoracic_rotation_1.png in Resources */,
+				77D5ED8F75C12188BFEFEF18 /* female_thoracic_rotation_2.png in Resources */,
 				B1CB311F0AC1CEEFE41B7563 /* fitness_improving.mp3 in Resources */,
 				8669E79384F1F683E1ACC2E9 /* goblet_squat_1.png in Resources */,
 				B18B86FD08D1130B4CE792FD /* goblet_squat_2.png in Resources */,
@@ -2988,9 +3155,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E97A2FF047BF9AA1851C124F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		99175A80389ED688EEEDC13D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				532AF5EA08DB297F8A5220C2 /* StrideRunAttributes.swift in Sources */,
+				259B6AFB77ABA02981022D07 /* StrideRunLiveActivityWidget.swift in Sources */,
+				3FA0AB2AF382E1C9DFA651A1 /* StrideLiveActivityBundle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E6D9BE4BBFC4D87CE8645629 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -3207,10 +3391,22 @@
 				06B4883AFC84A26DF0C4C646 /* WorkoutDetailView.swift in Sources */,
 				5F878B3ED5D302EF0B8CBC6B /* WorkoutSample.swift in Sources */,
 				092975510DCAE21B702F02CA /* targetBarCount.swift in Sources */,
+				D65A98E98FBB615E2DE29056 /* StrideRunAttributes.swift in Sources */,
+				6437FA16CF142862E476332C /* RunLiveActivityCoordinator.swift in Sources */,
+				20242D25916A0159481F6E66 /* StatsDesignedPage.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3DDF58FFC5B28F20EBF00547 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = StrideLiveActivity;
+			target = D82918350B23531B4370CBA4 /* StrideLiveActivity */;
+			targetProxy = 43ECBC4F77CDAAFEDB701E63 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		515EA149FDCBCE890094F437 /* Debug */ = {
@@ -3236,6 +3432,45 @@
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AAACACB9C442DC31CEC61030 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VAC2837QGB;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StrideLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.stride-v.2.app.StrideLiveActivity";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		B296AF0F6649B7DDAC7D6E81 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VAC2837QGB;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = StrideLiveActivity/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.stride-v.2.app.StrideLiveActivity";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -3404,6 +3639,15 @@
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
+		};
+		98436660EDD0D7C7D76C5B44 /* Build configuration list for PBXNativeTarget "StrideLiveActivity" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAACACB9C442DC31CEC61030 /* Release */,
+				B296AF0F6649B7DDAC7D6E81 /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 

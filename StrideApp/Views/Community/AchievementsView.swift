@@ -37,6 +37,7 @@ struct AchievementsView: View {
             .padding(.bottom, 80)
         }
         .navigationTitle("Achievements")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
         .onAppear { viewModel.loadAll() }
         .overlay {
@@ -71,7 +72,7 @@ struct AchievementsView: View {
             Spacer()
         }
         .padding(16)
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(16)
     }
 
@@ -115,7 +116,7 @@ struct AchievementsView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity)
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(12)
     }
 }

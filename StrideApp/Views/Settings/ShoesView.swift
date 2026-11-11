@@ -46,6 +46,7 @@ struct ShoesView: View {
             }
         }
         .navigationTitle("Shoes")
+        .strideSecondaryScreen()
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

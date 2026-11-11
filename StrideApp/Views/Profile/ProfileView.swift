@@ -1,72 +1,54 @@
 import SwiftUI
+import SwiftData
 
 struct ProfileView: View {
     @EnvironmentObject private var authService: AuthService
     @EnvironmentObject private var bluetoothManager: BluetoothManager
+    @ObservedObject private var heartRateManager = HeartRateManager.shared
+    @Query(filter: #Predicate<TrainingPlan> { $0.isArchived == false }, sort: \TrainingPlan.createdAt, order: .reverse) private var plans: [TrainingPlan]
+    @Query(sort: \RunLog.completedAt, order: .reverse) private var runLogs: [RunLog]
     @StateObject private var achievementsVM = AchievementsViewModel()
     @State private var showEditProfile = false
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+
+    var onOpenPlan: () -> Void = {}
 
     @State private var showDeleteConfirmation = false
     @State private var accountError: String?
 
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var style: StridePageStyle { .init(appearance: appearance) }
+    private var activePlan: TrainingPlan? { plans.first }
+    private var thisMonthRuns: Int {
+        guard let month = Calendar.current.dateInterval(of: .month, for: Date()) else { return 0 }
+        return runLogs.filter { $0.isValidForStats && $0.completedAt >= month.start && $0.completedAt < month.end }.count
+    }
+
     var body: some View {
-        List {
-            // Profile Header
-            Section {
-                ProfileHeaderView(
-                    user: currentUser,
-                    onEditTapped: { showEditProfile = true }
-                )
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                StridePageHeader(profileAction: { showEditProfile = true })
+                    .padding(.bottom, 24)
+                Text("YOUR SPACE / YOUR SETUP")
+                    .font(.runEyebrow(10)).tracking(1.3).foregroundStyle(style.muted)
+                Text("THE ATHLETE.")
+                    .font(.barlowCondensed(size: 43))
+                    .padding(.top, 6)
+                identityHeader.padding(.top, 17)
+                athleteMetrics.padding(.top, 17)
+                goalCard.padding(.top, 17)
+                connectedSection.padding(.top, 24)
+                runningSection.padding(.top, 24)
+                preferencesSection.padding(.top, 24)
+                accountSection.padding(.top, 24)
             }
-            .listRowInsets(EdgeInsets())
-            .listRowBackground(Color.clear)
-
-            // Badges section
-            if !achievementsVM.unlocked.isEmpty {
-                Section {
-                    ProfileBadgesRow(achievements: achievementsVM.unlocked)
-                }
-                .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 0))
-                .listRowBackground(Color.clear)
-            }
-
-            // Streak
-            if let streak = achievementsVM.streak, streak.currentStreakDays > 0 {
-                Section {
-                    HStack(spacing: 10) {
-                        Image(systemName: "flame.fill")
-                            .foregroundStyle(Color.stridePrimary)
-                        Text("\(streak.currentStreakDays)-day streak")
-                            .font(.inter(size: 15, weight: .medium))
-                        Spacer()
-                        Text("Best: \(streak.longestStreakDays)")
-                            .font(.inter(size: 13))
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            // All settings sections
-            SettingsSectionsView()
-
-            // Sign Out
-            Section {
-                Button(role: .destructive) {
-                    authService.signOut()
-                } label: {
-                    Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                        .foregroundStyle(.red, .red)
-                }
-
-                Button("Delete Account", role: .destructive) {
-                    showDeleteConfirmation = true
-                }
-            }
+            .padding(.horizontal, 22).padding(.top, 8).padding(.bottom, 110)
         }
-        .tint(Color.stridePrimary)
-        .contentMargins(.bottom, 16, for: .scrollContent)
-        .navigationTitle("Profile")
-        .navigationBarTitleDisplayMode(.large)
+        .scrollIndicators(.hidden)
+        .background { StridePageBackdrop().ignoresSafeArea() }
+        .foregroundStyle(style.ink)
+        .preferredColorScheme(appearance.colorScheme)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showEditProfile) {
             EditProfileView()
         }
@@ -97,6 +79,213 @@ struct ProfileView: View {
             Text(accountError ?? "Please try again.")
         }
         .onAppear { achievementsVM.loadAll() }
+    }
+
+    private var identityHeader: some View {
+        HStack(spacing: 14) {
+            avatar.frame(width: 66, height: 66)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(style.accent, lineWidth: 2))
+                .padding(4)
+                .overlay(Circle().stroke(style.accent.opacity(0.15), lineWidth: 4))
+            VStack(alignment: .leading, spacing: 3) {
+                Text((currentUser?.name ?? currentUser?.displayName ?? "RUNNER").uppercased())
+                    .font(.barlowCondensed(size: 27))
+                    .lineLimit(2).minimumScaleFactor(0.75)
+                Text(currentUser?.email.uppercased() ?? "")
+                    .font(.runEyebrow(9)).foregroundStyle(style.muted)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
+            Spacer(minLength: 0)
+            Button { showEditProfile = true } label: {
+                Text("EDIT ↗").font(.runEyebrow(10))
+                    .padding(.horizontal, 11).padding(.vertical, 8)
+                    .overlay(Capsule().stroke(style.rule, lineWidth: 0.7))
+            }.buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder private var avatar: some View {
+        if let encoded = currentUser?.profilePhotoBase64,
+           let data = Data(base64Encoded: encoded),
+           let photo = UIImage(data: data) {
+            Image(uiImage: photo).resizable().scaledToFill()
+        } else {
+            Text(initials).font(.barlowCondensed(size: 31))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(style.card)
+        }
+    }
+
+    private var initials: String {
+        let letters = (currentUser?.name ?? currentUser?.displayName ?? "")
+            .split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined()
+        return letters.isEmpty ? "BC" : letters.uppercased()
+    }
+
+    private var athleteMetrics: some View {
+        HStack(spacing: 0) {
+            identityMetric("\(activePlan?.currentWeek?.weekNumber ?? 0)",
+                           label: "WEEK / \(activePlan?.sortedWeeks.count ?? 0)")
+            Rectangle().fill(style.rule).frame(width: 0.5, height: 38)
+            identityMetric("\(thisMonthRuns)", label: "RUNS THIS MO.")
+            Rectangle().fill(style.rule).frame(width: 0.5, height: 38)
+            identityMetric("\(achievementsVM.streak?.currentStreakDays ?? 0)", label: "DAY STREAK")
+        }
+        .padding(.top, 16)
+        .overlay(alignment: .top) { Rectangle().fill(style.rule).frame(height: 0.5) }
+    }
+
+    private func identityMetric(_ value: String, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(value).font(.barlowCondensed(size: 31))
+            Text(label).font(.runEyebrow(8)).foregroundStyle(style.muted)
+                .lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var goalCard: some View {
+        Button(action: onOpenPlan) {
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("CURRENT GOAL / ROAD TO RACE")
+                        .font(.runEyebrow(9)).foregroundStyle(style.muted)
+                    Text((activePlan?.raceName ?? activePlan?.displayDistance ?? "BUILD YOUR PLAN").uppercased())
+                        .font(.barlowCondensed(size: 25))
+                        .lineLimit(1).minimumScaleFactor(0.65)
+                    Text(activePlan.map { "\($0.sortedWeeks.count) WEEK PLAN · WEEK \($0.currentWeek?.weekNumber ?? 0)" } ?? "SET YOUR NEXT GOAL")
+                        .font(.runEyebrow(9)).foregroundStyle(style.muted)
+                }
+                Spacer(minLength: 0)
+                if let plan = activePlan {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("\(max(0, plan.daysUntilRace))")
+                            .font(.barlowCondensed(size: 31))
+                        Text("DAYS TO GO").font(.runEyebrow(8)).foregroundStyle(style.muted)
+                    }
+                } else {
+                    Image(systemName: "arrow.up.right").font(.system(size: 17, weight: .medium))
+                }
+            }
+            .padding(15)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .stridePageCard(style)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var connectedSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            StrideSectionHeading(title: "CONNECTED", trailing: "MANAGE ↗", style: style)
+            NavigationLink { allSettings } label: {
+                profileRow(icon: "figure.run", title: "Assault Runner", detail: "TREADMILL",
+                           status: bluetoothManager.connectedDevice == nil ? "NOT CONNECTED" : "CONNECTED")
+            }
+            NavigationLink { HeartRateMonitorPicker().toolbar(.visible, for: .navigationBar) } label: {
+                profileRow(icon: "heart.fill", title: "Heart rate monitor",
+                           detail: heartRateManager.selectedDeviceName?.uppercased() ?? "CHOOSE MONITOR",
+                           status: heartRateManager.isConnected ? "CONNECTED" : nil)
+            }
+            NavigationLink { allSettings } label: {
+                profileRow(icon: "link", title: "Integrations", detail: "GARMIN, FITBIT & MORE")
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var runningSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            StrideSectionHeading(title: "YOUR RUNNING", style: style)
+            NavigationLink { ShoesView().toolbar(.visible, for: .navigationBar) } label: {
+                profileRow(icon: "shoeprints.fill", title: "Shoes & gear", detail: "TRACK MILEAGE")
+            }
+            NavigationLink { ArchivedPlansView().toolbar(.visible, for: .navigationBar) } label: {
+                profileRow(icon: "clock.arrow.circlepath", title: "Previous plans", detail: "TRAINING HISTORY")
+            }
+            NavigationLink { AchievementsView().toolbar(.visible, for: .navigationBar) } label: {
+                profileRow(icon: "star.fill", title: "Achievements", detail: "BADGES & PERSONAL BESTS")
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var preferencesSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            StrideSectionHeading(title: "PREFERENCES", style: style)
+            NavigationLink { allSettings } label: {
+                profileRow(icon: "waveform", title: "Audio & coaching", detail: "VOICE, CUES & HAPTICS")
+            }
+            NavigationLink { allSettings } label: {
+                profileRow(icon: "bell", title: "Notifications", detail: "REMINDERS & UPDATES")
+            }
+            NavigationLink { accountAndPrivacy } label: {
+                profileRow(icon: "gearshape", title: "Account & privacy", detail: "PERSONAL DATA")
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var accountSection: some View {
+        NavigationLink { allSettings } label: {
+            HStack {
+                Text("ALL SETTINGS").font(.runEyebrow(10)).foregroundStyle(style.muted)
+                Spacer()
+                Image(systemName: "arrow.up.right").font(.system(size: 11)).foregroundStyle(style.muted)
+            }
+            .padding(.vertical, 15)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func profileRow(icon: String, title: String, detail: String, status: String? = nil) -> some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(style.accent).frame(width: 3, height: 43)
+            Image(systemName: icon).font(.system(size: 15, weight: .medium))
+                .foregroundStyle(style.accent)
+                .frame(width: 32, height: 40)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title.uppercased()).font(.barlowCondensed(size: 25))
+                    .lineLimit(1).minimumScaleFactor(0.75)
+                Text(detail).font(.inter(size: 11)).foregroundStyle(style.muted)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 3)
+            if let status {
+                HStack(spacing: 4) {
+                    Circle().fill(status == "CONNECTED" ? Color.blue : style.muted)
+                        .frame(width: 5, height: 5)
+                    Text(status).font(.runEyebrow(8)).foregroundStyle(style.muted)
+                }
+            }
+            Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(style.accent)
+        }
+        .padding(.vertical, 12)
+        .overlay(alignment: .bottom) { Rectangle().fill(style.rule).frame(height: 0.5) }
+    }
+
+    private var allSettings: some View {
+        List { SettingsSectionsView() }
+            .navigationTitle("Settings")
+            .toolbar(.visible, for: .navigationBar)
+    }
+
+    private var accountAndPrivacy: some View {
+        List {
+            Section("Account") {
+                NavigationLink("Edit profile") { EditProfileView() }
+                NavigationLink("iCloud Sync") { SyncSettingsView() }
+                Button("Sign Out", role: .destructive) { authService.signOut() }
+                Button("Delete Account", role: .destructive) { showDeleteConfirmation = true }
+            }
+            Section("Legal") {
+                Link("Privacy Policy", destination: URL(string: "https://stride.app/privacy")!)
+                Link("Terms of Service", destination: URL(string: "https://stride.app/terms")!)
+            }
+        }
+        .navigationTitle("Account & Privacy")
+        .toolbar(.visible, for: .navigationBar)
     }
 
     private var currentUser: UserResponse? {

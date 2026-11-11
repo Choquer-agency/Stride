@@ -137,6 +137,16 @@ final class PreRunIntroPrefetcher {
               let week = plan.currentWeek else {
             return nil
         }
+        if plan.isFlexibleSchedule {
+            // Flexible week: the lobby offers the first open run of the week.
+            return week.sortedWorkouts.first { workout in
+                !workout.isCompleted
+                && workout.workoutType != .rest
+                && workout.workoutType != .gym
+                && workout.workoutType != .crossTraining
+                && workout.workoutType != .mobility
+            }
+        }
         return week.sortedWorkouts.first { workout in
             workout.isToday
             && workout.workoutType != .rest

@@ -22,11 +22,16 @@ final class RunPullService {
         inFlight = true
         defer { inFlight = false }
 
+        // Reapply reported checkmarks after any plan rebuild, including older weeks.
+        let planDescriptor = FetchDescriptor<TrainingPlan>(predicate: #Predicate { !$0.isArchived })
+        let plans = (try? context.fetch(planDescriptor)) ?? []
+        if plans.reduce(0, { $0 + CoachReportedCompletions.apply(to: $1) }) > 0 { try? context.save() }
+        await reconcileStrengthSessions(context: context)
         guard let serverRuns = try? await APIService.shared.fetchServerRuns() else { return }
         var applied = Set(UserDefaults.standard.stringArray(forKey: appliedKey) ?? [])
         let calendar = Calendar.current
         let localLogs = (try? context.fetch(FetchDescriptor<RunLog>())) ?? []
-        var changed = false
+        var changed = repairFailedRecordingCopies(serverRuns: serverRuns, localLogs: localLogs, calendar: calendar)
 
         for run in serverRuns {
             guard let runDate = run.completedAtDate else { continue }
@@ -37,7 +42,13 @@ final class RunPullService {
             // BEFORE the applied-ids guard: the zero run's own id is usually
             // already in the ledger from the pull that deduped it. Idempotent —
             // once absorbed, no same-day zero log remains.
-            if run.distanceKm >= 0.2,
+            // Never turn a failed recording into a second copy of a run already on this phone.
+            let hasRealLocal = localLogs.contains { log in
+                calendar.isDate(log.completedAt, inSameDayAs: runDate)
+                    && abs(log.distanceKm - run.distanceKm) < 0.2
+                    && log.distanceKm >= 0.2
+            }
+            if run.distanceKm >= 0.2, !hasRealLocal,
                let dead = localLogs.first(where: { log in
                    calendar.isDate(log.completedAt, inSameDayAs: runDate) && log.distanceKm < 0.2
                }) {
@@ -65,6 +76,9 @@ final class RunPullService {
                     && abs(log.distanceKm - run.distanceKm) < 0.2
                     && abs(log.durationSeconds - run.durationSeconds) > 60
             }) {
+                stale.distanceKm = run.distanceKm
+                stale.kmSplitsJSON = run.kmSplitsJson
+                stale.plannedWorkoutTitle = run.plannedWorkoutTitle ?? stale.plannedWorkoutTitle
                 stale.durationSeconds = run.durationSeconds
                 stale.avgPaceSecPerKm = run.avgPaceSecPerKm
                 stale.completionScore = run.completionScore
@@ -99,6 +113,10 @@ final class RunPullService {
                 notes: run.notes,
                 dataSource: run.dataSource,
                 treadmillBrand: run.treadmillBrand,
+                shoeId: run.shoeId.flatMap(UUID.init(uuidString:)),
+                shoeName: run.shoeId.flatMap { id in
+                    ((try? context.fetch(FetchDescriptor<Shoe>())) ?? []).first { $0.id.uuidString.lowercased() == id.lowercased() }?.name
+                },
                 plannedWorkoutTitle: run.plannedWorkoutTitle,
                 plannedWorkoutTypeRaw: run.plannedWorkoutType,
                 plannedDistanceKm: run.plannedDistanceKm,
@@ -135,7 +153,8 @@ final class RunPullService {
         // that has an outdoor same-name twin belongs on the outdoor pair —
         // move the log and its mileage. Idempotent; runs after Bryce tags
         // shoe usage in Settings.
-        reassignOutdoorRunShoes(context: context)
+        reassignOutdoorRunShoes(context: context, serverRuns: serverRuns)
+        if reconcileServerShoes(serverRuns: serverRuns, context: context) { changed = true }
 
         // Future-completion heal: a workout dated tomorrow or later cannot
         // have been done — reset it (cleans up the ±1-day matching bug).
@@ -146,8 +165,159 @@ final class RunPullService {
         // bug, not a run — reset it so the athlete can actually run it.
         unCompletePhantomRuns(serverRuns: serverRuns, context: context, calendar: calendar)
 
+        if repairBryceNovemberSplitRun(context: context, calendar: calendar) { changed = true }
+        if repairBryceNovemberRunShoe(context: context) { changed = true }
+
         if changed { try? context.save() }
         UserDefaults.standard.set(Array(applied), forKey: appliedKey)
+    }
+
+    /// One-time phone repair for Bryce's two Maui GPS segments. The server
+    /// shoe assignment and mileage were corrected independently; only the
+    /// local history label needs healing on older app builds.
+    private func repairBryceNovemberRunShoe(context: ModelContext) -> Bool {
+        guard AuthService.shared.currentUserID == "95bab56e-316e-418b-8abf-4b909411f64a" else { return false }
+        let target = UUID(uuidString: "ac67282a-5ac2-4814-81eb-3a4ba8c52c0b")!
+        let ids = Set([
+            UUID(uuidString: "a83648fc-1cb7-4ed5-86c3-fbf865ceedd4")!,
+            UUID(uuidString: "56abb07a-9e58-42b1-beb1-7d480922ff0a")!
+        ])
+        let logs = ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
+            .filter { ids.contains($0.id) && $0.dataSource == "gps" }
+        var changed = false
+        for log in logs where log.shoeId != target || log.shoeName != "Nike Zoom Fly 6" {
+            log.shoeId = target
+            log.shoeName = "Nike Zoom Fly 6"
+            changed = true
+        }
+        return changed
+    }
+
+    /// Exact server run IDs carry later shoe corrections into local history.
+    /// Shoe mileage itself is refreshed from the server by ShoesViewModel.
+    private func reconcileServerShoes(serverRuns: [ServerRunDTO], context: ModelContext) -> Bool {
+        let logs = (try? context.fetch(FetchDescriptor<RunLog>())) ?? []
+        let shoes = (try? context.fetch(FetchDescriptor<Shoe>())) ?? []
+        let byID = Dictionary(uniqueKeysWithValues: logs.map { ($0.id, $0) })
+        var changed = false
+        for run in serverRuns {
+            guard let runID = UUID(uuidString: run.id),
+                  let shoeID = run.shoeId.flatMap(UUID.init(uuidString:)),
+                  let log = byID[runID],
+                  log.shoeId != shoeID || log.shoeName == nil else { continue }
+            log.shoeId = shoeID
+            log.shoeName = shoes.first { $0.id == shoeID }?.name ?? log.shoeName
+            changed = true
+        }
+        return changed
+    }
+
+    /// One-time recovery of Bryce's 5 Nov outdoor run: the two original GPS
+    /// recordings remain separate history items, while the planned 16 km card
+    /// receives their combined measured distance. Exact IDs prevent any other
+    /// athlete or date from being touched. Re-running is idempotent.
+    private func repairBryceNovemberSplitRun(context: ModelContext, calendar: Calendar) -> Bool {
+        guard AuthService.shared.currentUserID == "95bab56e-316e-418b-8abf-4b909411f64a" else { return false }
+        let segmentIDs = Set([
+            UUID(uuidString: "a83648fc-1cb7-4ed5-86c3-fbf865ceedd4")!,
+            UUID(uuidString: "56abb07a-9e58-42b1-beb1-7d480922ff0a")!
+        ])
+        let logs = ((try? context.fetch(FetchDescriptor<RunLog>())) ?? []).filter { segmentIDs.contains($0.id) }
+        guard logs.count == 2, logs.allSatisfy({ $0.dataSource == "gps" && $0.distanceKm > 0.2 }) else { return false }
+        var components = DateComponents()
+        components.year = 2026; components.month = 11; components.day = 5
+        guard let day = calendar.date(from: components),
+              logs.allSatisfy({ calendar.isDate($0.completedAt, inSameDayAs: day) }),
+              let plan = ((try? context.fetch(FetchDescriptor<TrainingPlan>(predicate: #Predicate { !$0.isArchived }))) ?? []).first else { return false }
+        let workouts: [Workout] = plan.weeks.flatMap { $0.workouts }
+        let matches = workouts.filter { workout in
+            guard workout.title == "Medium-Long Run" else { return false }
+            guard calendar.isDate(workout.date, inSameDayAs: day) else { return false }
+            let target: Double = workout.distanceKm ?? 0
+            return abs(target - 16.0) < 0.1
+        }
+        guard matches.count == 1, let workout = matches.first else { return false }
+        let distance = logs.reduce(0) { $0 + $1.distanceKm }
+        let duration = logs.reduce(0) { $0 + $1.durationSeconds }
+        guard distance > 14 && distance < 16.5, duration > 3000 else { return false }
+        if workout.isCompleted && abs((workout.actualDistanceKm ?? 0) - distance) < 0.001
+            && logs.allSatisfy({ $0.plannedWorkoutId == workout.id }) { return false }
+        for log in logs {
+            log.plannedWorkoutId = workout.id
+            log.plannedWorkoutTitle = workout.title
+            log.plannedWorkoutTypeRaw = workout.workoutTypeRaw
+            log.plannedDistanceKm = 16
+        }
+        workout.isCompleted = true
+        workout.completedAt = logs.map(\.completedAt).max()
+        workout.actualDistanceKm = distance
+        workout.actualDurationSeconds = duration
+        workout.actualAvgPaceSecPerKm = duration / distance
+        workout.notes = "Two GPS segments combined from November 5; original recordings retained."
+        return true
+    }
+
+    /// Older pulls copied a real run onto an unrelated failed same-day recording.
+    /// Repair only proven copies: the failed recording's UUID exists on the server,
+    /// and both a real server run and another local log corroborate the copied values.
+    private func repairFailedRecordingCopies(
+        serverRuns: [ServerRunDTO], localLogs: [RunLog], calendar: Calendar
+    ) -> Bool {
+        var changed = false
+        for failed in serverRuns where failed.distanceKm < 0.2 {
+            guard let date = failed.completedAtDate,
+                  let artifact = localLogs.first(where: {
+                      $0.id.uuidString.lowercased() == failed.id.lowercased() && $0.distanceKm >= 0.2
+                  }),
+                  serverRuns.contains(where: { real in
+                      guard real.distanceKm >= 0.2, let realDate = real.completedAtDate else { return false }
+                      return calendar.isDate(date, inSameDayAs: realDate)
+                          && abs(real.distanceKm - artifact.distanceKm) < 0.01
+                          && abs(real.durationSeconds - artifact.durationSeconds) < 1
+                  }),
+                  localLogs.contains(where: { real in
+                      real.id != artifact.id && calendar.isDate(real.completedAt, inSameDayAs: date)
+                          && abs(real.distanceKm - artifact.distanceKm) < 0.01
+                          && abs(real.durationSeconds - artifact.durationSeconds) < 1
+                  }) else { continue }
+            artifact.distanceKm = failed.distanceKm
+            artifact.durationSeconds = failed.durationSeconds
+            artifact.avgPaceSecPerKm = failed.avgPaceSecPerKm
+            artifact.kmSplitsJSON = failed.kmSplitsJson
+            artifact.completionScore = failed.completionScore
+            artifact.plannedWorkoutTitle = failed.plannedWorkoutTitle
+            artifact.syncedToServer = true
+            changed = true
+        }
+        return changed
+    }
+
+    /// Quick strength logs carry no fabricated exercise detail; they only check off a gym day.
+    private func reconcileStrengthSessions(context: ModelContext) async {
+        guard let sessions = try? await APIService.shared.getStrengthSessions(), !sessions.isEmpty else { return }
+        let descriptor = FetchDescriptor<TrainingPlan>(predicate: #Predicate { !$0.isArchived },
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)])
+        guard let plan = (try? context.fetch(descriptor))?.first else { return }
+        let calendar = Calendar.current
+        let workouts = plan.weeks.flatMap { $0.workouts }
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = calendar.timeZone
+        formatter.dateFormat = "yyyy-MM-dd"
+        var changed = false
+        for session in sessions {
+            guard let date = formatter.date(from: session.date) else { continue }
+            // No title/workout identifier is exposed by this API. Only match an unambiguous gym day.
+            let matches = workouts.filter { $0.workoutType == .gym && calendar.isDate($0.date, inSameDayAs: date) }
+            guard matches.count == 1, let workout = matches.first, !workout.isCompleted else { continue }
+            workout.isCompleted = true
+            workout.completedAt = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: date)
+            if let notes = session.notes { workout.notes = notes }
+            if let minutes = session.durationMinutes { workout.actualDurationSeconds = Double(minutes * 60) }
+            changed = true
+        }
+        if changed { try? context.save() }
     }
 
     /// Match every recent RunLog to an uncompleted planned workout on the same
@@ -166,16 +336,31 @@ final class RunPullService {
         )
         guard let plan = (try? context.fetch(planDescriptor))?.first else { return }
         let workouts = plan.weeks.flatMap { $0.workouts }
+        let flexible = plan.isFlexibleSchedule
+        let hasCoachCompletions = workouts.contains { $0.isCoachConfirmedCompletion }
 
         var didChange = false
-        for log in logs {
+        // Flexible week: every real run counts toward the week's sessions, so
+        // free runs are candidates too (the regular filter above excludes them).
+        let candidatesLogs: [RunLog] = flexible
+            ? ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
+                .filter { ($0.completedAt >= cutoff || hasCoachCompletions) && $0.distanceKm >= 0.2 }
+            : logs
+        for log in candidatesLogs {
             // Already reconciled — never re-match. (Without this, the ±1-day
             // timezone tolerance re-fired on every pass and checked off
             // TOMORROW's same-titled workout.)
             if log.plannedWorkoutId != nil { continue }
-            let match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
+            var match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
                                          in: workouts, calendar: calendar)
+            if match == nil, flexible {
+                match = flexibleWeekMatch(for: log.completedAt, distanceKm: log.distanceKm,
+                                          in: plan, calendar: calendar)
+            }
             guard let workout = match else { continue }
+            if flexible, !calendar.isDate(workout.date, inSameDayAs: log.completedAt) {
+                workout.date = log.completedAt   // session moves to the day it was done
+            }
             log.plannedWorkoutId = workout.id   // back-link so this log stops reading as a free run
             workout.isCompleted = true
             workout.completedAt = log.completedAt
@@ -234,10 +419,14 @@ final class RunPullService {
     }
 
     /// Move GPS runs from indoor shoes to their outdoor same-name twin.
-    private func reassignOutdoorRunShoes(context: ModelContext) {
+    private func reassignOutdoorRunShoes(context: ModelContext, serverRuns: [ServerRunDTO]) {
         guard let shoes = try? context.fetch(FetchDescriptor<Shoe>()), shoes.count > 1 else { return }
+        let serverAssigned = Set(serverRuns.compactMap { run -> UUID? in
+            guard run.shoeId != nil else { return nil }
+            return UUID(uuidString: run.id)
+        })
         let logs = ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
-            .filter { $0.dataSource == "gps" && $0.shoeId != nil }
+            .filter { $0.dataSource == "gps" && $0.shoeId != nil && !serverAssigned.contains($0.id) }
         var changed = false
         for log in logs {
             guard let current = shoes.first(where: { $0.id == log.shoeId }),
@@ -287,6 +476,7 @@ final class RunPullService {
         var changed = false
         for workout in plan.weeks.flatMap({ $0.workouts }) {
             guard workout.isCompleted,
+                  !workout.isCoachConfirmedCompletion,
                   workout.workoutType.isRunnable,
                   (workout.actualDistanceKm ?? 0) < 0.2 else { continue }
             let hasServerRun = serverRuns.contains { run in
@@ -330,7 +520,7 @@ final class RunPullService {
             guard let target = calendar.date(byAdding: .day, value: dayOffset, to: date) else { return [] }
             return workouts.filter { workout in
                 calendar.isDate(workout.date, inSameDayAs: target)
-                    && !workout.isCompleted
+                    && (!workout.isCompleted || (workout.isCoachConfirmedCompletion && workout.actualDistanceKm == nil))
                     && workout.workoutType != .rest
                     && workout.workoutType != .gym
                     && workout.workoutType != .crossTraining
@@ -346,6 +536,32 @@ final class RunPullService {
         return nil
     }
 
+    /// Flexible week: an off-schedule run claims the open session of its
+    /// Monday–Sunday week whose planned distance is closest to what was run.
+    private func flexibleWeekMatch(
+        for date: Date,
+        distanceKm: Double,
+        in plan: TrainingPlan,
+        calendar: Calendar
+    ) -> Workout? {
+        let day = calendar.startOfDay(for: date)
+        guard let week = plan.weeks.first(where: { week in
+            guard let start = week.mondayStart,
+                  let end = calendar.date(byAdding: .day, value: 6, to: start) else { return false }
+            return day >= start && day <= end
+        }) else { return nil }
+        let open = week.sortedWorkouts.filter { workout in
+            (!workout.isCompleted || (workout.isCoachConfirmedCompletion && workout.actualDistanceKm == nil))
+                && workout.workoutType != .rest
+                && workout.workoutType != .gym
+                && workout.workoutType != .crossTraining
+                && workout.workoutType != .mobility
+        }
+        return open.min { a, b in
+            abs((a.distanceKm ?? 0) - distanceKm) < abs((b.distanceKm ?? 0) - distanceKm)
+        }
+    }
+
     private func markPlannedWorkoutComplete(
         for run: ServerRunDTO,
         on runDate: Date,
@@ -358,19 +574,23 @@ final class RunPullService {
         )
         guard let plan = (try? context.fetch(descriptor))?.first else { return }
 
-        let candidates = plan.weeks
-            .flatMap { $0.workouts }
-            .filter { workout in
-                calendar.isDate(workout.date, inSameDayAs: runDate)
-                    && !workout.isCompleted
-                    && workout.workoutType != .rest
-                    && workout.workoutType != .gym
-                    && workout.workoutType != .crossTraining
-                    && workout.workoutType != .mobility
+        let workouts = plan.weeks.flatMap { $0.workouts }
+        let candidates = workouts.filter { workout in
+            guard calendar.isDate(workout.date, inSameDayAs: runDate) else { return false }
+            switch workout.workoutType {
+            case .rest, .gym, .crossTraining, .mobility: return false
+            default: break
             }
+            if !workout.isCompleted { return true }
+            return workout.isCoachConfirmedCompletion && workout.actualDistanceKm == nil
+        }
         // Prefer a title match when the server run is tied to a specific session
-        let workout = candidates.first { $0.title == run.plannedWorkoutTitle } ?? candidates.first
-        guard let workout else { return }
+        var matched = candidates.first { $0.title == run.plannedWorkoutTitle } ?? candidates.first
+        if matched == nil, plan.isFlexibleSchedule, run.distanceKm >= 0.2 {
+            matched = flexibleWeekMatch(for: runDate, distanceKm: run.distanceKm, in: plan, calendar: calendar)
+            if let m = matched, !calendar.isDate(m.date, inSameDayAs: runDate) { m.date = runDate }
+        }
+        guard let workout = matched else { return }
 
         workout.isCompleted = true
         workout.completedAt = runDate

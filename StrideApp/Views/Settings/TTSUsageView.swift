@@ -84,6 +84,7 @@ struct TTSUsageView: View {
             }
         }
         .navigationTitle("Voice Usage")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             entries = TTSUsageLog.shared.allEntries()

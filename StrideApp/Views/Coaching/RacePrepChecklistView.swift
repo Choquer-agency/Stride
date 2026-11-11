@@ -43,6 +43,7 @@ struct RacePrepChecklistView: View {
                 .padding(.vertical, 16)
             }
             .navigationTitle("Race checklist")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Done") { dismiss() } }

@@ -24,7 +24,7 @@ struct LongRunProgressView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if !actualProgression.isEmpty {
+            if !progression.isEmpty {
                 HStack(spacing: 16) {
                     HStack(spacing: 5) {
                         Circle().fill(Color(.systemGray3)).frame(width: 8, height: 8)
@@ -82,8 +82,8 @@ struct LongRunProgressView: View {
                         RuleMark(y: .value("Race Distance", raceDistance))
                             .foregroundStyle(Color.strideDarkRed.opacity(0.5))
                             .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                            .annotation(position: .leading, alignment: .leading) {
-                                Text("Race: \(Int(raceDistance)) km")
+                            .annotation(position: .top, alignment: .trailing) {
+                                Text("Race goal: \(String(format: "%.1f", raceDistance)) km")
                                     .font(.inter(size: 10, weight: .medium))
                                     .foregroundStyle(.secondary)
                                     .padding(4)
@@ -121,6 +121,7 @@ struct LongRunProgressView: View {
                 }
                 .frame(height: 200)
                 .chartXScale(domain: 1...max(totalWeeks, 1))
+                .chartYScale(domain: 0...max(raceDistance * 1.12, (progression.map { $0.distance }.max() ?? 0) + 6, 1))
                 .chartXAxis {
                     AxisMarks { value in
                         AxisGridLine()
@@ -144,10 +145,12 @@ struct LongRunProgressView: View {
                     }
                 }
                 
+                Text("Red: longest recorded training run each week. Gray: planned training. Race day is a separate goal, excluded from the training peak.")
+                    .font(.inter(size: 10)).foregroundStyle(.secondary)
                 // Stats
                 HStack(spacing: 24) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Longest Run")
+                        Text("Longest Completed Training Run")
                             .font(.inter(size: 12, weight: .medium))
                             .foregroundStyle(.secondary)
                         HStack(spacing: 2) {
@@ -160,10 +163,10 @@ struct LongRunProgressView: View {
                     
                     if let peakWeek = peakLongRunWeek {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Peak Week")
+                            Text("Planned Training Peak")
                                 .font(.inter(size: 12, weight: .medium))
                                 .foregroundStyle(.secondary)
-                            Text("Week \(peakWeek)")
+                            Text("W\(peakWeek) · \(Int(progression.first(where: { $0.weekNumber == peakWeek })?.distance ?? 0)) km")
                                 .font(.barlowCondensed(size: 20, weight: .medium))
                         }
                     }
@@ -175,7 +178,7 @@ struct LongRunProgressView: View {
             }
         }
         .padding(16)
-        .background(Color(hex: "F9F9F9"))
+        .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

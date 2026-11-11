@@ -41,7 +41,7 @@ class APIService: ObservableObject {
 
     private func checkForUnauthorized(_ response: URLResponse) {
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
-            AuthService.shared.signOut()
+            AuthService.shared.handleUnauthorized()
         }
     }
 
@@ -2911,6 +2911,7 @@ struct RemotePlanDTO: Codable {
     let fitnessLevel: String?
     let currentWeeklyMileage: Int?
     let longestRecentRun: Int?
+    let flexibleSchedule: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, source
@@ -2927,6 +2928,7 @@ struct RemotePlanDTO: Codable {
         case beginnerMode = "beginner_mode"
         case fitnessLevel = "fitness_level"
         case currentWeeklyMileage = "current_weekly_mileage"
+        case flexibleSchedule = "flexible_schedule"
         case longestRecentRun = "longest_recent_run"
     }
 
@@ -3012,6 +3014,7 @@ struct ServerRunDTO: Codable, Identifiable {
     let weekNumber: Int?
     let dataSource: String
     let treadmillBrand: String?
+    let shoeId: String?
 
     enum CodingKeys: String, CodingKey {
         case id, notes
@@ -3029,6 +3032,7 @@ struct ServerRunDTO: Codable, Identifiable {
         case weekNumber = "week_number"
         case dataSource = "data_source"
         case treadmillBrand = "treadmill_brand"
+        case shoeId = "shoe_id"
     }
 
     var completedAtDate: Date? {

@@ -4,15 +4,27 @@ import SwiftUI
 /// "Quick log" and "Log details." Recent sessions surfaced below.
 struct StrengthLogHubView: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
     @StateObject private var viewModel = StrengthViewModel()
 
     @State private var showQuickLog = false
     @State private var showDetailedLog = false
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var style: StridePageStyle { .init(appearance: appearance) }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    HStack {
+                        Image(appearance == .white ? "StrideLogo" : "StrideLogoDark")
+                            .resizable().scaledToFit().frame(width: 120)
+                        Spacer()
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark").frame(width: 40, height: 40)
+                                .background(style.card, in: Circle())
+                        }.buttonStyle(.plain).accessibilityLabel("Close")
+                    }
                     headerSection
                     twoButtons
                     if !viewModel.sessions.isEmpty {
@@ -25,10 +37,11 @@ struct StrengthLogHubView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle("Strength")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Done") { dismiss() } } }
+            .background { StridePageBackdrop().ignoresSafeArea() }
+            .foregroundStyle(style.ink)
+            .toolbar(.hidden, for: .navigationBar)
         }
+        .preferredColorScheme(appearance.colorScheme)
         .task { await viewModel.loadSessions() }
         .sheet(isPresented: $showQuickLog) {
             StrengthQuickLogView(viewModel: viewModel) { showQuickLog = false }
@@ -40,12 +53,8 @@ struct StrengthLogHubView: View {
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Today")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .textCase(.uppercase)
-            Text("Gym session")
-                .font(.title2.weight(.semibold))
+            Text("TODAY / STRENGTH").font(.runEyebrow(11)).foregroundStyle(style.muted)
+            Text("GYM SESSION").font(.barlowCondensed(size: 43))
         }
     }
 
@@ -63,42 +72,37 @@ struct StrengthLogHubView: View {
     private func entryButton(label: String, icon: String, subtitle: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 8) {
-                Image(systemName: icon).font(.title2).foregroundStyle(Color.stridePrimary)
-                Text(label).font(.callout.weight(.semibold)).foregroundStyle(.primary)
-                Text(subtitle).font(.caption2).foregroundStyle(.secondary)
+                Image(systemName: icon).font(.system(size: 25)).foregroundStyle(style.accent)
+                Text(label.uppercased()).font(.barlowCondensed(size: 25)).foregroundStyle(style.ink)
+                Text(subtitle.uppercased()).font(.runEyebrow(9)).foregroundStyle(style.muted)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 22)
-            .background(Color.gray.opacity(0.08))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .stridePageCard(style)
         }
         .buttonStyle(.plain)
     }
 
     private var recentSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Recent")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.secondary)
+            Text("RECENT SESSIONS").font(.barlowCondensed(size: 25))
+                .foregroundStyle(style.ink)
             ForEach(viewModel.sessions) { session in
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(session.date)
-                            .font(.callout.weight(.medium))
+                            .font(.inter(size: 14, weight: .medium))
                         Text(session.quickLogged ? "Quick log" : "Detailed (\(session.durationMinutes ?? 0) min)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .font(.runEyebrow(10)).foregroundStyle(style.muted)
                     }
                     Spacer()
                     if let rpe = session.perceivedEffort {
                         Text("RPE \(rpe)")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
+                            .font(.runEyebrow(10)).foregroundStyle(style.muted)
                     }
                 }
                 .padding(10)
-                .background(Color.gray.opacity(0.06))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .stridePageCard(style, radius: 18)
             }
         }
     }

@@ -35,6 +35,7 @@ struct NutritionLogHubView: View {
                 .padding(.vertical, 16)
             }
             .navigationTitle("Log meal")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Done") { dismiss() } } }
         }

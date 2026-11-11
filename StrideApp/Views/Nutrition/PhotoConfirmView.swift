@@ -50,6 +50,7 @@ struct PhotoConfirmView: View {
                 }
             }
             .navigationTitle("Confirm meal")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }

@@ -28,6 +28,7 @@ struct PlanEditInputView: View {
                 editInputContent
             }
         }
+        .strideSecondaryScreen()
         .alert("Error", isPresented: $viewModel.showError) {
             Button("OK") { }
         } message: {

@@ -11,18 +11,33 @@ final class BluetoothRunDataProvider: RunDataProvider {
     }
 
     private let bluetoothManager: BluetoothManager
+    private var previousDistance: Double?
+    private var workoutDistance: Double = 0
+    private var paused = false
 
     init(bluetoothManager: BluetoothManager) {
         self.bluetoothManager = bluetoothManager
     }
 
     func start() {
+        TreadmillRawCapture.shared.begin(deviceName: deviceName)
+        previousDistance = bluetoothManager.latestDistanceMeters
+        workoutDistance = 0
+        paused = false
         bluetoothManager.onTreadmillData = { [weak self] sample in
             guard let self else { return }
+            if let total = sample.totalDistanceMeters {
+                if !self.paused, let previous = self.previousDistance, total >= previous {
+                    self.workoutDistance += total - previous
+                }
+                // Console resets rebase the odometer without erasing the workout.
+                self.previousDistance = total
+            }
+            guard !self.paused else { return }
             let runSample = RunSample(
                 timestamp: sample.timestamp,
                 speedMps: sample.speedMps,
-                totalDistanceMeters: sample.totalDistanceMeters,
+                totalDistanceMeters: sample.totalDistanceMeters == nil ? nil : self.workoutDistance,
                 elapsedTime: sample.elapsedTime.map { TimeInterval($0) },
                 heartRate: sample.heartRate,
                 coordinate: nil,
@@ -33,14 +48,19 @@ final class BluetoothRunDataProvider: RunDataProvider {
     }
 
     func stop() {
+        TreadmillRawCapture.shared.end()
+        previousDistance = bluetoothManager.latestDistanceMeters
+        workoutDistance = 0
+        paused = false
         bluetoothManager.onTreadmillData = nil
     }
 
     func pause() {
-        // Treadmill controls its own pacing — no-op
+        paused = true
     }
 
     func resume() {
-        // Treadmill controls its own pacing — no-op
+        previousDistance = bluetoothManager.latestDistanceMeters
+        paused = false
     }
 }

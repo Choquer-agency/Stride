@@ -93,6 +93,18 @@ final class PlanSyncService: ObservableObject {
               let content = remote.rawPlanContent,
               let plan = activeLocalPlan(context: context) else { return }
 
+        // A server edit may re-anchor the block (coach moved the start date)
+        // or change the target race — adopt those before re-parsing, since
+        // every workout date is derived from startDate.
+        if let remoteStart = Self.parseISODate(remote.startDate) {
+            plan.startDate = remoteStart
+        }
+        if let remoteRace = Self.parseISODate(remote.raceDate) {
+            plan.raceDate = remoteRace
+        }
+        if let name = remote.raceName { plan.raceName = name }
+        if let flexible = remote.flexibleSchedule { plan.isFlexibleSchedule = flexible }
+
         let parsedWeeks = PlanParser.parse(
             content: content,
             startDate: plan.startDate,
@@ -106,11 +118,13 @@ final class PlanSyncService: ObservableObject {
         }
 
         let calendar = Calendar.current
-        var completionData: [DateComponents: Workout] = [:]
+        var storedDateCalendar = calendar
+        storedDateCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        var completionData: [String: [Workout]] = [:]
         for week in plan.weeks {
             for workout in week.workouts where workout.isCompleted {
-                let key = calendar.dateComponents([.year, .month, .day], from: workout.date)
-                completionData[key] = workout
+                let key = storedDateCalendar.dateComponents([.year, .month, .day], from: workout.date).description
+                completionData[key, default: []].append(workout)
             }
         }
 
@@ -131,9 +145,15 @@ final class PlanSyncService: ObservableObject {
                     durationMinutes: parsedWorkout.durationMinutes,
                     paceDescription: parsedWorkout.paceDescription
                 )
-                let key = calendar.dateComponents([.year, .month, .day], from: parsedWorkout.date)
-                if let old = completionData[key] {
+                let key = calendar.dateComponents([.year, .month, .day], from: parsedWorkout.date).description
+                let exactMatch = completionData[key]?.firstIndex(where: {
+                    $0.title == workout.title && $0.workoutType == workout.workoutType
+                })
+                let sameType = completionData[key]?.enumerated().filter { $0.element.workoutType == workout.workoutType } ?? []
+                let match = exactMatch ?? (sameType.count == 1 ? sameType[0].offset : nil)
+                if let match, let old = completionData[key]?.remove(at: match) {
                     workout.isCompleted = old.isCompleted
+                    workout.isCoachConfirmedCompletion = old.isCoachConfirmedCompletion
                     workout.completedAt = old.completedAt
                     workout.notes = old.notes
                     workout.actualDistanceKm = old.actualDistanceKm
@@ -149,7 +169,12 @@ final class PlanSyncService: ObservableObject {
         }
 
         plan.rawPlanContent = content
-        try? context.save()
+        CoachReportedCompletions.apply(to: plan)
+        do { try context.save() }
+        catch {
+            context.rollback()
+            return
+        }
 
         if let ts = remote.updatedAt {
             UserDefaults.standard.set(ts, forKey: lastAppliedKey)
@@ -164,15 +189,8 @@ final class PlanSyncService: ObservableObject {
     private func adoptServerPlan(_ remote: RemotePlanDTO, context: ModelContext) {
         guard let content = remote.rawPlanContent, !content.isEmpty else { return }
 
-        let df = DateFormatter()
-        df.dateFormat = "yyyy-MM-dd"
-        // ISO strings may carry a time component — keep the date prefix only.
-        func parseDate(_ s: String?) -> Date? {
-            guard let s = s else { return nil }
-            return df.date(from: String(s.prefix(10)))
-        }
-        guard let startDate = parseDate(remote.startDate),
-              let raceDate = parseDate(remote.raceDate) else { return }
+        guard let startDate = Self.parseISODate(remote.startDate),
+              let raceDate = Self.parseISODate(remote.raceDate) else { return }
 
         let goalType = remote.goalType.flatMap { GoalType(rawValue: $0) }
         let parsedWeeks = PlanParser.parse(
@@ -194,7 +212,8 @@ final class PlanSyncService: ObservableObject {
             fitnessLevel: remote.fitnessLevel.flatMap { FitnessLevel(rawValue: $0) } ?? .intermediate,
             startDate: startDate,
             isBeginnerMode: remote.beginnerMode ?? false,
-            goalType: goalType
+            goalType: goalType,
+            isFlexibleSchedule: remote.flexibleSchedule ?? false
         )
         plan.rawPlanContent = content
 
@@ -214,6 +233,7 @@ final class PlanSyncService: ObservableObject {
             plan.weeks.append(week)
         }
 
+        CoachReportedCompletions.apply(to: plan)
         context.insert(plan)
         try? context.save()
 
@@ -232,11 +252,54 @@ final class PlanSyncService: ObservableObject {
 
     // MARK: - Helpers
 
+    /// "yyyy-MM-dd" (an ISO string may carry a time component — only the date
+    /// prefix is used) → local-calendar Date, or nil.
+    private static func parseISODate(_ s: String?) -> Date? {
+        guard let s = s, s.count >= 10 else { return nil }
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        return df.date(from: String(s.prefix(10)))
+    }
+
     private func activeLocalPlan(context: ModelContext) -> TrainingPlan? {
         let descriptor = FetchDescriptor<TrainingPlan>(
             predicate: #Predicate<TrainingPlan> { !$0.isArchived },
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         return (try? context.fetch(descriptor))?.first
+    }
+}
+
+/// Completion-only backfills in coach-authored plans. No run, pace, timestamp or HR is invented.
+enum CoachReportedCompletions {
+    @discardableResult
+    static func apply(to plan: TrainingPlan, now: Date = Date()) -> Int {
+        guard let content = plan.rawPlanContent else { return 0 }
+        let pattern = #"(?m)^Coach-confirmed week (\d+): (all runs|shorter runs)( and Peloton Strength)? completed\.$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return 0 }
+        var changed = 0
+        for match in regex.matches(in: content, range: NSRange(content.startIndex..., in: content)) {
+            guard let numberRange = Range(match.range(at: 1), in: content),
+                  let number = Int(content[numberRange]),
+                  let selectionRange = Range(match.range(at: 2), in: content),
+                  let week = plan.weeks.first(where: { $0.weekNumber == number }) else { continue }
+            let shorterOnly = content[selectionRange] == "shorter runs"
+            let includesPeloton = match.range(at: 3).location != NSNotFound
+            for workout in week.workouts {
+                guard Calendar.current.startOfDay(for: workout.date) <= Calendar.current.startOfDay(for: now) else { continue }
+                let run = workout.workoutType.isRunnable
+                    && (!shorterOnly || (workout.workoutType != .longRun && workout.workoutType != .race))
+                guard run || (includesPeloton && workout.isPelotonStrength) else { continue }
+                guard !workout.isCompleted || !workout.isCoachConfirmedCompletion else { continue }
+                workout.isCompleted = true
+                workout.isCoachConfirmedCompletion = true
+                let note = "Coach-confirmed completion. Exact workout date, duration, pace and heart rate were not reported; existing recorded results are preserved."
+                if !(workout.notes ?? "").contains(note) {
+                    workout.notes = [workout.notes, note].compactMap { $0 }.joined(separator: "\n")
+                }
+                changed += 1
+            }
+        }
+        return changed
     }
 }

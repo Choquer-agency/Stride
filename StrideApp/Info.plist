@@ -30,6 +30,8 @@
 	<string>Stride needs background location access to track your run while your phone is in your pocket.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Stride uses your location to track your outdoor runs and map your route.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UIAppFonts</key>
 	<array>
 		<string>BarlowCondensed-Regular.ttf</string>
@@ -40,6 +42,7 @@
 		<string>Inter-Medium.ttf</string>
 		<string>Inter-SemiBold.ttf</string>
 		<string>Inter-Bold.ttf</string>
+		<string>IBMPlexMono-Regular.ttf</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
@@ -80,7 +83,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>UIUserInterfaceStyle</key>
-	<string>Dark</string>
 </dict>
 </plist>
