@@ -41,7 +41,8 @@ struct StrengthSessionView: View {
                     Text(err).font(.caption).foregroundStyle(.red)
                 }
             }
-            .navigationTitle("Log details")
+            .scrollContentBackground(.hidden)
+            .navigationTitle("LOG DETAILS")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } }
@@ -51,6 +52,7 @@ struct StrengthSessionView: View {
                 }
             }
         }
+        .strideSecondaryScreen()
         .task { await viewModel.loadLibrary() }
         .sheet(isPresented: $showLibrary) {
             ExerciseLibraryView(viewModel: viewModel) { exercise in
@@ -74,7 +76,17 @@ struct StrengthSessionView: View {
             }
             HStack(spacing: 8) {
                 tinyField(label: "reps", text: bindingFor(\SetEntry.reps, entry.id))
-                tinyField(label: "kg", text: bindingFor(\SetEntry.weight, entry.id))
+                if entry.isDumbbell {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("\(entry.weight.isEmpty ? "5" : entry.weight) LB EACH")
+                            .font(.runEyebrow(10))
+                        Slider(value: dumbbellBinding(for: entry.id), in: 5...200, step: 5)
+                        .accessibilityLabel("Dumbbell weight in pounds per dumbbell")
+                    }
+                } else {
+                    tinyField(label: GymSessionModel.isBarbell(entry.exercise.name + " " + entry.exercise.equipment)
+                              ? "kg total incl. bar" : "kg", text: bindingFor(\SetEntry.weight, entry.id))
+                }
                 tinyField(label: "rpe", text: bindingFor(\SetEntry.rpe, entry.id))
             }
         }
@@ -105,6 +117,17 @@ struct StrengthSessionView: View {
         )
     }
 
+    private func dumbbellBinding(for id: UUID) -> Binding<Double> {
+        Binding(
+            get: { Double(workoutSets.first(where: { $0.id == id })?.weight ?? "") ?? 5 },
+            set: { value in
+                if let index = workoutSets.firstIndex(where: { $0.id == id }) {
+                    workoutSets[index].weight = String(Int(value))
+                }
+            }
+        )
+    }
+
     private func nextSetNumber(for exerciseId: UUID) -> Int {
         let count = workoutSets.filter { $0.exercise.id == exerciseId }.count
         return count + 1
@@ -118,7 +141,11 @@ struct StrengthSessionView: View {
                 "set_number": entry.setNumber,
                 "reps": reps,
             ]
-            if let w = Double(entry.weight) { d["weight_kg"] = w }
+            if entry.isDumbbell {
+                d["weight_kg"] = GymSessionModel.roundedDumbbellKg(Double(entry.weight) ?? 5)
+            } else if let w = Double(entry.weight) {
+                d["weight_kg"] = w
+            }
             if let r = Int(entry.rpe) { d["rpe"] = r }
             return d
         }
@@ -134,6 +161,7 @@ struct SetEntry: Identifiable {
     let id = UUID()
     let exercise: StrengthExerciseDTO
     let setNumber: Int
+    var isDumbbell: Bool { GymSessionModel.isDumbbell(exercise.name + " " + exercise.equipment) }
     var reps: String = ""
     var weight: String = ""
     var rpe: String = ""

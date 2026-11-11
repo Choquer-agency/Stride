@@ -153,6 +153,12 @@ async def startup():
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_refresh_token TEXT"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_token_expires_at TIMESTAMP WITH TIME ZONE"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_health_user_id VARCHAR(64)"))
+        # Fail closed on legacy duplicates: reconcile ownership before retrying
+        # startup. Never silently pick a winner or discard historical data.
+        await conn.execute(text(
+            "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_fitbit_health_user_id "
+            "ON users (fitbit_health_user_id)"
+        ))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_connected_at TIMESTAMP WITH TIME ZONE"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_disconnected_at TIMESTAMP WITH TIME ZONE"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS fitbit_backfill_status VARCHAR(16) NOT NULL DEFAULT 'pending'"))
@@ -220,6 +226,17 @@ async def shutdown():
 async def home():
     """Serve the marketing website homepage."""
     return FileResponse(WEBSITE_DIST / "index.html")
+
+
+@app.get("/nicole", include_in_schema=False)
+@app.get("/nicole/", include_in_schema=False)
+async def nicole_plan():
+    """Serve Nicole's shareable training plan."""
+    return FileResponse(
+        WEBSITE_DIST / "nicole" / "index.html",
+        media_type="text/html",
+        headers={"X-Robots-Tag": "noindex, nofollow"},
+    )
 
 
 @app.get("/hero-video2.mp4")

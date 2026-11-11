@@ -7,6 +7,7 @@ import Charts
 /// the watch's last cloud sync), the last 24h HR curve, and 14-day trends for
 /// resting HR, overnight HRV and sleep — the same vitals the coach reads.
 struct FitbitDashboardView: View {
+    @ObservedObject private var auth = AuthService.shared
     @State private var vitals: FitbitVitalsDTO?
     @State private var isLoading = true
     @State private var error: String?
@@ -41,9 +42,14 @@ struct FitbitDashboardView: View {
             .padding()
         }
         .navigationTitle("Fitbit Vitals")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
-        .task { await load() }
+        .task(id: auth.currentUserID) {
+            vitals = nil
+            error = nil
+            await load()
+        }
         .onAppear {
             // Start scanning for the watch broadcast unless a run already owns it
             if !hrManager.isConnected && !hrManager.isScanning {
@@ -100,7 +106,7 @@ struct FitbitDashboardView: View {
             } else {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.small)
-                    Text("Looking for your watch's broadcast…")
+                    Text(hrManager.selectedDeviceName == nil ? "Choose your monitor to connect" : "Looking for your watch's broadcast…")
                         .font(.inter(size: 14))
                         .foregroundStyle(.secondary)
                 }
@@ -111,6 +117,10 @@ struct FitbitDashboardView: View {
                     .multilineTextAlignment(.center)
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            NavigationLink("Choose live monitor") { HeartRateMonitorPicker() }
+                .font(.subheadline)
+        }
         .frame(maxWidth: .infinity)
         .padding(20)
         .background(Color.strideCard)
@@ -119,10 +129,16 @@ struct FitbitDashboardView: View {
     }
 
     private func load() async {
+        let owner = auth.currentUserID
+        guard owner != nil else { vitals = nil; isLoading = false; return }
         do {
-            vitals = try await APIService.shared.fitbitVitals()
+            let result = try await APIService.shared.fitbitVitals()
+            guard !Task.isCancelled, owner == auth.currentUserID else { return }
+            vitals = result
             error = nil
         } catch {
+            guard !Task.isCancelled, owner == auth.currentUserID else { return }
+            vitals = nil
             self.error = "Check your connection and pull to retry."
         }
         isLoading = false

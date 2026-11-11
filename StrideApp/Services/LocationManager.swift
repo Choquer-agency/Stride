@@ -48,6 +48,12 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         manager.requestWhenInUseAuthorization()
     }
 
+    /// One-shot lobby fix without starting or resetting a recorded run.
+    func requestCurrentLocation() {
+        guard !isTracking, authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways else { return }
+        manager.requestLocation()
+    }
+
     func requestAlwaysPermission() {
         manager.requestAlwaysAuthorization()
     }

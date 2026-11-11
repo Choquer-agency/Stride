@@ -38,6 +38,7 @@ struct PostRunCheckView: View {
                 .padding(.vertical, 24)
             }
             .navigationTitle(isRedFlag ? "Coach flag" : "Today's run")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

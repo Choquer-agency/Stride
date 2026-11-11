@@ -40,6 +40,7 @@ struct RaceRecapView: View {
                 .padding(.vertical, 24)
             }
             .navigationTitle("Race day")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

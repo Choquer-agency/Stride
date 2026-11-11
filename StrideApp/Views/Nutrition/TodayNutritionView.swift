@@ -26,6 +26,7 @@ struct TodayNutritionView: View {
                 .padding(.vertical, 16)
             }
             .navigationTitle("Today's fueling")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

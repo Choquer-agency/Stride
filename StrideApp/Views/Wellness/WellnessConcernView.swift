@@ -29,6 +29,7 @@ struct WellnessConcernView: View {
                 .padding(.vertical, 24)
             }
             .navigationTitle("Quick check-in")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

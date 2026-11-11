@@ -69,6 +69,16 @@ LOAD AND INTENSITY CONTROL
 
 STRENGTH AND SCHEDULING
 -----------------------
+- Every externally weighted exercise, including timed carries/holds and bench-supported
+  rows, needs a numeric load with units and a basis (per dumbbell, total including bar,
+  or plates per side). Do not use only "light DB load"; give a conservative numeric
+  starting load plus effort guidance when an established working load is unavailable.
+- Dumbbells use pounds per dumbbell, starting at 5 lb in 5 lb increments; convert any
+  known kilogram load before rounding to available equipment. Never just change its unit label.
+- Barbell prescriptions must explicitly say "kg total incl. bar" or "kg per side
+  (plates only)". Preserve legacy unspecified barbell loads as totals; do not silently
+  multiply them into per-side loads. Use the athlete's confirmed bar weight for plate
+  calculations (Bryce has confirmed 20 kg). Keep bar weight configurable for different equipment.
 - Athlete-selected rest days are locked. "Rest" means no run and no gym.
 - Match requested run and gym frequency in normal full weeks.
 - Partial first weeks, recovery after a recent race, taper, and race week may contain

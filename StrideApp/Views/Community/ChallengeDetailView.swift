@@ -29,6 +29,7 @@ struct ChallengeDetailView: View {
             }
         }
         .navigationTitle("Challenge")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.loadDetail(challengeId: challengeId)
@@ -110,7 +111,7 @@ struct ChallengeDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(16)
     }
 
@@ -151,7 +152,7 @@ struct ChallengeDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(14)
     }
 

@@ -27,7 +27,19 @@ struct UINotificationFeedbackGenerator {
     enum Kind { case success }
     func notificationOccurred(_ kind: Kind) {}
 }
+struct VoiceCoachService {
+    static func spokenDistance(_ km: Double) -> String { String(km) }
+    var announcements = 0
+    mutating func announcePacePhase(paceText: String, distanceKm: Double) { announcements += 1 }
+}
 final class Engine {
+    var progressionSegments: [IntervalSegment] = [], progressionIndex = 0
+    var lastPacePhaseChangeTime = -Double.infinity
+    var pacePhaseAnnouncement: String?, targetPaceDescription: String?
+    var voiceCoach = VoiceCoachService()
+    var candidateZone = Zone.noTarget, candidateZoneSince = 0.0, distanceOnlyMode = false
+    var isStrideWorkout = false
+    var basePaceMin: Double?, basePaceMax: Double?
     var isPaused = false, runStopped = false, intervalComplete = false
     var intervalSegments: [IntervalSegment] = []
     var isIntervalWorkout: Bool { !intervalSegments.isEmpty }
@@ -39,10 +51,15 @@ final class Engine {
     enum Zone { case noTarget }
     var paceZone = Zone.noTarget
 '''
-for signature in ['private func updateIntervalEngine()', 'private func advanceIntervalSegment()', 'private func applyIntervalPace(']:
+for signature in ['private func updateProgressionPace()', 'private func updateIntervalEngine()', 'private func advanceIntervalSegment()', 'private func applyIntervalPace(']:
     code += "\n" + method(signature) + "\n"
 code += '''
 }
+let strides = IntervalWorkoutParser.strides("6 km with 4 × 20 sec strides included in the final 2 km", totalKm: 6, easyPace: "6:00–6:30")
+assert(strides.count == 12 && strides[0].distanceKm == 4)
+assert(strides[1].durationSec == 3 && strides[2].durationSec == 20)
+assert(strides[3].durationSec == 60 && strides[2].paceBounds == nil)
+assert(IntervalWorkoutParser.strides("Easy run", totalKm: 6, easyPace: nil).isEmpty)
 let timed = IntervalWorkoutParser.parse("Warm-up: 2.5 km at 6:00–6:30/km; Main set: 10 × 1 min at roughly 4:45–5:00/km effort (RPE 7) with 1 min easy float between; Cool-down: 2.5 km at 6:00–6:30/km")
 assert(timed.count == 21)
 assert(timed[1].durationSec == 60 && timed[2].durationSec == 60)
@@ -68,6 +85,30 @@ assert(IntervalWorkoutParser.parse(nil).isEmpty)
 assert(IntervalWorkoutParser.parse("Warm-up: easy; 4 x 1 min at 5:00/km with 1 min jog").isEmpty)
 assert(IntervalWorkoutParser.parse("4 x 1 min at 5:00/km with 1 min jog; 3 x 2 min at 4:30/km with 1 min jog").isEmpty)
 
+let progression = IntervalWorkoutParser.progression("Long Run with MP Finish — Total: 24 km. First 21 km at 6:00–6:30/km, final 3 km at 5:30/km (adjusted MP, RPE 5–6).", totalKm: 24)
+assert(progression.count == 2 && progression[0].distanceKm == 21)
+assert(progression[0].paceBounds!.min == 360 && progression[1].paceBounds!.min == 315)
+assert(IntervalWorkoutParser.progression("First 21 km at 6:00/km, final 3 km at 5:30/km", totalKm: 23).isEmpty)
+assert(IntervalWorkoutParser.progression("Easy 24 km at 6:00/km", totalKm: 24).isEmpty)
+let progressionEngine = Engine()
+progressionEngine.progressionSegments = progression
+progressionEngine.targetPaceMinSec = 360
+progressionEngine.targetPaceMaxSec = 390
+progressionEngine.distance = 20.99
+progressionEngine.updateIntervalEngine()
+assert(progressionEngine.targetPaceMinSec == 360 && progressionEngine.voiceCoach.announcements == 0)
+progressionEngine.isPaused = true
+progressionEngine.distance = 21.02
+progressionEngine.updateIntervalEngine()
+assert(progressionEngine.progressionIndex == 0)
+progressionEngine.isPaused = false
+progressionEngine.updateIntervalEngine()
+assert(progressionEngine.targetPaceMinSec == 315 && progressionEngine.targetPaceMaxSec == 345)
+assert(progressionEngine.targetPaceDescription == "5:30" && progressionEngine.pacePhaseAnnouncement != nil)
+assert(progressionEngine.voiceCoach.announcements == 1 && !progressionEngine.intervalComplete)
+progressionEngine.distance = 24
+progressionEngine.updateIntervalEngine()
+assert(progressionEngine.voiceCoach.announcements == 1)
 let engine = Engine()
 engine.intervalSegments = decimal
 engine.elapsedTime = 89
@@ -88,6 +129,23 @@ assert(engine.targetPaceMinSec == 285)
 engine.elapsedTime = 1000
 engine.updateIntervalEngine()
 assert(engine.intervalComplete)
+let strideEngine = Engine()
+strideEngine.isStrideWorkout = true
+strideEngine.basePaceMin = 360
+strideEngine.basePaceMax = 390
+strideEngine.intervalSegments = strides
+strideEngine.distance = 4
+strideEngine.updateIntervalEngine()
+assert(strideEngine.intervalIndex == 1 && strideEngine.intervalPhaseRemaining == 3)
+strideEngine.elapsedTime = 3
+strideEngine.updateIntervalEngine()
+assert(strideEngine.intervalIndex == 2 && strideEngine.intervalPhaseRemaining == 20)
+strideEngine.elapsedTime = 23
+strideEngine.updateIntervalEngine()
+assert(strideEngine.intervalIndex == 3 && strideEngine.intervalPhaseRemaining == 60)
+strideEngine.elapsedTime = 300
+strideEngine.updateIntervalEngine()
+assert(strideEngine.intervalComplete && strideEngine.targetPaceMinSec == 360)
 let distEngine = Engine()
 distEngine.intervalSegments = distance
 distEngine.distance = 1.99
@@ -101,18 +159,18 @@ distEngine.updateIntervalEngine()
 assert(distEngine.intervalIndex == 2 && distEngine.intervalPhaseRemaining == 90)
 assert(distEngine.targetPaceMinSec == 375)
 
-for (item, unit) in [("DB Split Squat 3×8 @ 20 kg/hand", "lbs/hand"),
-                     ("Kettlebell swing 3×10 @ 25 kg", "lbs"),
+for (item, unit) in [("DB Split Squat 3×8 @ 20 kg/hand", "lb each"),
+                     ("Kettlebell swing 3×10 @ 25 kg", "lb"),
                      ("Medicine ball twist 3×12 @ 8 lbs", "kg"),
                      ("Med Ball twist 3×12 @ 8 lb", "kg"),
-                     ("Back squat 3×8 @ 40 kg", "kg")] {
+                     ("Back squat 3×8 @ 40 kg", "kg total incl. bar")] {
     let exercise = GymSessionModel.parseExercise(item)
     assert(exercise.weightSuffix == unit, item)
     assert(exercise.weightKg != nil, item)
 }
-assert(GymSessionModel.parseExercise("DB Split Squat 3×8 @ 20 kg/hand").weightKg == 20)
-assert(GymSessionModel.parseExercise("Barbell press 3×8 @ 40 lb").weightKg == nil)
-assert(GymSessionModel.equipmentUnits(in: "Landmine press 3×8 @ 20 kg") == "Landmine press 3×8 @ 20 kg")
+assert(abs(GymSessionModel.parseExercise("DB Split Squat 3×8 @ 20 kg/hand").weightKg! - 45 * GymSessionModel.kilogramsPerPound) < 0.00001)
+assert(abs(GymSessionModel.parseExercise("Barbell press 3×8 @ 40 lb").weightKg! - 40 * GymSessionModel.kilogramsPerPound) < 0.00001)
+assert(GymSessionModel.equipmentUnits(in: "Landmine press 3×8 @ 20 kg") == "Landmine press 3×8 @ 20 kg plates on loaded end")
 print("PASS: timed/distance intervals, recoveries, phase targets, pause, delayed ticks, completion, and equipment units")
 '''
 with tempfile.TemporaryDirectory() as directory:

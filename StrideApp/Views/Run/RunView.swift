@@ -4,12 +4,14 @@ struct RunView: View {
     @ObservedObject var viewModel: RunViewModel
     @EnvironmentObject private var bluetoothManager: BluetoothManager
     var onFinishRun: () -> Void
+    var onOpenApp: () -> Void = {}
 
     @State private var showFinishConfirmation = false
     @State private var splitDismissOffset: CGFloat = 0
 
-    /// Red screen = push. White screen = breathe. No buttons mid-set.
+    /// Work phases retain their red cue; pausing also shows a dedicated red screen.
     private var isWorkPhase: Bool {
+        guard !viewModel.intervalComplete else { return false }
         if case .work = viewModel.currentIntervalSegment?.kind { return true }
         return false
     }
@@ -29,77 +31,17 @@ struct RunView: View {
     /// Bottom-button backdrop matches the live background so the fade is
     /// invisible on both the red work screen and the white screens.
     private var backdropColor: Color {
-        viewModel.isIntervalWorkout && isWorkPhase ? Color.stridePrimary : Color(.systemBackground)
+        viewModel.isPaused || (viewModel.isIntervalWorkout && isWorkPhase) ? Color.stridePrimary : Color(red: 0.055, green: 0.055, blue: 0.065)
     }
     private var intervalFgSoft: Color { isWorkPhase ? .white.opacity(0.8) : .secondary }
 
     var body: some View {
+        GeometryReader { viewport in
         ZStack(alignment: .bottom) {
-            if viewModel.isIntervalWorkout {
+            if viewModel.isIntervalWorkout && (!viewModel.isStrideWorkout || isWorkPhase) {
                 intervalContent
             } else {
-            ScrollView {
-                VStack(spacing: 0) {
-                    // Container with 80% width, centered (10% padding on each side)
-                    VStack(spacing: 0) {
-                        // Header: time + flag only
-                        headerRow
-                            .padding(.top, 24)
-                            .padding(.bottom, 10)
-
-                        // Treadmill data-flow status — surfaces "connected but
-                        // silent" instead of letting a run record zeros for 40 min
-                        // (suppressed in --runview-demo screenshots)
-                        if !ProcessInfo.processInfo.arguments.contains("--runview-demo") {
-                            TreadmillDataStatusBanner(bluetoothManager: bluetoothManager)
-                                .padding(.bottom, 10)
-                        }
-
-                        // ── Pace story: hero number + verdict pill + corridor ──
-                        // (the corridor's labeled edges ARE the target — no
-                        // redundant "Target: 6:00-6:30" text row)
-                        if let prescription = viewModel.intervalPrescriptionWarning {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text("Interval guidance unavailable").font(.headline)
-                                Text("This workout could not be read automatically. Follow the prescription below.")
-                                Text(prescription)
-                            }
-                            .font(.subheadline)
-                            .padding()
-                            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
-                        }
-
-                        paceBlock
-                            .padding(.bottom, 2)
-
-                        PaceBandGraphView(
-                            paces: viewModel.paceGraphPaces,
-                            targetMinSec: viewModel.targetPaceMinSec,
-                            targetMaxSec: viewModel.targetPaceMaxSec,
-                            heartRates: viewModel.paceGraphHeartRates,
-                            distances: viewModel.paceGraphDistances
-                        )
-                        .padding(.bottom, 26)
-
-                        // ── Journey: distance as progress, not arithmetic ──
-                        distanceProgress
-                            .padding(.bottom, 10)
-
-                        // Heart rate: live bpm when available, else target band
-                        heartRateLine
-                            .padding(.bottom, 30)
-
-                        // ── Below the fold ──
-                        kilometerSplitsTable
-                            .padding(.bottom, 24)
-
-                        metricsRow
-                            .padding(.bottom, 120) // Extra space for Pause/End buttons
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, UIScreen.main.bounds.width * 0.1)
-                }
-            }
+            indoorContent
             .overlay(alignment: .top) {
                 if let feedback = viewModel.splitFeedback {
                     splitFeedbackCard(feedback)
@@ -130,56 +72,30 @@ struct RunView: View {
             }
             }
 
-            // Sticky Pause / End Run Buttons
-            VStack(spacing: 0) {
-                HStack(spacing: 12) {
-                    // Pause Run (red)
-                    Button {
-                        viewModel.isPaused ? viewModel.resumeRun() : viewModel.pauseRun()
-                    } label: {
-                        Text(viewModel.isPaused ? "Resume Run" : "Pause Run")
-                            .font(.inter(size: 16, weight: .semibold))
-                            .foregroundColor(isWorkPhase ? Color.stridePrimary : .white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 62)
-                            .background(isWorkPhase ? Color.white : Color.stridePrimary)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                    
-                    // End Run (black)
-                    Button {
-                        showFinishConfirmation = true
-                    } label: {
-                        Text("End Run")
-                            .font(.inter(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 62)
-                            .background(Color.strideBrandBlack)
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    }
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 34) // Safe area spacing
+            if viewModel.isPaused {
+                pausedContent
             }
-            .background(
-                LinearGradient(
-                    stops: [
-                        .init(color: backdropColor.opacity(0), location: 0),
-                        .init(color: backdropColor, location: 0.3)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
+
         }
-        .background(
-            (viewModel.isIntervalWorkout && isWorkPhase
-                ? Color.stridePrimary : Color(.systemBackground))
-            .ignoresSafeArea()
-        )
-        .animation(.easeInOut(duration: 0.35), value: isWorkPhase)
+        .background {
+            ZStack {
+                backdropColor
+                if !viewModel.isPaused && !isWorkPhase {
+                    indoorDots
+                }
+            }.ignoresSafeArea()
+        }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            runControls
+        }
+        .transaction { transaction in
+            // A pause is a screen-state change, not a resizing animation.
+            transaction.animation = nil
+        }
+        }
         .navigationBarTitleDisplayMode(.inline)
+        .preferredColorScheme(.dark)
+        .toolbar(.hidden, for: .navigationBar)
         .alert("End Run?", isPresented: $showFinishConfirmation) {
             Button("Cancel", role: .cancel) { }
             Button("End Run", role: .destructive) {
@@ -190,125 +106,307 @@ struct RunView: View {
         }
     }
     
+    private var runControls: some View {
+        Group {
+            if viewModel.isPaused {
+                HStack(spacing: 12) {
+                    Button { viewModel.resumeRun() } label: {
+                        controlLabel("Resume", foreground: .stridePrimary, background: .white)
+                    }
+                    HoldToEndRunButton(foreground: .white, background: .strideBrandBlack) {
+                        showFinishConfirmation = true
+                    }
+                }
+            } else {
+                Button { viewModel.pauseRun() } label: {
+                    controlLabel("Pause Run", foreground: isWorkPhase ? .stridePrimary : .white,
+                                 background: isWorkPhase ? .white : .stridePrimary)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 24)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
+        .frame(maxWidth: .infinity)
+        .background((viewModel.isPaused || isWorkPhase ? backdropColor : .clear).ignoresSafeArea(edges: .bottom))
+        .transaction { $0.animation = nil }
+    }
+
+    private func controlLabel(_ title: String, foreground: Color, background: Color) -> some View {
+        Text(title.uppercased())
+            .font(.barlowCondensed(size: 24, weight: .semibold))
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 62)
+            .background(background, in: Capsule())
+    }
+
+    private var indoorContent: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                HStack {
+                    Button(action: onOpenApp) {
+                        Image("StrideLogoDark").resizable().scaledToFit().frame(height: 25)
+                    }.buttonStyle(.plain).accessibilityLabel("Open Stride app")
+                    Spacer()
+                    Text("INDOOR").font(.runEyebrow(10)).tracking(1.4)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(.white.opacity(0.08), in: Capsule())
+                }
+                HStack(alignment: .firstTextBaseline) {
+                    Text((viewModel.plannedWorkoutTitle ?? "FREE RUN").uppercased())
+                        .font(.barlowCondensed(size: 31, weight: .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Spacer(minLength: 8)
+                    Text(formatTime(viewModel.elapsedTime))
+                        .font(.barlowCondensed(size: 31)).monospacedDigit()
+                }.padding(.top, 20)
+
+                if !ProcessInfo.processInfo.arguments.contains("--runview-demo") {
+                    TreadmillDataStatusBanner(bluetoothManager: bluetoothManager)
+                        .padding(.top, 8)
+                }
+
+                Spacer(minLength: 10)
+                Text("CURRENT PACE /KM")
+                    .font(.runEyebrow(11)).tracking(1.8).foregroundStyle(.white.opacity(0.62))
+                Text(viewModel.currentPace)
+                    .font(.barlowCondensed(size: min(135, geometry.size.height * 0.17)))
+                    .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text("TARGET").font(.runEyebrow(10)).foregroundStyle(.white.opacity(0.62))
+                    Text(indoorTargetPace).font(.barlowCondensed(size: 28))
+                    Spacer()
+                    if !viewModel.paceZone.statusText.isEmpty {
+                        Circle().fill(Color(red: 0.25, green: 0.65, blue: 1)).frame(width: 7, height: 7)
+                        Text(viewModel.paceZone.statusText.uppercased())
+                            .font(.runEyebrow(9)).foregroundStyle(Color(red: 0.35, green: 0.72, blue: 1))
+                    }
+                }.padding(.bottom, 13)
+
+                PaceBandGraphView(
+                    paces: viewModel.paceGraphPaces,
+                    targetMinSec: viewModel.targetPaceMinSec,
+                    targetMaxSec: viewModel.targetPaceMaxSec,
+                    heartRates: viewModel.paceGraphHeartRates,
+                    distances: viewModel.paceGraphDistances,
+                    targetHeartRateRange: currentHeartRateTarget,
+                    graphHeight: min(138, geometry.size.height * 0.17),
+                    paceColor: .stridePrimary,
+                    labelColor: .white.opacity(0.65)
+                )
+                .padding(.vertical, 15)
+
+                Spacer(minLength: 10)
+                Rectangle().fill(.white.opacity(0.19)).frame(height: 1)
+                HStack(spacing: 0) {
+                    indoorMetric("DISTANCE", value: String(format: "%.2f", viewModel.distance), unit: "KM")
+                    indoorMetric("TO GO", value: viewModel.targetDistanceKm.map { String(format: "%.2f", max(0, $0 - viewModel.distance)) } ?? "—", unit: "KM")
+                }.padding(.top, 14)
+                HStack(spacing: 0) {
+                    indoorMetric("HEART RATE", value: viewModel.heartRate > 0 ? "\(viewModel.heartRate)" : "—", unit: "BPM")
+                    indoorMetric("AVERAGE PACE", value: viewModel.distance > 0.05 ? formatPaceSeconds(viewModel.elapsedTime / viewModel.distance) : "—", unit: "/KM")
+                }.padding(.top, 14)
+                Spacer(minLength: 14)
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 22).padding(.top, 12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    private var indoorDots: some View {
+        Canvas { context, size in
+            for x in stride(from: CGFloat(4), through: size.width, by: 8) {
+                for y in stride(from: CGFloat(4), through: size.height, by: 8) {
+                    context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1, height: 1)),
+                                 with: .color(.white.opacity(0.075)))
+                }
+            }
+        }.allowsHitTesting(false)
+    }
+
+    private var indoorTargetPace: String {
+        guard let fast = viewModel.targetPaceMinSec, let slow = viewModel.targetPaceMaxSec else { return "FREE RUN" }
+        return "\(formatPaceSeconds(fast))–\(formatPaceSeconds(slow))"
+    }
+
+    private func formatPaceSeconds(_ seconds: Double) -> String {
+        guard seconds.isFinite, seconds > 0 else { return "—" }
+        let value = Int(seconds.rounded())
+        return String(format: "%d:%02d", value / 60, value % 60)
+    }
+
+    private func indoorMetric(_ title: String, value: String, unit: String) -> some View {
+        VStack(spacing: 4) {
+            Text(title).font(.runEyebrow(9)).tracking(1.2).foregroundStyle(.white.opacity(0.62))
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value).font(.barlowCondensed(size: 37)).monospacedDigit()
+                Text(unit).font(.runEyebrow(9)).foregroundStyle(.white.opacity(0.62))
+            }.lineLimit(1).minimumScaleFactor(0.7)
+        }.frame(maxWidth: .infinity)
+    }
+
     // MARK: - Interval Mode
 
     private var intervalContent: some View {
-        VStack(spacing: 0) {
-            // Minimal header: flag + clock
-            VStack(spacing: 6) {
-                FlagIconView(size: 30, color: isWorkPhase ? .white : .stridePrimary)
-                Text(formatTime(viewModel.elapsedTime))
-                    .font(.barlowCondensed(size: 26, weight: .medium))
-                    .foregroundColor(intervalFgSoft)
-                    .monospacedDigit()
-            }
-            .padding(.top, 24)
-
-            Spacer()
-
-            if viewModel.intervalComplete {
-                VStack(spacing: 14) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 56))
-                        .foregroundColor(.green)
-                    Text("WORKOUT COMPLETE")
-                        .font(.inter(size: 22, weight: .bold))
-                        .kerning(1.5)
-                    Text("Ease off, then End Run when you're done")
-                        .font(.inter(size: 15))
-                        .foregroundColor(.secondary)
-                }
-            } else if let segment = viewModel.currentIntervalSegment {
-                VStack(spacing: 10) {
-                    // Phase label
-                    Text(segment.displayLabel)
-                        .font(.inter(size: 24, weight: .bold))
-                        .kerning(2.0)
-                        .foregroundColor(intervalFg)
-
-
-                    // Countdown (timed) or distance progress (warm-up/cool-down)
-                    if segment.durationSec != nil {
-                        Text(formatCountdownShort(viewModel.intervalPhaseRemaining))
-                            .font(.barlowCondensed(size: 118, weight: .medium))
-                            .foregroundColor(intervalFg)
+        GeometryReader { geometry in
+            let numberSize: CGFloat = geometry.size.height < 700 ? 72 : 90
+            ScrollView {
+                VStack(spacing: 12) {
+                    HStack {
+                        Button(action: onOpenApp) {
+                            StrideLogoView(height: 26, color: isWorkPhase ? .white : nil)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Open STRIDE app")
+                        Spacer()
+                        Text(formatTime(viewModel.elapsedTime))
+                            .font(.barlowCondensed(size: 26, weight: .medium))
+                            .foregroundColor(intervalFgSoft)
                             .monospacedDigit()
-                            .scaleEffect(viewModel.intervalPhaseRemaining <= 3.5 ? 1.08 : 1.0)
-                            .animation(.easeInOut(duration: 0.25),
-                                       value: viewModel.intervalPhaseRemaining <= 3.5)
-                    } else if let target = segment.distanceKm {
-                        VStack(spacing: 10) {
-                            Text(String(format: "%.2f / %.1f km", viewModel.intervalPhaseDistanceDone, target))
-                                .font(.barlowCondensed(size: 64, weight: .medium))
-                                .foregroundColor(intervalFg)
-                            Text(formatTime(viewModel.intervalPhaseElapsed))
-                                .font(.barlowCondensed(size: 28, weight: .medium))
+                    }
+                    .padding(.top, 18)
+
+                    if viewModel.intervalComplete {
+                        VStack(spacing: 14) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 46)).foregroundColor(.green)
+                            Text("WORKOUT COMPLETE").font(.inter(size: 22, weight: .bold))
+                            Text("Pause, then End Run when you're done")
+                                .font(.inter(size: 15)).foregroundColor(.secondary)
+                        }
+                        .padding(.vertical, 24)
+                    } else if let segment = viewModel.currentIntervalSegment {
+                        VStack(spacing: 4) {
+                            Text(segment.displayLabel)
+                                .font(.inter(size: 15, weight: .semibold))
                                 .foregroundColor(intervalFgSoft)
-                                .monospacedDigit()
-                            GeometryReader { geo in
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(Color(.systemGray5)).frame(height: 8)
-                                    Capsule().fill(Color.stridePrimary)
-                                        .frame(width: max(8, geo.size.width *
-                                            min(viewModel.intervalPhaseDistanceDone / max(target, 0.01), 1.0)),
-                                               height: 8)
+                            if let duration = segment.durationSec {
+                                Text(formatCountdownShort(viewModel.intervalPhaseRemaining))
+                                    .font(.barlowCondensed(size: numberSize, weight: .medium))
+                                    .foregroundColor(intervalFg)
+                                    .monospacedDigit()
+                                phaseProgress(1 - viewModel.intervalPhaseRemaining / max(duration, 1))
+                            } else if let target = segment.distanceKm {
+                                Text(String(format: "%.2f / %.1f km", viewModel.intervalPhaseDistanceDone, target))
+                                    .font(.barlowCondensed(size: 52, weight: .medium))
+                                    .foregroundColor(intervalFg)
+                                    .minimumScaleFactor(0.7)
+                                    .lineLimit(1)
+                                phaseProgress(viewModel.intervalPhaseDistanceDone / max(target, 0.01))
+                            }
+                        }
+
+                        VStack(spacing: 4) {
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                Text(viewModel.isStrideWorkout ? String(format: "%.1f", viewModel.speedKmh) : viewModel.currentPace)
+                                    .font(.barlowCondensed(size: numberSize, weight: .medium))
+                                    .foregroundColor(intervalFg)
+                                    .contentTransition(.numericText())
+                                Text(viewModel.isStrideWorkout ? "km/h" : "/km")
+                                    .font(.inter(size: 15, weight: .medium))
+                                    .foregroundColor(intervalFgSoft)
+                            }
+                            HStack(spacing: 10) {
+                                Text(segment.paceText == "easy" ? "easy — shake it out" : "target \(segment.paceText)")
+                                    .font(.inter(size: 15, weight: .semibold))
+                                    .foregroundColor(intervalFgSoft)
+                                if segment.paceBounds != nil, !viewModel.paceZone.statusText.isEmpty {
+                                    Text(viewModel.paceZone.statusText)
+                                        .font(.inter(size: 15, weight: .bold))
+                                        .foregroundColor(isWorkPhase ? intervalPillTextColor : .white)
+                                        .padding(.horizontal, 9).padding(.vertical, 4)
+                                        .background(Capsule().fill(isWorkPhase ? Color.white : intervalPillTextColor))
                                 }
                             }
-                            .frame(height: 8)
-                            .padding(.horizontal, 60)
                         }
                     }
 
-                    // Live pace — equal weight with the countdown, and the
-                    // target sits RIGHT under it: one glance zone.
-                    VStack(spacing: 4) {
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(viewModel.currentPace)
-                                .font(.barlowCondensed(size: 118, weight: .medium))
-                                .foregroundColor(intervalFg)
-                                .contentTransition(.numericText())
-                            Text("/km")
-                                .font(.inter(size: 18, weight: .medium))
-                                .foregroundColor(intervalFgSoft)
-                        }
+                    heartRateLine
 
-                        HStack(spacing: 12) {
-                            Text(segment.paceText == "easy"
-                                 ? "easy — shake it out"
-                                 : "target \(segment.paceText)")
-                                .font(.inter(size: 19, weight: .semibold))
-                                .foregroundColor(intervalFgSoft)
+                    PaceBandGraphView(
+                        paces: viewModel.paceGraphPaces,
+                        targetMinSec: viewModel.targetPaceMinSec,
+                        targetMaxSec: viewModel.targetPaceMaxSec,
+                        heartRates: viewModel.paceGraphHeartRates,
+                        distances: viewModel.paceGraphDistances,
+                        targetHeartRateRange: currentHeartRateTarget,
+                        graphHeight: geometry.size.height < 700 ? 72 : 90,
+                        paceColor: isWorkPhase ? .white : .stridePrimary,
+                        labelColor: intervalFgSoft
+                    )
 
-                            if segment.paceBounds != nil,
-                               !viewModel.paceZone.statusText.isEmpty {
-                                Text(viewModel.paceZone.statusText)
-                                    .font(.inter(size: 15, weight: .bold))
-                                    .foregroundColor(isWorkPhase ? intervalPillTextColor : .white)
-                                    .padding(.horizontal, 13)
-                                    .padding(.vertical, 6)
-                                    .background(Capsule().fill(isWorkPhase ? Color.white : intervalPillTextColor))
-                            }
-                        }
+                    if !viewModel.intervalComplete, let next = viewModel.nextIntervalSegment {
+                        Text("Next: \(nextLabel(next))")
+                            .font(.inter(size: 15, weight: .medium))
+                            .foregroundColor(intervalFgSoft)
+                            .multilineTextAlignment(.center)
                     }
-                    .padding(.top, 2)
                 }
-            }
-
-            Spacer()
-
-            heartRateLine.padding(.bottom, 12)
-
-            // What's coming — removes the "what's next?" anxiety
-            if !viewModel.intervalComplete, let next = viewModel.nextIntervalSegment {
-                Text("Next: \(nextLabel(next))")
-                    .font(.inter(size: 15, weight: .medium))
-                    .foregroundColor(intervalFgSoft)
-                    .padding(.bottom, 116)
-            } else {
-                Color.clear.frame(height: 116)
+                .padding(.horizontal, 28)
+                .padding(.bottom, 16)
+                .frame(maxWidth: .infinity)
             }
         }
-        .frame(maxWidth: .infinity)
+    }
+
+    private func phaseProgress(_ fraction: Double) -> some View {
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                Capsule().fill(isWorkPhase ? Color.white.opacity(0.2) : Color(.systemGray5))
+                Capsule().fill(isWorkPhase ? Color.white : Color.stridePrimary)
+                    .frame(width: geometry.size.width * min(max(fraction, 0), 1))
+            }
+        }
+        .frame(height: 7)
+        .padding(.horizontal, 20)
+        .padding(.top, 4)
+    }
+
+    private var pausedContent: some View {
+        VStack(spacing: 18) {
+            Button(action: onOpenApp) {
+                StrideLogoView(height: 30, color: .white)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open STRIDE app")
+            Text("RUN PAUSED").font(.inter(size: 16, weight: .semibold))
+            Text(formatTime(viewModel.currentPauseDuration))
+                .font(.barlowCondensed(size: 24, weight: .medium)).monospacedDigit()
+            Spacer()
+            Text(String(format: "%.2f km", viewModel.distance))
+                .font(.barlowCondensed(size: 70, weight: .medium))
+            Text(formatTime(viewModel.elapsedTime))
+                .font(.barlowCondensed(size: 54, weight: .medium)).monospacedDigit()
+            Text("Run time").font(.inter(size: 15))
+            Spacer()
+        }
+        .foregroundStyle(.white)
+        .padding(.top, 28)
+        .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.stridePrimary.ignoresSafeArea())
+    }
+
+    private var currentHeartRateTarget: ClosedRange<Int>? {
+        let type: WorkoutType?
+        if viewModel.isIntervalWorkout, !viewModel.intervalComplete,
+           let segment = viewModel.currentIntervalSegment {
+            switch segment.kind {
+            case .work: type = viewModel.plannedWorkoutType
+            case .warmup, .float, .cooldown: type = .easyRun
+            }
+        } else {
+            type = viewModel.plannedWorkoutType
+        }
+        guard let type, let band = HeartRateZones.band(for: type) else { return nil }
+        let bounds = band.split(separator: "–").compactMap { Int($0) }
+        guard bounds.count == 2, bounds[0] <= bounds[1] else { return nil }
+        return bounds[0]...bounds[1]
     }
 
     private func nextLabel(_ segment: IntervalSegment) -> String {
@@ -335,10 +433,13 @@ struct RunView: View {
 
     // MARK: - Header Row
     private var headerRow: some View {
-        VStack(spacing: 8) {
-            // Flag mark only — no wordmark mid-run
-            FlagIconView(size: 34, color: .stridePrimary)
-
+        HStack {
+            Button(action: onOpenApp) {
+                StrideLogoView(height: 26)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Open STRIDE app")
+            Spacer()
             if viewModel.isTimeBasedWorkout, let remaining = viewModel.remainingTimeSeconds {
                 Text(formatTime(remaining))
                     .font(.barlowCondensed(size: 28, weight: .medium))
@@ -355,22 +456,22 @@ struct RunView: View {
     }
 
     // MARK: - Pace Block (hero + verdict pill)
-    private var paceBlock: some View {
+    private func paceBlock(size: CGFloat) -> some View {
         VStack(spacing: 0) {
             Text(viewModel.currentPace)
-                .font(.barlowCondensed(size: 132, weight: .medium))
+                .font(.barlowCondensed(size: size, weight: .medium))
                 .foregroundColor(.primary)
                 .contentTransition(.numericText())
                 .frame(maxWidth: .infinity)
 
             HStack(spacing: 10) {
                 Text("Pace /km")
-                    .font(.inter(size: 13, weight: .regular))
+                    .font(.inter(size: 15, weight: .regular))
                     .foregroundColor(.secondary)
 
                 if viewModel.isPlannedRun, !viewModel.paceZone.statusText.isEmpty {
                     Text(viewModel.paceZone.statusText)
-                        .font(.inter(size: 13, weight: .bold))
+                        .font(.inter(size: 15, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 4)
@@ -441,17 +542,17 @@ struct RunView: View {
     // MARK: - Heart Rate Line
     @ViewBuilder
     private var heartRateLine: some View {
-        let band = viewModel.plannedWorkoutType.flatMap { HeartRateZones.band(for: $0) }
+        let band = currentHeartRateTarget.map { "\($0.lowerBound)–\($0.upperBound)" }
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 10) {
                 LiveHeartRateLabel(bpm: viewModel.heartRate > 0 ? viewModel.heartRate : nil,
                                    tint: isWorkPhase ? .white : .heartRatePink)
-                if let band { Text("Target HR \(band) bpm").font(.inter(size: 12)).foregroundStyle(intervalFgSoft) }
+                if let band { Text("Target HR \(band) bpm").font(.inter(size: 15)).foregroundStyle(intervalFgSoft) }
             }
             VStack(spacing: 4) {
                 LiveHeartRateLabel(bpm: viewModel.heartRate > 0 ? viewModel.heartRate : nil,
                                    tint: isWorkPhase ? .white : .heartRatePink)
-                if let band { Text("Target HR \(band) bpm").font(.inter(size: 12)).foregroundStyle(intervalFgSoft) }
+                if let band { Text("Target HR \(band) bpm").font(.inter(size: 15)).foregroundStyle(intervalFgSoft) }
             }
         }
     }
@@ -463,7 +564,7 @@ struct RunView: View {
             // Pace Drift (Left)
             VStack(alignment: .center, spacing: 4) {
                 Text("Pace Drift")
-                    .font(.inter(size: 12, weight: .regular))
+                    .font(.inter(size: 15, weight: .regular))
                     .foregroundColor(.secondary)
                 
                 Text(viewModel.paceDrift)
@@ -476,7 +577,7 @@ struct RunView: View {
             // Heart Rate / Zone (Right)
             VStack(alignment: .center, spacing: 4) {
                 Text("Heart Rate / Zone")
-                    .font(.inter(size: 12, weight: .regular))
+                    .font(.inter(size: 15, weight: .regular))
                     .foregroundColor(.secondary)
                 
                 Text(viewModel.heartRate > 0 ? "\(viewModel.heartRate)" : "--")
@@ -484,7 +585,7 @@ struct RunView: View {
                     .foregroundColor(.primary)
                 
                 Text(viewModel.heartRateZone.displayText)
-                    .font(.inter(size: 12, weight: .medium))
+                    .font(.inter(size: 15, weight: .medium))
                     .foregroundColor(viewModel.heartRateZone.color)
             }
         }
@@ -497,7 +598,7 @@ struct RunView: View {
             HStack(spacing: 0) {
                 // Column 1: KM (left-aligned, fixed size)
                 Text("KM")
-                    .font(.inter(size: 12, weight: .medium))
+                    .font(.inter(size: 15, weight: .medium))
                     .foregroundColor(.secondary)
                     .fixedSize()
                 
@@ -510,7 +611,7 @@ struct RunView: View {
                 
                 // Column 3: Pace (centered)
                 Text("Pace")
-                    .font(.inter(size: 12, weight: .medium))
+                    .font(.inter(size: 15, weight: .medium))
                     .foregroundColor(.secondary)
                     .fixedSize()
 
@@ -523,7 +624,7 @@ struct RunView: View {
 
                 // Column 5: Time (right-aligned, far right)
                 Text("Time")
-                    .font(.inter(size: 12, weight: .medium))
+                    .font(.inter(size: 15, weight: .medium))
                     .foregroundColor(.secondary)
                     .fixedSize()
             }
@@ -653,6 +754,86 @@ struct RunView: View {
     }
 }
 
+/// An uninterrupted hold is required before the separate finish confirmation.
+/// A zero-distance drag gives immediate press/release events, including when the
+/// finger moves slightly, unlike a long press attached to a Button.
+struct HoldToEndRunButton: View {
+    let foreground: Color
+    let background: Color
+    let onComplete: () -> Void
+
+    @State private var secondsRemaining = 3
+    @State private var holdTask: Task<Void, Never>?
+    @State private var isHolding = false
+    @State private var movedTooFar = false
+    @State private var progress: CGFloat = 0
+
+    var body: some View {
+        ZStack {
+            Capsule().fill(background)
+            GeometryReader { geometry in
+                Capsule()
+                    .fill(foreground.opacity(0.22))
+                    .frame(width: geometry.size.width * progress)
+                    .frame(maxHeight: .infinity, alignment: .leading)
+                    .clipShape(Capsule())
+            }
+            Text(isHolding ? "END IN \(secondsRemaining)" : "HOLD 3 SEC TO END")
+                .font(.barlowCondensed(size: 24, weight: .semibold))
+                .foregroundStyle(foreground)
+                .contentTransition(.numericText())
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 62)
+        .contentShape(Capsule())
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { value in
+                    if abs(value.translation.width) > 45 || abs(value.translation.height) > 45 {
+                        movedTooFar = true
+                        cancelHold()
+                    } else if !movedTooFar && !isHolding {
+                        beginHold()
+                    }
+                }
+                .onEnded { _ in
+                    cancelHold()
+                    movedTooFar = false
+                }
+        )
+        .accessibilityLabel(isHolding ? "End run in \(secondsRemaining)" : "Hold for three seconds to end run")
+        .onDisappear { cancelHold() }
+    }
+
+    private func beginHold() {
+        guard holdTask == nil else { return }
+        isHolding = true
+        secondsRemaining = 3
+        progress = 0
+        withAnimation(.linear(duration: 3)) { progress = 1 }
+        holdTask = Task { @MainActor in
+            for remaining in [2, 1, 0] {
+                do { try await Task.sleep(for: .seconds(1)) } catch { return }
+                guard !Task.isCancelled else { return }
+                secondsRemaining = remaining
+            }
+            holdTask = nil
+            isHolding = false
+            movedTooFar = true // Do not restart while the same finger remains down.
+            progress = 0
+            onComplete()
+        }
+    }
+
+    private func cancelHold() {
+        holdTask?.cancel()
+        holdTask = nil
+        isHolding = false
+        secondsRemaining = 3
+        withAnimation(.none) { progress = 0 }
+    }
+}
+
 // MARK: - Heart Rate Zone
 enum HeartRateZone {
     case zone1, zone2, zone3, zone4, zone5
@@ -679,8 +860,8 @@ enum HeartRateZone {
 }
 
 // MARK: - Kilometer Split
-struct KilometerSplit: Identifiable {
-    let id = UUID()
+struct KilometerSplit: Identifiable, Codable {
+    var id = UUID()
     let kilometer: Int
     let pace: String
     let time: String
@@ -717,9 +898,9 @@ struct TreadmillDataStatusBanner: View {
                         Text(bluetoothManager.packetCount == 0
                              ? "No data from treadmill"
                              : "Treadmill signal lost")
-                            .font(.inter(size: 13, weight: .semibold))
+                            .font(.inter(size: 15, weight: .semibold))
                         Text(statusDetail)
-                            .font(.inter(size: 11, weight: .regular))
+                            .font(.inter(size: 15, weight: .regular))
                             .opacity(0.85)
                             .lineLimit(2)
                     }

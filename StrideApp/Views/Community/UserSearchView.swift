@@ -24,7 +24,7 @@ struct UserSearchView: View {
                 }
             }
             .padding(12)
-            .background(Color(.secondarySystemBackground))
+            .background { StrideSecondaryCard() }
             .cornerRadius(12)
             .padding(.horizontal, 16)
             .padding(.top, 8)
@@ -75,6 +75,7 @@ struct UserSearchView: View {
             }
         }
         .navigationTitle("Search")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
     }
 }

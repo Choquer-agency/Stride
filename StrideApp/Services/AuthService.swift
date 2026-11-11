@@ -45,9 +45,49 @@ class AuthService: ObservableObject {
 
     private static let cachedUserKey = "cached_user_response"
 
+    @Published private(set) var needsReauthentication = false
+    private var protectedWorkouts = Set<UUID>()
+    private var memoryToken: String?
+
+    var currentUserID: String? {
+        switch authState {
+        case .signedIn(let user), .needsProfile(let user): return user.id
+        default: return nil
+        }
+    }
+
+    func beginWorkoutProtection(_ id: UUID) {
+        protectedWorkouts.insert(id)
+    }
+
+    func endWorkoutProtection(_ id: UUID) {
+        protectedWorkouts.remove(id)
+        if protectedWorkouts.isEmpty, needsReauthentication { signOut() }
+    }
+
+    /// An expired session must not unmount a run or its unsaved summary.
+    func handleUnauthorized() {
+        needsReauthentication = true
+        // A cold launch may receive a 401 before the run container mounts.
+        if let owner = currentUserID, let checkpoint = RunRecoveryStore.load(ownerID: owner),
+           checkpoint.result.distanceKm > 0 || checkpoint.result.durationSeconds > 0 {
+            protectedWorkouts.insert(checkpoint.result.sessionID)
+        }
+        guard protectedWorkouts.isEmpty else { return }
+        signOut()
+    }
+
     private var token: String? {
-        get { KeychainService.load(key: "jwt_token") }
+        get {
+            if let memoryToken { return memoryToken }
+            guard let value = KeychainService.load(key: "jwt_token") else { return nil }
+            memoryToken = value
+            // Migrate returning users to background-readable protection as well.
+            _ = KeychainService.save(key: "jwt_token", value: value)
+            return value
+        }
         set {
+            memoryToken = newValue
             if let value = newValue {
                 _ = KeychainService.save(key: "jwt_token", value: value)
             } else {
@@ -81,6 +121,12 @@ class AuthService: ObservableObject {
 
     func checkAuthState() async {
         guard token != nil else {
+            // Device protection may temporarily deny a read; that is not a logout.
+            if case .unavailable = KeychainService.read(key: "jwt_token"), let cached = loadCachedUser() {
+                authState = cached.hasCompletedProfile ? .signedIn(cached) : .needsProfile(cached)
+                return
+            }
+            guard protectedWorkouts.isEmpty else { return }
             clearCachedUser()
             authState = .signedOut
             return
@@ -99,9 +145,12 @@ class AuthService: ObservableObject {
             let user = try await fetchProfile()
             saveCachedUser(user)
             authState = user.hasCompletedProfile ? .signedIn(user) : .needsProfile(user)
+        } catch let error as AuthError where error == .unauthorized {
+            handleUnauthorized()
         } catch {
-            self.token = nil
-            authState = .signedOut
+            // Keep valid credentials on network failures or cancellation.
+            self.error = error.localizedDescription
+            if protectedWorkouts.isEmpty { authState = .signedOut }
         }
     }
 
@@ -114,45 +163,24 @@ class AuthService: ObservableObject {
                 saveCachedUser(user)
                 authState = user.hasCompletedProfile ? .signedIn(user) : .needsProfile(user)
             } catch let error as AuthError where error == .unauthorized {
-                signOut()
+                handleUnauthorized()
             } catch {
                 // Network error — keep using cached data
             }
         }
     }
 
-    // MARK: - Email Auth
-
+    // Legacy callers must not start a non-Apple session or mutate an existing one.
     func registerEmail(email: String, password: String, name: String?) async throws {
-        isLoading = true
-        error = nil
-        defer { isLoading = false }
-
-        let body = EmailRegisterRequest(email: email, password: password, name: name)
-        let response: TokenResponse = try await postJSON("/auth/register", body: body)
-        handleAuthResponse(response)
+        throw AuthError.serverError("Use Sign in with Apple to continue.")
     }
 
     func loginEmail(email: String, password: String) async throws {
-        isLoading = true
-        error = nil
-        defer { isLoading = false }
-
-        let body = EmailLoginRequest(email: email, password: password)
-        let response: TokenResponse = try await postJSON("/auth/login", body: body)
-        handleAuthResponse(response)
+        throw AuthError.serverError("Use Sign in with Apple to continue.")
     }
 
-    // MARK: - Google Auth
-
     func signInWithGoogle(idToken: String) async throws {
-        isLoading = true
-        error = nil
-        defer { isLoading = false }
-
-        let body = GoogleAuthRequest(idToken: idToken)
-        let response: TokenResponse = try await postJSON("/auth/google", body: body)
-        handleAuthResponse(response)
+        throw AuthError.serverError("Use Sign in with Apple to continue.")
     }
 
     // MARK: - Apple Auth
@@ -224,6 +252,8 @@ class AuthService: ObservableObject {
     }
 
     func signOut() {
+        protectedWorkouts.removeAll()
+        needsReauthentication = false
         token = nil
         clearCachedUser()
         authState = .signedOut
@@ -233,6 +263,7 @@ class AuthService: ObservableObject {
     // MARK: - Helpers
 
     private func handleAuthResponse(_ response: TokenResponse) {
+        needsReauthentication = false
         token = response.accessToken
         let user = response.user
         saveCachedUser(user)
@@ -302,7 +333,7 @@ class AuthService: ObservableObject {
             throw AuthError.invalidResponse
         }
         if httpResponse.statusCode == 401 {
-            signOut()
+            handleUnauthorized()
             throw AuthError.unauthorized
         }
         guard (200...299).contains(httpResponse.statusCode) else {
@@ -323,7 +354,7 @@ enum AuthError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .invalidResponse: return "Invalid server response"
-        case .unauthorized: return "Invalid email or password"
+        case .unauthorized: return "Your session has expired. Please sign in with Apple."
         case .conflict(let msg): return msg
         case .httpError(let code): return "Server error (\(code))"
         case .serverError(let msg): return msg

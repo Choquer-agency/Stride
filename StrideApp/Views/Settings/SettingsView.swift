@@ -7,11 +7,18 @@ struct SettingsSectionsView: View {
     @AppStorage("coach_style") private var coachStyle = "male"
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @EnvironmentObject private var bluetoothManager: BluetoothManager
-    @State private var scanTimer: Timer?
 
     var body: some View {
         // v2 Phase 1: Garmin + future integrations
         IntegrationsSection()
+
+        Section("Heart rate") {
+            NavigationLink {
+                HeartRateMonitorPicker()
+            } label: {
+                Label("Choose live heart rate monitor", systemImage: "heart.fill")
+            }
+        }
 
         // Treadmill Section
         Section {
@@ -48,7 +55,7 @@ struct SettingsSectionsView: View {
                 }
             } else {
                 Button {
-                    startScanningWithTimeout()
+                    startScanningForTreadmill()
                 } label: {
                     Label("Scan for Treadmill", systemImage: "dot.radiowaves.left.and.right")
                         .foregroundStyle(Color.primary, Color.stridePrimary)
@@ -230,19 +237,11 @@ struct SettingsSectionsView: View {
         }
     }
 
-    private func startScanningWithTimeout() {
+    private func startScanningForTreadmill() {
         bluetoothManager.startScanning()
-        scanTimer?.invalidate()
-        scanTimer = Timer.scheduledTimer(withTimeInterval: 10, repeats: false) { _ in
-            if bluetoothManager.isScanning {
-                bluetoothManager.stopScanning()
-            }
-        }
     }
 
     private func stopScanningCleanup() {
-        scanTimer?.invalidate()
-        scanTimer = nil
         bluetoothManager.stopScanning()
     }
 
@@ -268,4 +267,42 @@ struct SettingsSectionsView: View {
         .navigationTitle("Settings")
     }
     .environmentObject(BluetoothManager())
+}
+
+
+struct HeartRateMonitorPicker: View {
+    @ObservedObject private var manager = HeartRateManager.shared
+
+    var body: some View {
+        List {
+            Section {
+                Text("Turn on heart rate sharing on your watch, then choose your monitor. Only your chosen monitor reconnects automatically for this Stride account.")
+                    .foregroundStyle(.secondary)
+            }
+            if let name = manager.selectedDeviceName {
+                Section("Your monitor") {
+                    Label(name, systemImage: manager.isConnected ? "heart.fill" : "heart")
+                    Text(manager.isConnected ? "Connected" : "Waiting for your monitor")
+                        .foregroundStyle(.secondary)
+                    Button("Forget monitor", role: .destructive) {
+                        manager.forgetSelectedDevice()
+                    }
+                }
+            }
+            Section("Nearby monitors") {
+                ForEach(manager.discoveredDevices) { device in
+                    Button(device.name) { manager.selectDevice(id: device.id) }
+                }
+                if manager.bluetoothUnavailable {
+                    Text("Enable Bluetooth access in iPhone Settings → Stride.")
+                } else if manager.discoveredDevices.isEmpty {
+                    Label("Looking for monitors…", systemImage: "antenna.radiowaves.left.and.right")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle("Heart rate monitor")
+        .onAppear { manager.startScanning(owner: "monitor-picker") }
+        .onDisappear { manager.stopAndDisconnect(owner: "monitor-picker") }
+    }
 }

@@ -40,6 +40,7 @@ struct RaceFuelingPlanView: View {
                 .padding(.vertical, 16)
             }
             .navigationTitle("Race fueling")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) { Button("Done") { dismiss() } }

@@ -61,6 +61,7 @@ struct ActivityFeedView: View {
             }
         }
         .navigationTitle("Activity Feed")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
         .onAppear { viewModel.loadFeed() }
     }
@@ -103,7 +104,7 @@ struct ActivityCardView: View {
             Spacer()
         }
         .padding(12)
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(12)
     }
 

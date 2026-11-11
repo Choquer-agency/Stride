@@ -28,6 +28,9 @@ final class Week {
         
         let formatter = DateFormatter()
         formatter.dateFormat = "MMM d"
+        // Plan workout dates are stored as UTC instants for their scheduled
+        // calendar day. Travelling west must not move a Monday to Sunday.
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
         
         return "\(formatter.string(from: first)) - \(formatter.string(from: last))"
     }
@@ -58,7 +61,11 @@ final class Week {
         guard let first = sortedWorkouts.first?.date else { return nil }
         var calendar = Calendar.current
         calendar.firstWeekday = 2
-        let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: first)
+        var utc = calendar
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = utc.dateComponents([.year, .month, .day], from: first)
+        guard let localDay = calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 12)) else { return nil }
+        let comps = calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: localDay)
         return calendar.date(from: comps)
     }
 
@@ -74,7 +81,11 @@ final class Week {
         let calendar = Calendar.current
         let todayStart = calendar.startOfDay(for: Date())
         guard let last = sortedWorkouts.last?.date else { return false }
-        return todayStart > calendar.startOfDay(for: last)
+        var utc = calendar
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = utc.dateComponents([.year, .month, .day], from: last)
+        guard let localDay = calendar.date(from: DateComponents(year: day.year, month: day.month, day: day.day, hour: 12)) else { return false }
+        return todayStart > calendar.startOfDay(for: localDay)
     }
     
     var isRaceWeek: Bool {

@@ -37,6 +37,7 @@ struct AdjustmentReviewSheet: View {
                 }
             }
             .navigationTitle("Coach proposes a change")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

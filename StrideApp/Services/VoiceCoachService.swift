@@ -1,6 +1,56 @@
 import Foundation
 import AVFoundation
+import UIKit
 import os.log
+
+/// Short nonverbal cues for timed workout transitions. Asset catalog data keeps
+/// the original music playing while the cue briefly ducks it.
+final class IntervalCuePlayer: NSObject, AVAudioPlayerDelegate {
+    static let shared = IntervalCuePlayer()
+    private var player: AVAudioPlayer?
+    private var activeAsset: String?
+
+    func startRunCountdown() { play("RunStartCountdown") }
+
+    func stopStartRunCountdown() {
+        guard activeAsset == "RunStartCountdown" else { return }
+        player?.stop()
+        player = nil
+        activeAsset = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+
+    func countdown(_ second: Int) {
+        guard (1...3).contains(second) else { return }
+        play("IntervalPing\(second)")
+    }
+
+    func completed() { play("IntervalComplete") }
+
+    private func play(_ asset: String) {
+        guard let data = NSDataAsset(name: asset)?.data else { return }
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .duckOthers])
+            try session.setActive(true)
+            player?.stop()
+            player = try AVAudioPlayer(data: data)
+            activeAsset = asset
+            player?.delegate = self
+            player?.prepareToPlay()
+            player?.play()
+        } catch {
+            voiceLog.error("Interval cue failed: \(error.localizedDescription)")
+        }
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        guard self.player === player else { return }
+        self.player = nil
+        activeAsset = nil
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+}
 
 private let voiceLog = Logger(subsystem: "com.stride.app", category: "VoiceCoach")
 
@@ -14,6 +64,37 @@ final class VoiceCoachService {
     private var lastPaceZoneAnnouncement: Date = .distantPast
     private let paceZoneDebounceInterval: TimeInterval = 90.0
     private var lastAnnouncedPaceZone: PaceZone?
+
+    private var lastPaceUpdateBucket = 0
+    private var lastPaceUpdateTime: TimeInterval = 0
+    private var lastDistanceUpdateKm = -1
+
+    /// Distance scheduling uses active run time and a high-water bucket: no catch-up chatter.
+    func checkPaceUpdate(distanceKm: Double, elapsedTime: TimeInterval, pace: Double,
+                         targetMin: Double?, targetMax: Double?, reliable: Bool) {
+        guard let meters = settings.paceUpdateFrequency.distanceMeters,
+              distanceKm.isFinite, distanceKm >= 0 else { return }
+        let bucket = Int(distanceKm * 1000 / meters)
+        guard bucket > lastPaceUpdateBucket else { return }
+        lastPaceUpdateBucket = bucket
+        guard settings.isEnabled, settings.announcePaceZone, reliable,
+              pace.isFinite, pace > 0, pace < 3600,
+              elapsedTime - lastPaceUpdateTime >= 12 else { return }
+        lastPaceUpdateTime = elapsedTime
+        lastDistanceUpdateKm = Int(distanceKm)
+        var clips: [AudioClip] = [.text("Current pace:")]
+        clips.append(contentsOf: paceClips(secondsPerKm: pace))
+        if let min = targetMin, let max = targetMax,
+           min.isFinite, max.isFinite, min > 0, max >= min {
+            clips.append(.text(pace < min ? "Too fast for target pace." :
+                pace > max ? "Too slow for target pace." : "On target pace."))
+        }
+        tts.speakSequence(clips)
+    }
+
+    func delayPaceUpdates(after elapsedTime: TimeInterval) {
+        lastPaceUpdateTime = elapsedTime
+    }
 
     // Halfway tracking
     private var hasAnnouncedHalfway = false
@@ -111,6 +192,8 @@ final class VoiceCoachService {
     func announceKmSplit(kilometer: Int, paceSecPerKm: Double, totalElapsedTime: TimeInterval, avgPaceSecPerKm: Double? = nil, isDistanceFocused: Bool = false, targetComparison: String? = nil) {
         guard settings.isEnabled, settings.announceKmSplits else { return }
 
+        // A distance pace update on this same kilometer replaces split speech.
+        guard lastDistanceUpdateKm != kilometer else { return }
         let unitPrefix = settings.paceUnit == .km ? "km" : "mile"
         let unitName = settings.paceUnit == .km ? "Kilometer" : "Mile"
 
@@ -149,6 +232,7 @@ final class VoiceCoachService {
     /// "back on pace" immediately after a successful correction.
     func announcePaceZoneChange(from oldZone: PaceZone, to newZone: PaceZone, diffSeconds: Int = 0) {
         guard settings.isEnabled, settings.announcePaceZone else { return }
+        guard settings.paceUpdateFrequency == .default else { return }
         guard newZone != .noTarget else { return }
         guard newZone != lastAnnouncedPaceZone else { return }
 
@@ -175,7 +259,7 @@ final class VoiceCoachService {
         case .slightlyFast:
             text = "\(absDiff) \(secWord) ahead of pace."
         case .onPace:
-            text = isRecovery ? "Back on pace." : nil
+            text = isRecovery ? "Back on target pace." : "On target pace."
         case .noTarget:
             text = nil
         }
@@ -704,6 +788,12 @@ final class VoiceCoachService {
             .replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
     }
 
+    /// Phase changes are essential workout instructions, independent of pace-zone chatter.
+    func announcePacePhase(paceText: String, distanceKm: Double) {
+        guard settings.isEnabled else { return }
+        tts.speakSequence([.text("Final \(Self.spokenDistance(distanceKm)) kilometers. Change to \(paceText) per kilometer.")])
+    }
+
     func announceWorkoutCompleted() {
         guard settings.isEnabled else { return }
         tts.speakSequence([.bundled("run_complete", fallbackText: "Workout completed. Nice work.")])
@@ -713,6 +803,9 @@ final class VoiceCoachService {
 
     func reset() {
         tts.stopSpeaking()
+        lastPaceUpdateBucket = 0
+        lastPaceUpdateTime = 0
+        lastDistanceUpdateKm = -1
         hasAnnouncedHalfway = false
         hasAnnounced30Min = false
         hasAnnounced60Min = false

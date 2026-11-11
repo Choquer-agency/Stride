@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DailyRunLogView: View {
     let runLogs: [RunLog]
+    var onSelect: ((RunLog) -> Void)? = nil
 
     /// Completed runs, sorted most recent first
     private var recentRuns: [RunLog] {
@@ -22,7 +23,13 @@ struct DailyRunLogView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(recentRuns.prefix(10)), id: \.id) { run in
-                        RunLogRow(runLog: run)
+                        Button { onSelect?(run) } label: {
+                            HStack(spacing: 8) {
+                                RunLogRow(runLog: run)
+                                Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+                            }
+                            .contentShape(Rectangle())
+                        }.buttonStyle(.plain)
 
                         if run.id != recentRuns.prefix(10).last?.id {
                             Divider()
@@ -33,7 +40,7 @@ struct DailyRunLogView: View {
             }
         }
         .padding(16)
-        .background(Color(hex: "F9F9F9"))
+        .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

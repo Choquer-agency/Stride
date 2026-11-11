@@ -519,11 +519,16 @@ class PlanParser {
     }
     
     private static func inferWorkoutType(from description: String) -> WorkoutType {
-        let lower = description.lowercased()
-        
-        if lower.contains("rest") || lower.contains("off") {
+        // Classify the prescription heading, not incidental coaching notes such as
+        // "race day", "restless legs", or "no Peloton this week" later in a run.
+        let text = description.lowercased()
+        let heading = /^(.*?)(?:\s+[–—-]\s+|:\s+|$)/
+        let lower = text.firstMatch(of: heading).map { String($0.1) } ?? text
+
+        let startsAsRun = lower.firstMatch(of: /^(?:long\s+run|easy\s+run|run|recovery|tempo|threshold|intervals?|fartlek|hill(?:\s+repeats?)?)\b/) != nil
+        if lower.firstMatch(of: /^(?:(?:full\s+)?rest|(?:day\s+)?off)\b/) != nil {
             return .rest
-        } else if lower.hasPrefix("race day") || lower == "race" || lower.contains("race day") {
+        } else if lower.hasPrefix("race day") || lower == "race" || (!startsAsRun && lower.contains("race day")) {
             return .race
         } else if lower.contains("peloton") || lower.contains("bike") || lower.contains("cycling")
                     || lower.contains("spin class") || lower.contains("pilates") {
@@ -567,6 +572,16 @@ class PlanParser {
     }
     
     private static func extractDistance(from description: String) -> Double? {
+        // Explicit session total wins over distances mentioned in coaching prose or interval blocks.
+        let totalPattern = /(?i)total[:\s]+(\d+\.?\d*)\s*km/
+        if let match = description.firstMatch(of: totalPattern) {
+            let distance = Double(match.1)
+            #if DEBUG
+            print("  📏 Extracted distance from 'Total': \(distance ?? 0) km from: \(description)")
+            #endif
+            return distance
+        }
+
         // Match patterns like "10km", "10 km", "10.5km", "10.5 km", "Total: 12 km"
         // Also handles "8–10 km" by taking the first number
         let pattern = /(?i)(\d+\.?\d*)\s*km/
@@ -584,16 +599,6 @@ class PlanParser {
             let distance = Double(match.1)
             #if DEBUG
             print("  📏 Extracted distance: \(distance ?? 0) km from: \(description)")
-            #endif
-            return distance
-        }
-        
-        // Try matching "Total: X km" format explicitly
-        let totalPattern = /(?i)total[:\s]+(\d+\.?\d*)\s*km/
-        if let match = description.firstMatch(of: totalPattern) {
-            let distance = Double(match.1)
-            #if DEBUG
-            print("  📏 Extracted distance from 'Total': \(distance ?? 0) km from: \(description)")
             #endif
             return distance
         }

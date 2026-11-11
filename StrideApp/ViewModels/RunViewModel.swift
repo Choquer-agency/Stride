@@ -7,7 +7,10 @@ import os.log
 private let runLog = Logger(subsystem: "com.stride.app", category: "RunViewModel")
 
 // MARK: - Run Result (snapshot of completed run data)
-struct RunResult {
+struct RunResult: Codable {
+    var sessionID: UUID = UUID()
+    var completedAt: Date = Date()
+    var recoveryNotice: String? = nil
     let distanceKm: Double
     let durationSeconds: Double
     let avgPaceSecPerKm: Double
@@ -34,6 +37,10 @@ struct RunResult {
     let avgHeartRate: Int?
     let maxHeartRate: Int?
     let hrSamplesJSON: String?
+
+    // Full-run speed history for the completion chart; independent of the rolling live graph.
+    var speedSamples: [RunSpeedSample] = []
+    var plannedWorkoutDetails: String? = nil
 
     // Pause tracking
     let totalPauseDurationSeconds: Double
@@ -92,6 +99,11 @@ struct RunResult {
 
 /// Codable heart-rate sample persisted to RunLog.hrSamplesJSON — `t` is
 /// seconds of elapsed run time, matching the server's hr_samples_json shape.
+struct RunSpeedSample: Codable {
+    let t: TimeInterval
+    let kmh: Double
+}
+
 struct CodableHRSample: Codable {
     let t: TimeInterval
     let bpm: Int
@@ -179,6 +191,7 @@ class RunViewModel: ObservableObject {
     // MARK: - Published Properties (matching RunView's UI bindings)
     @Published var elapsedTime: TimeInterval = 0          // seconds (validated, never regresses)
     @Published var distance: Double = 0.0                 // km (validated, never regresses)
+    @Published var speedKmh: Double = 0
     @Published var currentPace: String = "--:--"          // M:SS /km (smoothed)
     @Published var paceDrift: String = "--"               // "+X.Xs" or "-X.Xs"
     @Published var heartRate: Int = 0                     // live BPM (BLE broadcast or FTMS), 0 = no signal
@@ -194,13 +207,19 @@ class RunViewModel: ObservableObject {
 
     // MARK: - Planned Workout Target (optional, set when running a planned workout)
     @Published var plannedWorkoutTitle: String?
+    private var plannedWorkoutDetails: String?
     @Published var plannedWorkoutType: WorkoutType?
     @Published var targetDistanceKm: Double?
+    private var plannedPaceDescription: String?
     @Published var targetPaceDescription: String?
     @Published var targetDurationMinutes: Int?
     @Published var isPlannedRun: Bool = false
 
     // MARK: - Interval Mode (structured fartleks/intervals auto-advance)
+    @Published var pacePhaseAnnouncement: String?
+    private var progressionSegments: [IntervalSegment] = []
+    private var progressionIndex = 0
+    private var lastPacePhaseChangeTime: TimeInterval = -.infinity
     @Published var intervalSegments: [IntervalSegment] = []
     @Published var intervalIndex: Int = 0
     @Published var intervalPhaseRemaining: Double = 0          // timed phases
@@ -214,6 +233,11 @@ class RunViewModel: ObservableObject {
 
     var intervalPhaseElapsed: Double { max(0, elapsedTime - segmentStartTime) }
 
+    @Published var isStrideWorkout = false
+    var stridePreparationCountdown: Int? {
+        guard isStrideWorkout, !intervalComplete, currentIntervalSegment?.paceText == "Get ready for a stride" else { return nil }
+        return max(1, Int(ceil(intervalPhaseRemaining)))
+    }
     var isIntervalWorkout: Bool { !intervalSegments.isEmpty }
     var currentIntervalSegment: IntervalSegment? {
         guard intervalIndex < intervalSegments.count else { return intervalSegments.last }
@@ -270,10 +294,41 @@ class RunViewModel: ObservableObject {
 
     // MARK: - Internal State
     private var dataProvider: RunDataProvider?
+    private(set) var sessionID = UUID()
+    private var recoveryOwnerID: String?
+    private var lastCheckpointAt: Date?
+    private var runFinishedAt: Date?
+    private var lifecycleCancellables = Set<AnyCancellable>()
+
+    init() {
+        NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)
+            .sink { [weak self] _ in self?.persistRunCheckpoint(force: true) }
+            .store(in: &lifecycleCancellables)
+    }
+
+    func prepareRecovery(ownerID: String) {
+        recoveryOwnerID = ownerID
+    }
+
+    private func persistRunCheckpoint(force: Bool = false) {
+        guard let recoveryOwnerID, dataProvider != nil else { return }
+        let now = Date()
+        guard force || lastCheckpointAt.map({ now.timeIntervalSince($0) >= 5 }) != false else { return }
+        if !isPaused, !runStopped, let start = displayTimerStart {
+            elapsedTime = max(elapsedTime, now.timeIntervalSince(start) - displayTimerPausedDuration)
+        }
+        do {
+            try RunRecoveryStore.save(buildRunResult(), ownerID: recoveryOwnerID)
+            lastCheckpointAt = now
+        } catch {
+            runLog.error("Could not checkpoint run: \(error.localizedDescription)")
+        }
+    }
 
     // Heart-rate capture (BLE broadcast subscription + per-run sample log)
     private var hrCancellables = Set<AnyCancellable>()
     private var hrSamples: [(t: TimeInterval, bpm: Int)] = []
+    private var speedSamples: [RunSpeedSample] = []
 
     /// Whether a data provider is already attached (guards double-attach on re-appear).
     var hasActiveProvider: Bool { dataProvider != nil }
@@ -362,9 +417,15 @@ class RunViewModel: ObservableObject {
         }
         provider.start()
 
-        // GPS runs need an independent display timer (GPS updates only come when you move)
-        if provider.dataSourceType == "gps" {
-            startDisplayTimer()
+        // Every run uses a workout-relative clock, including gaps between BLE packets.
+        startDisplayTimer()
+        let state = liveActivityState()
+        let id = sessionID.uuidString
+        let title = plannedWorkoutTitle ?? "Free Run"
+        let isOutdoor = provider.dataSourceType == "gps"
+        Task { @MainActor in
+            RunLiveActivityCoordinator.shared.start(sessionID: id, title: title,
+                                                    isOutdoor: isOutdoor, state: state)
         }
     }
 
@@ -376,6 +437,7 @@ class RunViewModel: ObservableObject {
     /// flows in via handleRunSample as a fallback.
     private func startHeartRateCapture() {
         hrSamples = []
+        speedSamples = []
         // HeartRateManager is @MainActor; RunViewModel is not — hop over.
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -387,7 +449,8 @@ class RunViewModel: ObservableObject {
                 .sink { [weak self] bpm in
                     guard let self else { return }
                     if let bpm, bpm > 0 { self.recordHeartRate(bpm) }
-                    else { self.heartRate = 0 }
+                    // An absent watch reading must not erase the treadmill's HR fallback.
+                    else if self.hrSamples.last.map({ self.elapsedTime - $0.t > 10 }) != false { self.heartRate = 0 }
                 }
                 .store(in: &self.hrCancellables)
 
@@ -440,7 +503,9 @@ class RunViewModel: ObservableObject {
         }
         elapsedTime = Date().timeIntervalSince(start) - displayTimerPausedDuration
         updateIntervalEngine()
+        publishLiveActivity()
         checkWorkoutCompletion()
+        persistRunCheckpoint()
     }
 
     /// Load a planned workout's targets into the view model.
@@ -448,13 +513,26 @@ class RunViewModel: ObservableObject {
         isPlannedRun = true
         plannedWorkoutId = workout.id
         plannedWorkoutTitle = workout.title
+        plannedWorkoutDetails = workout.details
         plannedWorkoutType = workout.workoutType
         targetDistanceKm = workout.distanceKm
+        plannedPaceDescription = workout.paceDescription
         targetPaceDescription = workout.paceDescription
         targetDurationMinutes = workout.durationMinutes
 
+        pacePhaseAnnouncement = nil
+        progressionIndex = 0
+        lastPacePhaseChangeTime = -.infinity
+        progressionSegments = IntervalWorkoutParser.progression(workout.details, totalKm: workout.distanceKm)
+
         // Structured workout? Build the auto-advancing segment list.
         intervalSegments = IntervalWorkoutParser.parse(workout.details ?? workout.title)
+        isStrideWorkout = false
+        if intervalSegments.isEmpty {
+            intervalSegments = IntervalWorkoutParser.strides(workout.details ?? workout.title,
+                totalKm: workout.distanceKm, easyPace: workout.paceDescription)
+            isStrideWorkout = !intervalSegments.isEmpty
+        }
         intervalPrescriptionWarning = nil
         if intervalSegments.isEmpty, [.intervals, .fartlek, .hillRepeats].contains(workout.workoutType) {
             intervalPrescriptionWarning = workout.details ?? workout.title
@@ -482,6 +560,10 @@ class RunViewModel: ObservableObject {
         basePaceMin = targetPaceMinSec
         basePaceMax = targetPaceMaxSec
         if let first = intervalSegments.first { applyIntervalPace(first) }
+        if let first = progressionSegments.first {
+            applyIntervalPace(first)
+            targetPaceDescription = first.paceText
+        }
     }
 
     /// Snapshot the current run state into a RunResult for the summary screen.
@@ -517,6 +599,8 @@ class RunViewModel: ObservableObject {
         }()
 
         return RunResult(
+            sessionID: sessionID,
+            completedAt: runFinishedAt ?? Date(),
             distanceKm: distance,
             durationSeconds: elapsedTime,
             avgPaceSecPerKm: avgPace,
@@ -525,7 +609,7 @@ class RunViewModel: ObservableObject {
             plannedWorkoutTitle: plannedWorkoutTitle,
             plannedWorkoutType: plannedWorkoutType,
             targetDistanceKm: targetDistanceKm,
-            targetPaceDescription: targetPaceDescription,
+            targetPaceDescription: plannedPaceDescription ?? targetPaceDescription,
             targetDurationMinutes: targetDurationMinutes,
             dataSource: dataProvider?.dataSourceType ?? "manual",
             treadmillBrand: dataProvider?.deviceName,
@@ -535,6 +619,8 @@ class RunViewModel: ObservableObject {
             avgHeartRate: avgHR,
             maxHeartRate: maxHR,
             hrSamplesJSON: hrJSON,
+            speedSamples: speedSamples,
+            plannedWorkoutDetails: plannedWorkoutDetails,
             totalPauseDurationSeconds: displayTimerPausedDuration,
             completedPauseDurations: completedPauseDurations
         )
@@ -542,6 +628,12 @@ class RunViewModel: ObservableObject {
 
     /// Reset all state for a new run.
     func reset() {
+        finishLiveActivity()
+        if let recoveryOwnerID { RunRecoveryStore.remove(ownerID: recoveryOwnerID) }
+        recoveryOwnerID = nil
+        lastCheckpointAt = nil
+        runFinishedAt = nil
+        sessionID = UUID()
         // Stop any active provider
         dataProvider?.stop()
         dataProvider = nil
@@ -552,12 +644,14 @@ class RunViewModel: ObservableObject {
         runStopped = false
         elapsedTime = 0
         distance = 0.0
+        speedKmh = 0
         currentPace = "--:--"
         paceDrift = "--"
         heartRate = 0
         heartRateZone = .zone2
         stopHeartRateCapture()
         hrSamples = []
+        speedSamples = []
         kilometerSplits = []
         paceGraphDataPoints = []
         paceGraphPaces = []
@@ -565,6 +659,10 @@ class RunViewModel: ObservableObject {
         paceGraphDistances = []
         intervalPrescriptionWarning = nil
         paceGraphSamples = []
+        isStrideWorkout = false
+        progressionSegments = []
+        progressionIndex = 0
+        pacePhaseAnnouncement = nil
         intervalSegments = []
         intervalIndex = 0
         intervalPhaseRemaining = 0
@@ -598,9 +696,11 @@ class RunViewModel: ObservableObject {
         isPlannedRun = false
         plannedWorkoutId = nil
         plannedWorkoutTitle = nil
+        plannedWorkoutDetails = nil
         plannedWorkoutType = nil
         targetDistanceKm = nil
         targetPaceDescription = nil
+        plannedPaceDescription = nil
         targetDurationMinutes = nil
 
         // Clear pace zone
@@ -631,7 +731,10 @@ class RunViewModel: ObservableObject {
     /// Stops the data provider, timer, and voice coach without clearing state.
     /// Call this after buildRunResult() so the summary screen still has data.
     func stopRun() {
+        finishLiveActivity()
+        runFinishedAt = runFinishedAt ?? Date()
         runStopped = true
+        persistRunCheckpoint(force: true)
         dataProvider?.stop()
         stopHeartRateCapture()
         displayTimer?.invalidate()
@@ -647,8 +750,10 @@ class RunViewModel: ObservableObject {
         guard !runStopped else { return }
         dataProvider?.pause()
         isPaused = true
+        publishLiveActivity(force: true)
         displayTimerPauseStart = Date()
         voiceCoach.announcePaused()
+        persistRunCheckpoint(force: true)
     }
 
     func resumeRun() {
@@ -664,6 +769,9 @@ class RunViewModel: ObservableObject {
         displayTimerPauseStart = nil
         currentPauseDuration = 0
         isPaused = false
+        publishLiveActivity(force: true)
+        candidateZoneSince = elapsedTime
+        voiceCoach.delayPaceUpdates(after: elapsedTime)
         voiceCoach.announceResumed()
     }
 
@@ -671,52 +779,8 @@ class RunViewModel: ObservableObject {
 
     private func handleRunSample(_ sample: RunSample) {
         guard !runStopped, !isPaused else { return }
-        // Start the app-side fallback timer on the very first data packet
-        if runStartTime == nil {
-            runStartTime = Date()
-            // Interval countdowns must tick even between treadmill packets.
-            if isIntervalWorkout, displayTimer == nil { startDisplayTimer() }
-        }
-
-        // Update app-side elapsed time on every packet (independent of provider)
-        appElapsedTime = Date().timeIntervalSince(runStartTime!)
-
-        // 1. Elapsed Time — GPS runs use the display timer; treadmill uses provider time
-        let isGPSRun = displayTimer != nil
-        if !isGPSRun {
-            // Treadmill: validate provider-reported time (never allow regression)
-            if let sampleTime = sample.elapsedTime {
-                let newTime = sampleTime
-
-                if newTime >= elapsedTime {
-                    let jump = newTime - lastTreadmillTime
-                    if lastTreadmillTime > 0 && jump > maxReasonableTimeJump {
-                        timeAnomalyCount += 1
-                        runLog.warning(
-                            "Time jump anomaly #\(self.timeAnomalyCount): \(self.lastTreadmillTime)s -> \(newTime)s (jump: \(jump)s)"
-                        )
-                    }
-
-                    elapsedTime = newTime
-                    lastTreadmillTime = newTime
-                    usingFallbackTimer = false
-                } else {
-                    timeAnomalyCount += 1
-                    runLog.error(
-                        "Time regression anomaly #\(self.timeAnomalyCount): provider sent \(newTime)s but current is \(self.elapsedTime)s. Using fallback timer."
-                    )
-                    usingFallbackTimer = true
-                    elapsedTime = appElapsedTime
-                }
-            } else {
-                // Provider sent no elapsed-time field (not all consoles include
-                // it) — drive the clock from the app-side timer so time never
-                // sits frozen at 00:00:00 while data is flowing.
-                elapsedTime = appElapsedTime
-            }
-        }
-        // GPS: elapsedTime is updated by tickDisplayTimer() every second
-
+        // The workout clock starts when Start is pressed, independent of console totals.
+        // An independent timer also continues through temporary BLE outages.
         // 2. Distance — validated: never allow regression (meters -> km)
         if let distanceMeters = sample.totalDistanceMeters {
             let newDistanceKm = distanceMeters / 1000.0
@@ -730,6 +794,10 @@ class RunViewModel: ObservableObject {
                 )
                 // Keep the existing (higher) distance value
             }
+        }
+
+        if let speed = sample.speedMps {
+            recordSpeedSample(speed)
         }
 
         // 3. GPS route coordinates (for live map drawing)
@@ -749,6 +817,9 @@ class RunViewModel: ObservableObject {
         if let bpm = sample.heartRate, bpm > 0, !hrSourceConnected {
             recordHeartRate(bpm)
         }
+
+        // Apply distance boundaries before comparing this sample with the target.
+        updateIntervalEngine()
 
         // Live console speed describes current effort; odometer pace describes
         // distance over time. Do not force these different measurements to agree.
@@ -784,16 +855,26 @@ class RunViewModel: ObservableObject {
             // 6. Pace Zone — compare current pace to target range
             updatePaceZone(pace)
         } else {
+            candidateZoneSince = elapsedTime
             // Stopped, or not enough window yet — show --:-- for pace
-            currentPace = "--:--"
+            speedKmh = 0
+        currentPace = "--:--"
             paceDrift = "--"
         }
 
-        // 6b. Interval engine: auto-advance phases, no buttons
-        updateIntervalEngine()
+
+
+        voiceCoach.checkPaceUpdate(
+            distanceKm: distance, elapsedTime: elapsedTime, pace: pace,
+            targetMin: targetPaceMinSec, targetMax: targetPaceMaxSec,
+            reliable: pace.isFinite && pace > 0 && elapsedTime >= 12 &&
+                (paceZone == .noTarget || elapsedTime - candidateZoneSince >= 12)
+        )
 
         // 7. Kilometer Split Detection
         checkForKilometerSplit()
+        persistRunCheckpoint()
+        publishLiveActivity()
 
         if checkWorkoutCompletion() { return }
 
@@ -829,6 +910,45 @@ class RunViewModel: ObservableObject {
         )
     }
 
+    private func liveActivityState() -> StrideRunAttributes.ContentState {
+        StrideRunAttributes.ContentState(
+            pace: currentPace,
+            distanceKm: distance,
+            targetDistanceKm: targetDistanceKm,
+            elapsedSeconds: Int(elapsedTime),
+            heartRate: heartRate > 0 ? heartRate : nil,
+            isPaused: isPaused,
+            updatedAt: Date()
+        )
+    }
+
+    private func publishLiveActivity(force: Bool = false) {
+        guard dataProvider != nil, !runStopped else { return }
+        let id = sessionID.uuidString
+        let state = liveActivityState()
+        Task { @MainActor in
+            RunLiveActivityCoordinator.shared.publish(sessionID: id, state: state, force: force)
+        }
+    }
+
+    private func finishLiveActivity() {
+        let id = sessionID.uuidString
+        let state = liveActivityState()
+        Task { @MainActor in
+            RunLiveActivityCoordinator.shared.finish(sessionID: id, state: state)
+        }
+    }
+
+    /// Full-run history is independent of the rolling 500 m graph. Missing speed
+    /// fields never call this method, while real stops remain zero-speed readings.
+    private func recordSpeedSample(_ speedMps: Double) {
+        guard !isPaused, !runStopped, speedMps.isFinite, speedMps >= 0 else { return }
+        speedKmh = speedMps * 3.6
+        if speedSamples.last.map({ elapsedTime - $0.t >= 1 }) ?? true {
+            speedSamples.append(RunSpeedSample(t: elapsedTime, kmh: speedKmh))
+        }
+    }
+
     private var consolePace: Double?
     private var consolePaceTimestamp: Date?
 
@@ -844,7 +964,7 @@ class RunViewModel: ObservableObject {
     private func checkWorkoutCompletion() -> Bool {
         guard !runStopped, !isPaused else { return false }
         let reached: Bool
-        if isIntervalWorkout {
+        if isIntervalWorkout && !isStrideWorkout {
             reached = intervalComplete
         } else if let target = targetDistanceKm, target > 0 {
             reached = distance >= target
@@ -891,8 +1011,12 @@ class RunViewModel: ObservableObject {
     private let recoveryZoneDuration: TimeInterval = 12.0
 
     private func updatePaceZone(_ smoothedPace: Double) {
-        guard let minPace = targetPaceMinSec, let maxPace = targetPaceMaxSec else {
+        guard let minPace = targetPaceMinSec, let maxPace = targetPaceMaxSec,
+              minPace.isFinite, maxPace.isFinite, minPace > 0, maxPace >= minPace,
+              smoothedPace.isFinite, smoothedPace > 0 else {
             paceZone = .noTarget
+            candidateZone = .noTarget
+            candidateZoneSince = elapsedTime
             return
         }
 
@@ -1078,7 +1202,9 @@ class RunViewModel: ObservableObject {
             // Voice: announce the completed km split, unless this km coincides with
             // a milestone that will speak its own line (halfway, finish) — in which case
             // the milestone announcement replaces the standard split.
-            if let paceSeconds = latestSplit.pace.toSeconds {
+            // The finishing km belonged to the preceding target. Let the new phase
+            // instruction take priority rather than judging it against the faster target.
+            if elapsedTime - lastPacePhaseChangeTime > 3, let paceSeconds = latestSplit.pace.toSeconds {
                 let avgPace = distance > 0 ? elapsedTime / distance : 0
                 let kmDouble = Double(latestSplit.kilometer)
 
@@ -1229,7 +1355,31 @@ class RunViewModel: ObservableObject {
 
     // MARK: - Interval Engine
 
+    private func updateProgressionPace() {
+        guard !isPaused, !runStopped, progressionSegments.count > 1 else { return }
+        var boundary = 0.0
+        var activeIndex = 0
+        for index in 0..<(progressionSegments.count - 1) {
+            boundary += progressionSegments[index].distanceKm ?? 0
+            if distance >= boundary { activeIndex = index + 1 }
+        }
+        guard activeIndex != progressionIndex else { return }
+        progressionIndex = activeIndex
+        lastPacePhaseChangeTime = elapsedTime
+        let segment = progressionSegments[activeIndex]
+        applyIntervalPace(segment)
+        targetPaceDescription = segment.paceText
+        candidateZone = .noTarget
+        candidateZoneSince = elapsedTime
+        distanceOnlyMode = false
+        let distanceText = VoiceCoachService.spokenDistance(segment.distanceKm ?? 0)
+        pacePhaseAnnouncement = "Final \(distanceText) km · Target \(segment.paceText) /km"
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        voiceCoach.announcePacePhase(paceText: segment.paceText, distanceKm: segment.distanceKm ?? 0)
+    }
+
     private func updateIntervalEngine() {
+        updateProgressionPace()
         guard !isPaused, !runStopped, isIntervalWorkout, !intervalComplete,
               intervalIndex < intervalSegments.count else { return }
         let segment = intervalSegments[intervalIndex]
@@ -1237,11 +1387,12 @@ class RunViewModel: ObservableObject {
         if let duration = segment.durationSec {
             let inPhase = elapsedTime - segmentStartTime
             intervalPhaseRemaining = max(0, duration - inPhase)
-            // 3-2-1 haptic ticks into the next phase
+            // Three rising pings lead into the next phase, including recovery.
             let whole = Int(ceil(intervalPhaseRemaining))
             if whole <= 3, whole >= 1, whole != lastCountdownTick {
                 lastCountdownTick = whole
                 UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                IntervalCuePlayer.shared.countdown(whole)
             }
             if inPhase >= duration {
                 let boundary = segmentStartTime + duration
@@ -1259,6 +1410,7 @@ class RunViewModel: ObservableObject {
 
     private func advanceIntervalSegment() {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        IntervalCuePlayer.shared.completed()
         lastCountdownTick = -1
         segmentStartTime = elapsedTime
         segmentStartDistance = distance
@@ -1271,6 +1423,10 @@ class RunViewModel: ObservableObject {
             applyIntervalPace(segment)
         } else {
             intervalComplete = true
+            if isStrideWorkout {
+                targetPaceMinSec = basePaceMin
+                targetPaceMaxSec = basePaceMax
+            }
         }
     }
 
@@ -1322,5 +1478,47 @@ class RunViewModel: ObservableObject {
         paceGraphDataPoints = paces.map { pace in
             1.0 - ((pace - displayMin) / (displayMax - displayMin))
         }
+    }
+}
+
+
+/// Account-scoped, atomic snapshots survive process termination and auth-screen rebuilds.
+/// Recovery opens the last measured state for review; it never invents unrecorded distance/time.
+enum RunRecoveryStore {
+    struct Checkpoint: Codable {
+        let ownerID: String
+        let savedAt: Date
+        let result: RunResult
+    }
+
+    private static func fileURL(ownerID: String) -> URL? {
+        guard let id = UUID(uuidString: ownerID),
+              let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        return directory.appendingPathComponent("stride-run-\(id.uuidString.lowercased()).json")
+    }
+
+    static func save(_ result: RunResult, ownerID: String) throws {
+        guard let url = fileURL(ownerID: ownerID) else { return }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let data = try JSONEncoder().encode(Checkpoint(ownerID: ownerID, savedAt: Date(), result: result))
+        var options: Data.WritingOptions = [.atomic]
+        #if os(iOS)
+        options.insert(.completeFileProtectionUntilFirstUserAuthentication)
+        #endif
+        try data.write(to: url, options: options)
+    }
+
+    static func load(ownerID: String) -> Checkpoint? {
+        guard let url = fileURL(ownerID: ownerID), let data = try? Data(contentsOf: url),
+              let checkpoint = try? JSONDecoder().decode(Checkpoint.self, from: data),
+              checkpoint.ownerID.lowercased() == ownerID.lowercased(),
+              checkpoint.result.distanceKm.isFinite, checkpoint.result.distanceKm >= 0,
+              checkpoint.result.durationSeconds.isFinite, checkpoint.result.durationSeconds >= 0 else { return nil }
+        return checkpoint
+    }
+
+    static func remove(ownerID: String) {
+        guard let url = fileURL(ownerID: ownerID) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 }

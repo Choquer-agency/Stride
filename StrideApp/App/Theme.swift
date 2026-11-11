@@ -167,3 +167,34 @@ extension View {
         modifier(CardStyle())
     }
 }
+
+// MARK: - Run lobby appearance
+/// A single stored choice drives the lobby, its background, and the floating menu.
+enum RunLobbyAppearance: String, CaseIterable {
+    case black, white, red
+    static let storageKey = "runLobbyAppearance"
+    var next: Self {
+        switch self { case .black: return .white; case .white: return .red; case .red: return .black }
+    }
+    var colorScheme: ColorScheme { self == .white ? .light : .dark }
+    var foreground: Color { self == .white ? Color(white: 0.08) : .white }
+    var secondary: Color { foreground.opacity(self == .white ? 0.62 : 0.72) }
+    var background: Color { self == .white ? Color(white: 0.98) : Color(white: 0.035) }
+    var imageName: String {
+        switch self { case .black: return "RunPortraitBlack"; case .white: return "RunPortraitWhite"; case .red: return "RunPortraitRed" }
+    }
+    var icon: String {
+        switch self { case .black: return "moon"; case .white: return "sun.max"; case .red: return "sun.max.fill" }
+    }
+}
+
+extension Font {
+    static func runEyebrow(_ size: CGFloat = 11) -> Font { .custom("IBMPlexMono-Regular", size: size, relativeTo: .caption) }
+}
+
+/// Keep unredesigned screens and active run recording on their existing appearance.
+@MainActor
+final class RunLobbyPresentation: ObservableObject {
+    static let shared = RunLobbyPresentation()
+    @Published var isVisible = false
+}

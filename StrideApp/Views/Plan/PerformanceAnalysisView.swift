@@ -204,7 +204,7 @@ struct PerformanceAnalysisView: View {
             .padding(.bottom, 40)
             .animation(.spring(response: 0.5), value: viewModel.isComplete)
         }
-        .background(Color(.systemBackground))
+        .strideSecondaryScreen()
         .onAppear {
             startTimer()
             Task {

@@ -60,6 +60,7 @@ struct EventsView: View {
             .padding(.vertical, 12)
         }
         .navigationTitle("Events")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
         .onAppear {
             viewModel.loadEvents()

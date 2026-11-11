@@ -71,6 +71,7 @@ struct TempWorkoutEditView: View {
             }
         }
         .navigationTitle("Edit Run Data")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showEditor) {
             if let workout = selectedWorkout {

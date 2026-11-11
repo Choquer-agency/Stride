@@ -143,6 +143,9 @@ class PostRunCoachRequest(BaseModel):
     total_time: str
     avg_pace: str
     km_splits: list[KmSplitData] = []
+    planned_workout_title: Optional[str] = None
+    planned_workout_details: Optional[str] = None
+    phase_execution: Optional[str] = None
     pace_consistency_pct: Optional[float] = None
     negative_split: bool = False
     avg_hr: Optional[int] = None

@@ -7,7 +7,6 @@ struct PlanView: View {
     @ObservedObject private var planSync = PlanSyncService.shared
     @State private var selectedWeekNumber: Int
     @State private var selectedWorkout: Workout?
-    @State private var lastHapticWeek: Int = 0
     @State private var showDeleteConfirmation = false
     @State private var showEditSheet = false
     @State private var showAnalysisSheet = false
@@ -19,9 +18,10 @@ struct PlanView: View {
     let readOnly: Bool
 
     // MARK: - Init (compute starting week immediately to avoid week-1 flash)
-    init(plan: TrainingPlan, readOnly: Bool = false) {
+    init(plan: TrainingPlan, readOnly: Bool = false, onOpenProfile: @escaping () -> Void = {}) {
         self.plan = plan
         self.readOnly = readOnly
+        self.onOpenProfile = onOpenProfile
         
         // Determine the correct starting week: current week > last week (if plan past) > first week
         let initialWeek: Int
@@ -63,107 +63,14 @@ struct PlanView: View {
     
     /// Whether there is a next week to navigate to
     private var hasNextWeek: Bool {
-        selectedWeekNumber < totalWeeks
-    }
-    
-    // Group workouts by date for the selected week (to handle multiple workouts per day)
-    private var workoutsByDay: [(date: Date, workouts: [Workout])] {
-        guard let week = selectedWeek else { return [] }
-        
-        let calendar = Calendar.current
-        let grouped = Dictionary(grouping: week.sortedWorkouts) { workout in
-            calendar.startOfDay(for: workout.date)
-        }
-
-        // Flexible week: a session moved to the day it was done can leave its
-        // scheduled day empty — always show all seven days, empty ones as rest.
-        if plan.isFlexibleSchedule, let monday = week.mondayStart {
-            return (0..<7).compactMap { offset -> (date: Date, workouts: [Workout])? in
-                guard let date = calendar.date(byAdding: .day, value: offset, to: monday) else { return nil }
-                let day = calendar.startOfDay(for: date)
-                return (date: day, workouts: (grouped[day] ?? []).sorted { $0.date < $1.date })
-            }
-        }
-
-        return grouped.keys.sorted().map { date in
-            (date: date, workouts: grouped[date]!.sorted { $0.date < $1.date })
-        }
+        plan.sortedWeeks.contains { $0.weekNumber > selectedWeekNumber }
     }
     
     // MARK: - Body
     var body: some View {
-        VStack(spacing: 0) {
-            // Plan Header
-            planHeaderView
-                .padding(.horizontal, 16)
-                .padding(.top, 30)
-            
-            // Week Selector
-            weekSelectorView
-                .padding(.top, 16)
-            
-            // Day Cards
-            ScrollViewReader { dayProxy in
-                ScrollView {
-                    LazyVStack(spacing: 8) {
-                        // v2 Phase 2: pinned active focuses from latest weekly review
-                        if !readOnly {
-                            if planSync.pendingServerPlan != nil {
-                                serverPlanUpdateCard
-                                    .padding(.top, 8)
-                            }
-                            CheckinInviteCardView()
-                                .padding(.top, 8)
-                            ActiveFocusesCardView()
-                                .padding(.top, 8)
-                        }
-                        ForEach(workoutsByDay, id: \.date) { dayData in
-                            let isToday = Calendar.current.isDateInToday(dayData.date)
-                            DayCardView(
-                                date: dayData.date,
-                                workouts: dayData.workouts,
-                                onWorkoutTap: { workout in
-                                    selectWorkout(workout)
-                                },
-                                onWorkoutComplete: { workout in
-                                    if !readOnly {
-                                        toggleWorkoutCompletion(workout)
-                                    }
-                                }
-                            )
-                            .id(dayData.date)
-                            .overlay(
-                                // Invisible anchor for scrolling to today
-                                Group {
-                                    if isToday {
-                                        Color.clear.anchorPreference(key: TodayAnchorKey.self, value: .top) { $0 }
-                                    }
-                                }
-                            )
-                        }
-                        
-                        // "Go to next week" card — only visible when all workouts are done
-                        if allWorkoutsCompleted && hasNextWeek {
-                            nextWeekCard
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
-                    .padding(.bottom, 16)
-                }
-                .onAppear {
-                    // Auto-scroll to today's card if it exists in the current week
-                    if let todayDate = workoutsByDay.first(where: { Calendar.current.isDateInToday($0.date) })?.date {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                            withAnimation {
-                                dayProxy.scrollTo(todayDate, anchor: .top)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        .background(Color(.systemBackground))
+        designBody
+        .background { if readOnly { PlanPageBackdrop().ignoresSafeArea() } }
+        .preferredColorScheme(appearance.colorScheme)
         .task {
             if !readOnly {
                 await planSync.reconcile(context: modelContext)
@@ -176,7 +83,7 @@ struct PlanView: View {
                 onComplete: {
                     toggleWorkoutCompletion(workout)
                 }
-            )
+            ).preferredColorScheme(appearance.colorScheme)
         }
         .alert("Plan Options", isPresented: $showDeleteConfirmation) {
             Button("Archive Plan") {
@@ -191,129 +98,291 @@ struct PlanView: View {
         }
         .fullScreenCover(isPresented: $showEditSheet) {
             PlanEditInputView(plan: plan, initialInstructions: prefillEditInstruction)
+                .preferredColorScheme(.light)
                 .onDisappear {
                     prefillEditInstruction = nil
                 }
         }
         .sheet(isPresented: $showCoachChat) {
-            CoachChatView(trainingPlanId: nil)
+            CoachChatView(trainingPlanId: nil).preferredColorScheme(.light)
         }
         .sheet(isPresented: $showCoachInbox) {
-            CoachInboxView()
+            CoachInboxView().preferredColorScheme(.light)
         }
         .fullScreenCover(isPresented: $showAnalysisSheet) {
             PerformanceAnalysisView(plan: plan) { instruction in
                 prefillEditInstruction = instruction
                 showEditSheet = true
-            }
+            }.preferredColorScheme(.light)
         }
     }
     
-    // MARK: - Plan Header View
-    private var planHeaderView: some View {
-        VStack(spacing: 16) {
-            // Archived banner
-            if readOnly {
-                HStack(spacing: 6) {
-                    Image(systemName: "archivebox.fill")
-                        .font(.system(size: 12))
-                    Text("Archived Plan")
-                        .font(.inter(size: 13, weight: .medium))
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(Color(.tertiarySystemBackground))
-                .clipShape(Capsule())
-            }
-
-            // Top row: Ask Coach + Stride Logo + Three-dot menu
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    @ObservedObject private var auth = AuthService.shared
+    @State private var selectedDate: Date? = nil
+    @State private var showCoachTools = false
+    var onOpenProfile: () -> Void = {}
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var ink: Color { appearance.foreground }
+    private var muted: Color { appearance.secondary }
+    private var weekDays: [Date] {
+        guard let monday = selectedWeek?.mondayStart else { return [] }
+        return (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: monday) }
+    }
+    private var focusedDate: Date {
+        if let selectedDate, weekDays.contains(where: { Calendar.current.isDate($0, inSameDayAs: selectedDate) }) { return selectedDate }
+        return PlanDayScrollTarget.date(in: weekDays, today: Date()) ?? Date()
+    }
+    private func sessions(on date: Date) -> [Workout] {
+        TrainingSessionSelection.onDay(date, workouts: selectedWeek?.sortedWorkouts ?? [])
+    }
+    private var focusedSessions: [Workout] { sessions(on: focusedDate).sorted { ($0.workoutType == .rest ? 1 : 0) < ($1.workoutType == .rest ? 1 : 0) } }
+    private func isRun(_ workout: Workout) -> Bool {
+        ![WorkoutType.rest, .gym, .crossTraining, .mobility].contains(workout.workoutType)
+    }
+    private var weekRuns: [Workout] { selectedWeek?.sortedWorkouts.filter(isRun) ?? [] }
+    private var plannedKm: Double { weekRuns.reduce(0) { $0 + ($1.distanceKm ?? 0) } }
+    private var completedKm: Double { weekRuns.filter(\.isCompleted).reduce(0) { $0 + ($1.actualDistanceKm ?? $1.distanceKm ?? 0) } }
+    private func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...1))) }
+    private func eyebrow(_ text: String) -> some View { Text(text).font(.runEyebrow(9)).tracking(1.2).foregroundStyle(muted) }
+    private var initials: String {
+        switch auth.authState {
+        case .signedIn(let user), .needsProfile(let user):
+            let letters = (user.name ?? user.displayName ?? "").split(separator: " ").prefix(2).compactMap(\.first).map(String.init).joined()
+            return letters.isEmpty ? "You" : letters.uppercased()
+        default: return "You"
+        }
+    }
+    private var designHeader: some View {
+        StridePageHeader(profileAction: onOpenProfile, redUsesDarkLogo: true)
+    }
+    private var raceHeading: some View {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                if !readOnly {
-                    // v2 Phase 5: chat entry point. Mirrors the three-dot menu's footprint
-                    // on the opposite side so the logo stays centered.
-                    Button {
-                        showCoachChat = true
-                    } label: {
-                        Image(systemName: "bubble.left.and.text.bubble.right")
-                            .font(.title3)
-                            .foregroundStyle(Color.stridePrimary)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
-                    }
-                }
-
+                eyebrow(readOnly ? "ARCHIVED PLAN" : (plan.isHabitBlock ? "YOUR PLAN / BUILD THE HABIT" : "YOUR PLAN / ROAD TO RACE"))
                 Spacer()
-
-                StrideLogoView(height: 32)
-
-                Spacer()
-
-                if !readOnly {
-                    // Three-dot menu
-                    Menu {
-                        Button(action: { showCoachInbox = true }) {
-                            Label("Coach inbox", systemImage: "tray.full")
-                        }
-
-                        Divider()
-
-                        Button(action: {
-                            PostHogSDK.shared.capture("plan_edit_started")
-                            showEditSheet = true
-                        }) {
-                            Label("Edit Plan", systemImage: "pencil")
-                        }
-
-                        Button(action: {
-                            PostHogSDK.shared.capture("performance_analysis_opened")
-                            showAnalysisSheet = true
-                        }) {
-                            Label("Analyze Performance", systemImage: "chart.bar.xaxis")
-                        }
-                        .disabled(plan.completedWorkouts < 3)
-
-                        Button(role: .destructive, action: {
-                            showDeleteConfirmation = true
-                        }) {
-                            Label("Delete Plan", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.title3)
-                            .foregroundStyle(.primary)
-                            .frame(width: 32, height: 32)
-                            .contentShape(Rectangle())
-                    }
-                }
+                planOptions
             }
-
-            // Stats Row
-            HStack(spacing: 32) {
-                // Days Until Race
-                HStack(spacing: 8) {
-                    TimeIconView(size: 20)
-
-                    Text(plan.isHabitBlock
-                         ? "\(plan.daysUntilRace) Days Left in Block"
-                         : "\(plan.daysUntilRace) Days Until Race")
-                        .font(.inter(size: 14, weight: .medium))
-                        .foregroundStyle(.primary)
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text((plan.raceName?.isEmpty == false ? plan.raceName! : (plan.isHabitBlock ? "TRAINING BLOCK" : plan.displayDistance)).uppercased())
+                        .font(.barlowCondensed(size: 43)).lineLimit(1).minimumScaleFactor(0.55)
+                    Text(plan.raceDate.formatted(.dateTime.weekday(.wide).month(.wide).day().year()))
+                        .font(.inter(size: 12)).foregroundStyle(muted)
                 }
-
-                // Completed Sessions
-                HStack(spacing: 8) {
-                    FlagIconView(size: 20)
-
-                    Text("\(completedWorkoutsCount)/\(plan.totalWorkouts) Completed")
-                        .font(.inter(size: 14, weight: .medium))
-                        .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text("\(max(0, plan.daysUntilRace))").font(.barlowCondensed(size: 40)).monospacedDigit()
+                    eyebrow("DAYS TO GO").font(.runEyebrow(8))
                 }
             }
         }
-        .padding(.bottom, 8)
     }
-    
+    private var planOptions: some View {
+        Menu {
+            if !readOnly {
+                Button { showCoachChat = true } label: { Label("Ask Coach", systemImage: "bubble.left.and.text.bubble.right") }
+                Button { showCoachInbox = true } label: { Label("Coach inbox", systemImage: "tray.full") }
+                Button { showCoachTools = true } label: { Label("Check-in & active focuses", systemImage: "checklist") }
+                Button { PostHogSDK.shared.capture("plan_edit_started"); showEditSheet = true } label: { Label("Edit Plan", systemImage: "pencil") }
+                Button { showAnalysisSheet = true } label: { Label("Analyze Performance", systemImage: "chart.bar.xaxis") }.disabled(plan.completedWorkouts < 3)
+                Divider()
+                Button(role: .destructive) { showDeleteConfirmation = true } label: { Label("Archive or Delete Plan", systemImage: "archivebox") }
+            } else { Text("Archived plan · Read only") }
+        } label: {
+            Image(systemName: "ellipsis").font(.system(size: 16)).frame(width: 30, height: 24).foregroundStyle(muted)
+        }.accessibilityLabel("Plan options")
+    }
+    private var weeklyOverview: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            eyebrow("THIS WEEK / DISTANCE")
+            HStack(alignment: .bottom, spacing: 16) {
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
+                    Text(number(completedKm)).font(.barlowCondensed(size: 47))
+                    Text("/ \(number(plannedKm))").font(.barlowCondensed(size: 27)).foregroundStyle(muted)
+                    eyebrow("KM")
+                }.lineLimit(1).minimumScaleFactor(0.7)
+                Spacer(minLength: 0)
+                HStack(alignment: .bottom, spacing: 6) {
+                    ForEach(weekDays, id: \.self) { date in
+                        let distance = sessions(on: date).filter(isRun).reduce(0) { $0 + ($1.distanceKm ?? 0) }
+                        let maxDistance = max(1, weekRuns.compactMap(\.distanceKm).max() ?? 1)
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(Calendar.current.isDate(date, inSameDayAs: focusedDate) ? Color.stridePrimary : ink.opacity(0.10))
+                            .frame(width: 13, height: max(3, 46 * distance / maxDistance))
+                    }
+                }.frame(height: 49).accessibilityLabel("Planned daily distances for the selected week")
+            }
+            Rectangle().fill(ink.opacity(0.09)).frame(height: 0.5)
+            HStack {
+                Circle().fill(Color.stridePrimary).frame(width: 4, height: 4)
+                eyebrow("\(weekRuns.filter(\.isCompleted).count) / \(weekRuns.count) RUNS COMPLETE")
+                Spacer()
+                eyebrow("\(number(max(0, plannedKm - completedKm))) KM TO GO")
+            }
+        }.padding(18).background { glass }
+    }
+    private var glass: some View {
+        RoundedRectangle(cornerRadius: 28, style: .continuous).fill(.ultraThinMaterial)
+            .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(ink.opacity(appearance == .white ? 0.09 : 0.23), lineWidth: 0.6))
+    }
+    private var dayPicker: some View {
+        TabView(selection: $selectedWeekNumber) {
+            ForEach(plan.sortedWeeks, id: \.weekNumber) { week in
+                weekCalendar(for: week)
+                    .tag(week.weekNumber)
+            }
+        }
+        .tabViewStyle(.page(indexDisplayMode: .never))
+        .frame(height: 128)
+        .onChange(of: selectedWeekNumber) { _, _ in
+            selectedDate = nil
+            Haptics.selection()
+        }
+        .accessibilityHint("Swipe left for the next full week, right for the previous week. Double tap the week heading to return to this week.")
+    }
+    private func weekCalendar(for week: Week) -> some View {
+        let days: [Date] = week.mondayStart.map { monday in
+            (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: monday) }
+        } ?? []
+        return VStack(spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text("WEEK \(week.weekNumber)")
+                    .font(.barlowCondensed(size: 23, weight: .semibold))
+                    .onTapGesture(count: 2) { returnToCurrentWeek() }
+                    .accessibilityHint("Double tap to return to the current week")
+                eyebrow(week.dateRange.uppercased())
+                Spacer()
+                HStack(spacing: 14) {
+                    Button { changeWeek(forward: false) } label: { Image(systemName: "chevron.left") }
+                        .disabled(plan.sortedWeeks.first?.weekNumber == week.weekNumber).accessibilityLabel("Previous week")
+                    Button { changeWeek(forward: true) } label: { Image(systemName: "chevron.right") }
+                        .disabled(plan.sortedWeeks.last?.weekNumber == week.weekNumber).accessibilityLabel("Next week")
+                }.font(.system(size: 12)).buttonStyle(.plain).foregroundStyle(muted)
+            }
+            HStack(spacing: 6) {
+                ForEach(days, id: \.self) { date in
+                    weekDayButton(date, in: week)
+                }
+            }
+        }
+        .padding(.bottom, 7)
+    }
+    private func weekDayButton(_ date: Date, in week: Week) -> some View {
+        let selected = week.weekNumber == selectedWeekNumber && Calendar.current.isDate(date, inSameDayAs: focusedDate)
+        let today = Calendar.current.isDateInToday(date)
+        let complete = TrainingSessionSelection.isDayComplete(date, workouts: week.sortedWorkouts)
+        let accent: Color = today ? .stridePrimary : (complete ? .blue : ink)
+        let emphasized = selected || today
+        let fill = emphasized ? accent : (complete ? Color.blue.opacity(0.10) : ink.opacity(0.025))
+        let border = today ? Color.stridePrimary : (complete ? Color.blue.opacity(0.55) : ink.opacity(0.10))
+        return Button {
+            if selectedWeekNumber != week.weekNumber { selectedWeekNumber = week.weekNumber }
+            selectedDate = date
+            Haptics.selection()
+        } label: {
+            VStack(spacing: 4) {
+                Text(date.formatted(.dateTime.weekday(.narrow))).font(.runEyebrow(9))
+                Text(date.formatted(.dateTime.day())).font(.barlowCondensed(size: 25))
+                Group {
+                    if today { Text("TODAY").font(.runEyebrow(6)) }
+                    else if complete { Image(systemName: "checkmark").font(.system(size: 9, weight: .bold)) }
+                    else { Circle().frame(width: 3, height: 3) }
+                }
+                .frame(height: 10)
+                .foregroundStyle(emphasized ? Color.white : (complete ? Color.blue : muted))
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 76)
+            .foregroundStyle(emphasized ? Color.white : (complete ? Color.blue : ink))
+            .background(RoundedRectangle(cornerRadius: 18).fill(fill))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(border, lineWidth: today ? 1.2 : 0.6))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(date.formatted(.dateTime.weekday(.wide).month().day()))
+        .accessibilityValue(today ? "Today" : (complete ? "Completed" : "Planned"))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+    private func returnToCurrentWeek() {
+        guard let current = plan.currentWeek else { return }
+        withAnimation(.easeInOut(duration: 0.32)) {
+            selectedWeekNumber = current.weekNumber
+            selectedDate = Date()
+        }
+    }
+    private func changeWeek(forward: Bool) {
+        guard let next = TrainingSessionSelection.adjacentWeek(current: selectedWeekNumber, weeks: plan.sortedWeeks.map(\.weekNumber), forward: forward) else { return }
+        withAnimation(.easeInOut(duration: 0.32)) { selectedWeekNumber = next }
+    }
+    private var focusedSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                eyebrow(focusedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased())
+                Spacer()
+                let count = focusedSessions.filter { $0.workoutType != .rest }.count
+                eyebrow("\(count) SESSION\(count == 1 ? "" : "S")")
+            }
+            if focusedSessions.isEmpty {
+                Label("REST DAY", systemImage: "bed.double").font(.barlowCondensed(size: 27)).padding(.vertical, 18)
+            }
+            ForEach(focusedSessions, id: \.id) { workout in
+                Button { selectWorkout(workout) } label: { sessionRow(workout) }.buttonStyle(.plain)
+            }
+        }
+    }
+    private func sessionTint(_ workout: Workout) -> Color {
+        switch workout.workoutType {
+        case .gym, .crossTraining: return .purple
+        case .longRun: return .orange
+        case .mobility: return .teal
+        default: return workout.typeColor
+        }
+    }
+    private func sessionRow(_ workout: Workout) -> some View {
+        HStack(spacing: 13) {
+            RoundedRectangle(cornerRadius: 2).fill(sessionTint(workout)).frame(width: 3, height: 44)
+            Image(systemName: workout.workoutType.icon).font(.system(size: 20)).foregroundStyle(sessionTint(workout))
+                .frame(width: 34, height: 40)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(workout.title.uppercased()).font(.barlowCondensed(size: 27)).lineLimit(2)
+                Text(workout.paceDescription ?? workout.durationDisplay ?? workout.workoutType.displayName)
+                    .font(.inter(size: 12)).foregroundStyle(muted).lineLimit(1)
+                if workout.isCompleted {
+                    Label("COMPLETED", systemImage: "checkmark.circle.fill")
+                        .font(.system(size: 10, weight: .medium)).foregroundStyle(sessionTint(workout))
+                }
+            }
+            Spacer(minLength: 0)
+            if let km = workout.distanceKm {
+                VStack(spacing: 1) { Text(number(km)).font(.barlowCondensed(size: 29)); eyebrow("KM") }
+            }
+            Image(systemName: "arrow.up.right").font(.system(size: 16)).foregroundStyle(Color.stridePrimary)
+        }.padding(.vertical, 15)
+            .overlay(alignment: .bottom) { Rectangle().fill(ink.opacity(0.10)).frame(height: 0.5) }
+            .contentShape(Rectangle())
+    }
+    private var designBody: some View {
+        GeometryReader { geometry in
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: geometry.size.height < 720 ? 12 : 24) {
+                    designHeader
+                    raceHeading
+                    weeklyOverview
+                    dayPicker
+                    focusedSection
+                    if !readOnly && planSync.pendingServerPlan != nil { serverPlanUpdateCard }
+                    if allWorkoutsCompleted && hasNextWeek { nextWeekCard }
+                }.padding(.horizontal, 22).padding(.top, 8).padding(.bottom, 16)
+                    .frame(maxWidth: 600).frame(maxWidth: .infinity)
+            }
+        }.foregroundStyle(ink)
+            .sheet(isPresented: $showCoachTools) {
+                ScrollView { VStack(spacing: 16) { CheckinInviteCardView(); ActiveFocusesCardView() }.padding(20) }
+                    .preferredColorScheme(.light)
+                    .presentationDetents([.medium, .large])
+            }
+    }
+
     // MARK: - Server Plan Update Card
     private var serverPlanUpdateCard: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -398,81 +467,6 @@ struct PlanView: View {
         .padding(.top, 8)
     }
     
-    // MARK: - Week Selector View
-    private var weekSelectorView: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                let currentWeekNumber = plan.currentWeek?.weekNumber
-                HStack(spacing: 16) {
-                    ForEach(1...totalWeeks, id: \.self) { weekNumber in
-                        WeekPillView(
-                            weekNumber: weekNumber,
-                            isSelected: weekNumber == selectedWeekNumber,
-                            isCurrentWeek: weekNumber == currentWeekNumber,
-                            isRaceWeek: plan.sortedWeeks.first { $0.weekNumber == weekNumber }?.isRaceWeek ?? false
-                        )
-                        .id(weekNumber)
-                        .background(
-                            GeometryReader { geometry in
-                                Color.clear.preference(
-                                    key: WeekScrollPreferenceKey.self,
-                                    value: [WeekScrollData(
-                                        weekNumber: weekNumber,
-                                        centerX: geometry.frame(in: .named("weekScroll")).midX
-                                    )]
-                                )
-                            }
-                        )
-                        .onTapGesture {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                selectedWeekNumber = weekNumber
-                            }
-                            Haptics.selection()
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
-            }
-            .coordinateSpace(name: "weekScroll")
-            .onPreferenceChange(WeekScrollPreferenceKey.self) { weekData in
-                // Find the week closest to center
-                let screenCenter = UIScreen.main.bounds.width / 2
-                if let closestWeek = weekData.min(by: { abs($0.centerX - screenCenter) < abs($1.centerX - screenCenter) }) {
-                    // Only trigger haptic when a new week becomes centered (within 20pt threshold)
-                    if abs(closestWeek.centerX - screenCenter) < 20 && closestWeek.weekNumber != lastHapticWeek {
-                        Haptics.selection()
-                        lastHapticWeek = closestWeek.weekNumber
-                    }
-                }
-            }
-            .onAppear {
-                lastHapticWeek = selectedWeekNumber
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation {
-                        proxy.scrollTo(selectedWeekNumber, anchor: .center)
-                    }
-                }
-            }
-            .onChange(of: selectedWeekNumber) { oldValue, newValue in
-                withAnimation {
-                    proxy.scrollTo(newValue, anchor: .center)
-                }
-                // Haptic feedback when week changes via tap
-                if oldValue != newValue {
-                    lastHapticWeek = newValue
-                }
-            }
-        }
-    }
-    
-    // MARK: - Sheet Sizing
-    /// Compute presentation detents based on workout content length.
-    /// Simple workouts (0-2 detail lines) start at .medium (~50%).
-    /// Content-heavy workouts (3-4 lines) start at .fraction(0.65).
-    /// Very detailed workouts (5+ lines) start at .fraction(0.78).
-    /// All cases allow expanding to .large.
-    
     // MARK: - Actions
     private func archivePlan() {
         plan.isArchived = true
@@ -490,7 +484,7 @@ struct PlanView: View {
     private func goToNextWeek() {
         guard hasNextWeek else { return }
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            selectedWeekNumber += 1
+            if let next = plan.sortedWeeks.first(where: { $0.weekNumber > selectedWeekNumber }) { selectedWeekNumber = next.weekNumber; selectedDate = nil }
         }
         Haptics.selection()
     }
@@ -500,6 +494,7 @@ struct PlanView: View {
     }
     
     private func toggleWorkoutCompletion(_ workout: Workout) {
+        guard !readOnly else { return }
         workout.toggleCompletion()
 
         if workout.isCompleted {
@@ -609,4 +604,82 @@ struct WeekPillView: View {
         }())
     }
     .modelContainer(for: TrainingPlan.self, inMemory: true)
+}
+
+
+/// The current week returns to today; other weeks start at their first visible day.
+enum PlanDayScrollTarget {
+    static func date(in days: [Date], today: Date, calendar: Calendar = .current) -> Date? {
+        days.first(where: { calendar.isDate($0, inSameDayAs: today) }) ?? days.min()
+    }
+}
+
+// Shared with the floating tab bar so the texture continues to the screen edge.
+struct PlanPageBackdrop: View {
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                appearance.background
+                Ellipse().fill(Color.stridePrimary.opacity(appearance == .white ? 0.055 : 0.12))
+                    .frame(width: geometry.size.width * 0.9, height: 230).blur(radius: 65).offset(x: 100, y: -120)
+                Canvas { context, size in
+                    var dots = Path()
+                    for x in stride(from: 0.0, to: size.width, by: 4) {
+                        for y in stride(from: 0.0, to: size.height, by: 4) { dots.addEllipse(in: CGRect(x: x, y: y, width: 0.65, height: 0.65)) }
+                    }
+                    context.fill(dots, with: .color(appearance.foreground.opacity(appearance == .white ? 0.08 : 0.10)))
+                    for index in 0..<10 {
+                        let inset = CGFloat(index) * 12
+                        let path = Path(ellipseIn: CGRect(x: size.width * 0.30 + inset, y: 115 + inset * 0.3, width: size.width * 0.8 - inset, height: 210 - inset * 0.4))
+                        context.stroke(path, with: .color(appearance.foreground.opacity(0.025)), lineWidth: 0.5)
+                    }
+                }
+            }
+        }.allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
+/// Shared selection rules keep the lobby and calendar scoped to the right day.
+enum TrainingSessionSelection {
+    static func onDay(_ date: Date, workouts: [Workout], calendar: Calendar = .current) -> [Workout] {
+        var utc = calendar
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let selected = calendar.dateComponents([.year, .month, .day], from: date)
+        return workouts.filter {
+            let scheduled = utc.dateComponents([.year, .month, .day], from: $0.date)
+            return scheduled.year == selected.year && scheduled.month == selected.month && scheduled.day == selected.day
+        }
+    }
+    static func isDayComplete(_ date: Date, workouts: [Workout], today: Date = Date(), calendar: Calendar = .current) -> Bool {
+        let day = onDay(date, workouts: workouts, calendar: calendar)
+        let active = day.filter { $0.workoutType != .rest }
+        if !active.isEmpty { return active.allSatisfy(\.isCompleted) }
+        return day.contains { $0.workoutType == .rest }
+            && calendar.startOfDay(for: date) < calendar.startOfDay(for: today)
+    }
+    static func isRun(_ workout: Workout) -> Bool {
+        ![WorkoutType.rest, .gym, .crossTraining, .mobility].contains(workout.workoutType)
+    }
+    static func lobby(workouts: [Workout], flexible: Bool, today: Date = Date(), calendar: Calendar = .current) -> [Workout] {
+        workouts.filter { workout in
+            guard workout.workoutType != .rest else { return false }
+            let isToday = onDay(today, workouts: [workout], calendar: calendar).count == 1
+            return flexible ? (isRun(workout) && !workout.isCompleted) || (isToday && !isRun(workout)) : isToday
+        }.sorted {
+            if isRun($0) != isRun($1) { return isRun($0) }
+            return $0.date < $1.date
+        }
+    }
+    static func preferred(in workouts: [Workout], selectedID: UUID?, fallbackID: UUID?) -> Workout? {
+        workouts.first { $0.id == selectedID } ?? workouts.first { $0.id == fallbackID }
+            ?? workouts.first { !$0.isCompleted } ?? workouts.first
+    }
+    static func adjacentWeek(current: Int, weeks: [Int], forward: Bool) -> Int? {
+        let sorted = weeks.sorted()
+        guard let index = sorted.firstIndex(of: current) else { return nil }
+        let next = index + (forward ? 1 : -1)
+        return sorted.indices.contains(next) ? sorted[next] : nil
+    }
 }

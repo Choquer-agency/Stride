@@ -57,6 +57,7 @@ struct WellnessCheckinView: View {
                 .padding(.vertical, 24)
             }
             .navigationTitle("Morning check-in")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

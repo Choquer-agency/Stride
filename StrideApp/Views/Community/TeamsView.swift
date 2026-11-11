@@ -54,6 +54,7 @@ struct TeamsView: View {
             }
         }
         .navigationTitle("Teams")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -180,7 +181,7 @@ struct TeamCardView: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(12)
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(12)
     }
 }

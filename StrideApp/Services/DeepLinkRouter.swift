@@ -51,6 +51,7 @@ final class DeepLinkRouter: ObservableObject {
 /// Parsed representation of a stride:// URL.
 enum DeepLink: Equatable {
     case coachInbox
+    case coachPlan
     case coachCheckin(checkinId: String)
     case coachWeeklyReview(eventId: String)
     case coachAdjustment(adjustmentId: String)
@@ -80,6 +81,8 @@ enum DeepLink: Equatable {
             switch segments.first {
             case "inbox" where segments.count == 1:
                 self = .coachInbox
+            case "plan" where segments.count == 1:
+                self = .coachPlan
             case "checkin" where segments.count == 2:
                 self = .coachCheckin(checkinId: segments[1])
             case "weekly-review" where segments.count == 2:

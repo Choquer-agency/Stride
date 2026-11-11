@@ -1,14 +1,19 @@
 import SwiftUI
 import SwiftData
+import CoreLocation
 import PostHog
 
 struct MainTabView: View {
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    @ObservedObject private var heartRateAuth = AuthService.shared
     @ObservedObject private var heartRate = HeartRateManager.shared
     @State private var selectedTab: Tab =
-        ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }) ? .run : .plan
+        ProcessInfo.processInfo.arguments.contains("--runview-demo-plan") ? .plan :
+        (ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }) ? .run : .plan)
     @State private var hideTabBar: Bool = false
     @State private var runInProgress = false
     @StateObject private var runViewModel = RunViewModel()
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
 
     // Coach deep links (push taps) presented as sheets over whatever tab is active.
     @ObservedObject private var deepLinkRouter = DeepLinkRouter.shared
@@ -37,98 +42,79 @@ struct MainTabView: View {
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                // Keep the run view and its session mounted across tab changes.
-                // Recreating this branch would discard the run and replay countdowns.
-                NavigationStack {
-                    RunTabContainer(
-                        viewModel: runViewModel,
-                        hideTabBar: $hideTabBar,
-                        selectedTab: $selectedTab,
-                        runInProgress: $runInProgress
-                    )
-                }
-                .opacity(selectedTab == .run ? 1 : 0)
-                .allowsHitTesting(selectedTab == .run)
-                .accessibilityHidden(selectedTab != .run)
+            VStack(spacing: 0) {
+                appHeader
+                ZStack {
+                    // Keep the run view and its session mounted across tab changes.
+                    // Recreating this branch would discard the run and replay countdowns.
+                    NavigationStack {
+                        RunTabContainer(
+                            viewModel: runViewModel,
+                            hideTabBar: $hideTabBar,
+                            selectedTab: $selectedTab,
+                            runInProgress: $runInProgress
+                        )
+                    }
+                    .opacity(selectedTab == .run ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .run)
+                    .accessibilityHidden(selectedTab != .run)
 
-                switch selectedTab {
-                case .run:
-                    EmptyView()
-                case .plan:
-                    PlanTabContainer()
-                case .stats:
-                    NavigationStack {
-                        StatsView(selectedTab: $selectedTab)
-                    }
-                case .profile:
-                    NavigationStack {
-                        ProfileView()
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if !hideTabBar {
-                    LiveHeartRateLabel(bpm: heartRate.currentBPM)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 4)
-                }
-                if runInProgress && selectedTab != .run {
-                    Button {
-                        selectedTab = .run
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: runViewModel.isPaused ? "pause.circle.fill" : "figure.run")
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(runViewModel.isPaused ? "Run paused" : "Run in progress")
-                                    .font(.inter(size: 14, weight: .semibold))
-                                Text(String(format: "%.2f km · %d:%02d",
-                                            runViewModel.distance,
-                                            Int(runViewModel.elapsedTime) / 60,
-                                            Int(runViewModel.elapsedTime) % 60))
-                                    .font(.inter(size: 12, weight: .medium))
-                                    .monospacedDigit()
-                            }
-                            Spacer()
-                            Text("Return to run")
-                                .font(.inter(size: 14, weight: .semibold))
-                            Image(systemName: "chevron.right")
+                    switch selectedTab {
+                    case .run:
+                        EmptyView()
+                    case .plan:
+                        PlanTabContainer(onOpenProfile: { selectedTab = .profile })
+                    case .stats:
+                        NavigationStack {
+                            StatsView(selectedTab: $selectedTab)
                         }
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 12)
-                        .background(Color.stridePrimary)
+                    case .profile:
+                        NavigationStack {
+                            ProfileView(onOpenPlan: { selectedTab = .plan })
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
-            }
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                if selectedTab != .run || !hideTabBar {
-                    Color.clear.frame(height: 72)
-                }
-            }
-            .overlay(alignment: .bottom) {
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 if selectedTab != .run || !hideTabBar {
                     CustomTabBar(selectedTab: $selectedTab, screenWidth: geometry.size.width)
-                        .offset(y: geometry.safeAreaInsets.bottom)
                         .animation(.none, value: selectedTab)
                 }
             }
+            .background {
+                if selectedTab == .run && !hideTabBar { RunLobbyBackdrop().ignoresSafeArea() }
+                else if selectedTab == .plan { PlanPageBackdrop().ignoresSafeArea() }
+                else if selectedTab == .stats || selectedTab == .profile { StridePageBackdrop().ignoresSafeArea() }
+                else { Color(.systemBackground).ignoresSafeArea() }
+            }
         }
+
         .ignoresSafeArea(.keyboard, edges: .bottom)
+        .preferredColorScheme(appearance.colorScheme)
+        .onChange(of: heartRateAuth.currentUserID) { _, _ in
+            heartRate.accountDidChange()
+            heartRate.startScanning(owner: "app")
+        }
+        .onChange(of: hideTabBar) { _, hidden in RunLobbyPresentation.shared.isVisible = (selectedTab == .run && !hidden) || selectedTab == .plan }
         .onChange(of: selectedTab) { _, newTab in
+            RunLobbyPresentation.shared.isVisible = (newTab == .run && !hideTabBar) || newTab == .plan
             PostHogSDK.shared.capture("tab_switched", properties: ["tab": newTab.title])
         }
         .onReceive(NotificationCenter.default.publisher(for: .strideSwitchToRunTab)) { _ in
             selectedTab = .run
         }
         .onAppear {
+            if UserDefaults.standard.bool(forKey: "strideOpenRunFromActivity") {
+                selectedTab = .run
+                UserDefaults.standard.removeObject(forKey: "strideOpenRunFromActivity")
+            }
+            RunLobbyPresentation.shared.isVisible = (selectedTab == .run && !hideTabBar) || selectedTab == .plan
             heartRate.startScanning(owner: "app")
             consumeDeepLinkIfNeeded(deepLinkRouter.pendingLink)
         }
-        .onDisappear { heartRate.stopAndDisconnect(owner: "app") }
+        .onDisappear {
+            RunLobbyPresentation.shared.isVisible = false
+            heartRate.stopAndDisconnect(owner: "app")
+        }
         .onChange(of: deepLinkRouter.pendingLink) { _, link in
             consumeDeepLinkIfNeeded(link)
         }
@@ -145,6 +131,39 @@ struct MainTabView: View {
         }
         .sheet(isPresented: $showCoachChat) {
             NavigationStack { CoachChatView(trainingPlanId: nil) }
+        }
+    }
+
+    private var appHeader: some View {
+        VStack(spacing: 0) {
+            if runInProgress && selectedTab != .run {
+                Button {
+                    selectedTab = .run
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: runViewModel.isPaused ? "pause.circle.fill" : "figure.run")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(runViewModel.isPaused ? "Run paused" : "Run in progress")
+                                .font(.inter(size: 14, weight: .semibold))
+                            Text(String(format: "%.2f km · %d:%02d",
+                                        runViewModel.distance,
+                                        Int(runViewModel.elapsedTime) / 60,
+                                        Int(runViewModel.elapsedTime) % 60))
+                                .font(.inter(size: 12, weight: .medium))
+                                .monospacedDigit()
+                        }
+                        Spacer()
+                        Text("Return to run")
+                            .font(.inter(size: 14, weight: .semibold))
+                        Image(systemName: "chevron.right")
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(Color.stridePrimary)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -166,6 +185,9 @@ struct MainTabView: View {
         case .coachInbox:
             showCoachInbox = true
             deepLinkRouter.consume()
+        case .coachPlan:
+            selectedTab = .plan
+            deepLinkRouter.consume()
         case .coachChat:
             showCoachChat = true
             deepLinkRouter.consume()
@@ -177,92 +199,66 @@ struct MainTabView: View {
 
 // MARK: - Custom Tab Bar
 struct CustomTabBar: View {
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
     @Binding var selectedTab: MainTabView.Tab
     let screenWidth: CGFloat
-    
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var style: StridePageStyle { .init(appearance: appearance) }
     private var pillWidth: CGFloat { min(screenWidth - 32, 430) }
-    private var pillHeight: CGFloat { 64 }
-    private var buttonsWidth: CGFloat { pillWidth - 12 }
-    private var bottomOffset: CGFloat { 8 }
-    private var blurHeight: CGFloat { 92 }
-    
     var body: some View {
-        ZStack(alignment: .bottom) {
-            Rectangle()
-                .fill(.thinMaterial)
-                .frame(maxWidth: .infinity)
-                .frame(height: blurHeight)
-                .mask(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .clear, location: 0),
-                            .init(color: .black.opacity(0.35), location: 0.45),
-                            .init(color: .black, location: 1)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-            
-            HStack(spacing: 0) {
-                TabBarButton(
-                    tab: .run,
-                    selectedTab: $selectedTab,
-                    icon: { color in FlagIconView(size: 23, color: color) },
-                    title: "Run"
-                )
-                
-                TabBarButton(
-                    tab: .plan,
-                    selectedTab: $selectedTab,
-                    icon: { color in
-                        Image(systemName: "calendar")
-                            .font(.system(size: 21, weight: .medium))
-                            .foregroundStyle(color)
-                    },
-                    title: "Plan"
-                )
-                
-                TabBarButton(
-                    tab: .stats,
-                    selectedTab: $selectedTab,
-                    icon: { color in
-                        Image(systemName: "chart.xyaxis.line")
-                            .font(.system(size: 21, weight: .medium))
-                            .foregroundStyle(color)
-                    },
-                    title: "Stats"
-                )
-
-                TabBarButton(
-                    tab: .profile,
-                    selectedTab: $selectedTab,
-                    icon: { color in
-                        Image(systemName: "person")
-                            .font(.system(size: 21, weight: .medium))
-                            .foregroundStyle(color)
-                    },
-                    title: "Profile"
-                )
-            }
-            .frame(width: buttonsWidth)
-            .frame(width: pillWidth, height: pillHeight)
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial)
+        HStack(spacing: 3) {
+            TabBarButton(
+                tab: .run,
+                selectedTab: $selectedTab,
+                icon: { color in FlagIconView(size: 23, color: color) },
+                title: "Run"
             )
-            .overlay(Capsule().stroke(Color.black.opacity(0.06), lineWidth: 1))
-            .clipShape(Capsule())
-            .shadow(color: Color.black.opacity(0.10), radius: 18, x: 0, y: 6)
-            .padding(.bottom, bottomOffset)
+
+            TabBarButton(
+                tab: .plan,
+                selectedTab: $selectedTab,
+                icon: { color in
+                    Image(systemName: "calendar")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(color)
+                },
+                title: "Plan"
+            )
+
+            TabBarButton(
+                tab: .stats,
+                selectedTab: $selectedTab,
+                icon: { color in
+                    Image(systemName: "chart.xyaxis.line")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(color)
+                },
+                title: "Stats"
+            )
+
+            TabBarButton(
+                tab: .profile,
+                selectedTab: $selectedTab,
+                icon: { color in
+                    Image(systemName: "person")
+                        .font(.system(size: 21, weight: .medium))
+                        .foregroundStyle(color)
+                },
+                title: "Profile"
+            )
         }
-        .frame(height: blurHeight)
-        .ignoresSafeArea(edges: .bottom)
+        .padding(6)
+        .frame(width: pillWidth, height: 68)
+        .stridePageCard(style, radius: 26)
+        .shadow(color: .black.opacity(appearance == .white ? 0.10 : 0.23), radius: 18, y: 6)
+        .frame(maxWidth: .infinity)
+        .frame(height: 82)
     }
 }
 
 // MARK: - Tab Bar Button
 struct TabBarButton<Icon: View>: View {
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
     let tab: MainTabView.Tab
     @Binding var selectedTab: MainTabView.Tab
     let icon: (Color) -> Icon
@@ -271,6 +267,10 @@ struct TabBarButton<Icon: View>: View {
     private var isSelected: Bool {
         selectedTab == tab
     }
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var style: StridePageStyle { .init(appearance: appearance) }
+    private var selectedFill: Color { appearance == .red ? .white : .stridePrimary }
+    private var selectedInk: Color { appearance == .red ? .stridePrimary : .white }
     
     var body: some View {
         Button(action: {
@@ -278,20 +278,17 @@ struct TabBarButton<Icon: View>: View {
                 selectedTab = tab
             }
         }) {
-            VStack(spacing: 3) {
-                icon(isSelected ? .stridePrimary : Color(.secondaryLabel))
-                    .frame(width: 34, height: 32)
-                    .background(
-                        Circle()
-                            .fill(isSelected ? Color.stridePrimary.opacity(0.10) : .clear)
-                            .frame(width: 34, height: 34)
-                    )
-                
-                Text(title)
-                    .font(.inter(size: 11, weight: isSelected ? .semibold : .medium))
-                    .foregroundColor(isSelected ? .stridePrimary : Color(.secondaryLabel))
+            VStack(spacing: 1) {
+                icon(isSelected ? selectedInk : style.muted)
+                    .frame(height: 26)
+                Text(title.uppercased())
+                    .font(.barlowCondensed(size: 14))
+                    .tracking(0.6)
+                    .foregroundStyle(isSelected ? selectedInk : style.muted)
             }
             .frame(maxWidth: .infinity)
+            .frame(height: 55)
+            .background(isSelected ? selectedFill : .clear, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
         }
         .buttonStyle(PlainButtonStyle())
         .accessibilityLabel(title)
@@ -309,6 +306,7 @@ struct RunTabContainer: View {
     @ObservedObject var viewModel: RunViewModel
     @State private var runState: RunState = .lobby
     @State private var isOutdoorMode: Bool = false
+    @State private var runSaveError: String?
 
     @Binding var hideTabBar: Bool
     @Binding var selectedTab: MainTabView.Tab
@@ -328,26 +326,39 @@ struct RunTabContainer: View {
     @ViewBuilder
     var body: some View {
         content
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if isActiveRun {
-                    HStack {
-                        Button {
-                            selectedTab = .plan
-                        } label: {
-                            Label("Browse app", systemImage: "chevron.down")
-                                .font(.inter(size: 14, weight: .semibold))
-                        }
-                        Spacer()
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(.regularMaterial)
-                }
-            }
             .onChange(of: isActiveRun, initial: true) { _, active in
                 runInProgress = active
             }
-            .onAppear { seedDemoRunIfRequested() }
+            .onAppear {
+                restoreInterruptedRunIfNeeded()
+                seedDemoRunIfRequested()
+                if !isActiveRun {
+                    Task { @MainActor in
+                        RunLiveActivityCoordinator.shared.endOrphanedActivities()
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .strideStartPlannedWorkout)) { notification in
+                guard let workout = notification.object as? Workout else { return }
+                selectedTab = .run
+                guard case .lobby = runState else { return }
+                isOutdoorMode = allowedOutdoorMode(UserDefaults.standard.string(forKey: "lastRunMode") != RunMode.treadmill.rawValue)
+                viewModel.reset()
+                protectRunSession()
+                viewModel.loadPlannedWorkout(workout)
+                PostHogSDK.shared.capture("run_started", properties: ["is_planned": true, "mode": isOutdoorMode ? "outdoor" : "treadmill"])
+                withAnimation {
+                    runState = .active
+                    hideTabBar = true
+                }
+            }
+            .alert("Run wasn't saved", isPresented: Binding(
+                get: { runSaveError != nil }, set: { if !$0 { runSaveError = nil } }
+            )) {
+                Button("OK", role: .cancel) { runSaveError = nil }
+            } message: {
+                Text(runSaveError ?? "Your recovery checkpoint is still available. Try saving again.")
+            }
             .onChange(of: viewModel.workoutCompleted) { _, completed in
                 guard completed, case .active = runState else { return }
                 let result = viewModel.buildRunResult()
@@ -362,8 +373,11 @@ struct RunTabContainer: View {
     /// treadmill run screen with realistic mid-run state. No effect otherwise.
     private func seedDemoRunIfRequested() {
         let args = ProcessInfo.processInfo.arguments
-        let wantsIntervals = args.contains("--runview-demo-intervals")
-        guard args.contains("--runview-demo") || wantsIntervals,
+        let wantsIntervals = args.contains("--runview-demo-intervals") || args.contains("--runview-demo-warmup")
+        let wantsOutdoor = args.contains("--runview-demo-outdoor") || args.contains("--runview-demo-countdown")
+        guard args.contains(where: { $0.hasPrefix("--runview-demo") }),
+              !args.contains("--runview-demo-lobby"),
+              !args.contains("--runview-demo-plan"),
               case .lobby = runState else { return }
         viewModel.isPlannedRun = true
         viewModel.plannedWorkoutTitle = "Long Run"
@@ -379,6 +393,11 @@ struct RunTabContainer: View {
         viewModel.paceGraphPaces = [383, 385, 384, 386, 385, 383, 382, 384, 386, 388,
                                     385, 383, 384, 500, 545, 548, 544, 470, 392, 386,
                                     384, 383, 385, 384, 386, 385]
+        viewModel.speedKmh = 9.35
+        viewModel.heartRate = 142
+        viewModel.hrSourceConnected = true
+        viewModel.paceGraphHeartRates = viewModel.paceGraphPaces.enumerated().map { index, _ in 137 + index % 12 }
+        viewModel.paceGraphDistances = viewModel.paceGraphPaces.indices.map { Double($0) * 20 }
         viewModel.kilometerSplits = [
             KilometerSplit(kilometer: 1, pace: "6:24", time: "6:24", isFastest: false, diffFromFastest: 4),
             KilometerSplit(kilometer: 2, pace: "6:20", time: "12:44", isFastest: true, diffFromFastest: 0),
@@ -402,9 +421,59 @@ struct RunTabContainer: View {
             viewModel.distance = 3.61
             viewModel.elapsedTime = 19 * 60 + 42
         }
-        isOutdoorMode = false
+        if args.contains("--runview-demo-warmup") {
+            viewModel.intervalIndex = 0
+            viewModel.intervalPhaseDistanceDone = 1
+            viewModel.distance = 1
+            viewModel.elapsedTime = 6 * 60 + 12
+        }
+        if wantsIntervals, let segment = viewModel.currentIntervalSegment {
+            viewModel.targetPaceMinSec = segment.paceBounds?.min
+            viewModel.targetPaceMaxSec = segment.paceBounds?.max
+        }
+        if wantsOutdoor {
+            if !wantsIntervals {
+                viewModel.plannedWorkoutTitle = "Sunday Long Run"
+                viewModel.targetDistanceKm = 26
+                viewModel.distance = 14.20
+                viewModel.elapsedTime = 88 * 60 + 4
+                viewModel.currentPace = "6:12"
+            }
+            viewModel.heartRate = 141
+            // Simulator-only route to review the live map styling without GPS.
+            viewModel.routeCoordinates = [
+                CLLocationCoordinate2D(latitude: 49.2774, longitude: -123.1205),
+                CLLocationCoordinate2D(latitude: 49.2790, longitude: -123.1205),
+                CLLocationCoordinate2D(latitude: 49.2798, longitude: -123.1220),
+                CLLocationCoordinate2D(latitude: 49.2812, longitude: -123.1220),
+                CLLocationCoordinate2D(latitude: 49.2827, longitude: -123.1207),
+            ]
+        }
+        isOutdoorMode = wantsOutdoor
         runState = .active
         hideTabBar = true
+        if args.contains("--runview-demo-paused") { viewModel.pauseRun() }
+        if args.contains("--runview-demo-summary") {
+            let duration = viewModel.elapsedTime
+            let samples = stride(from: 0.0, through: duration, by: 5).enumerated().map { index, t in
+                RunSpeedSample(t: t, kmh: 9.5 + sin(Double(index) / 14) * 0.7)
+            }
+            let hr = samples.enumerated().map { index, point in
+                CodableHRSample(t: point.t, bpm: 132 + min(20, index / 10) + index % 4)
+            }
+            let result = RunResult(
+                distanceKm: viewModel.distance, durationSeconds: duration,
+                avgPaceSecPerKm: duration / viewModel.distance, kmSplits: viewModel.kilometerSplits,
+                plannedWorkoutId: nil, plannedWorkoutTitle: "Long Run", plannedWorkoutType: .longRun,
+                targetDistanceKm: 12, targetPaceDescription: "6:00–6:30/km", targetDurationMinutes: nil,
+                dataSource: "bluetooth_ftms", treadmillBrand: "Assault Runner",
+                routeJSON: nil, elevationGainMeters: nil, elevationLossMeters: nil,
+                avgHeartRate: 145, maxHeartRate: 155,
+                hrSamplesJSON: (try? JSONEncoder().encode(hr)).flatMap { String(data: $0, encoding: .utf8) },
+                speedSamples: samples, totalPauseDurationSeconds: 0, completedPauseDurations: []
+            )
+            runState = .summary(result, nil)
+        }
     }
 
     @ViewBuilder
@@ -413,32 +482,43 @@ struct RunTabContainer: View {
             case .lobby:
                 RunLobbyView(
                     onStartPlannedWorkout: { workout, outdoor in
-                        isOutdoorMode = outdoor
+                        guard outdoor || bluetoothManager.hasFreshTreadmillData else { return }
+                        isOutdoorMode = allowedOutdoorMode(outdoor)
                         viewModel.reset()
+                        protectRunSession()
                         viewModel.loadPlannedWorkout(workout)
-                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": true, "mode": outdoor ? "outdoor" : "treadmill"])
+                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": true, "mode": isOutdoorMode ? "outdoor" : "treadmill"])
                         withAnimation {
                             runState = .active
                             hideTabBar = true
                         }
                     },
-                    onStartFreeRun: { outdoor, targetDistanceKm, targetDurationMinutes in
-                        isOutdoorMode = outdoor
+                    onStartFreeRun: { outdoor, targetDistanceKm, targetDurationMinutes, targetPace in
+                        guard outdoor || bluetoothManager.hasFreshTreadmillData else { return }
+                        isOutdoorMode = allowedOutdoorMode(outdoor)
                         viewModel.reset()
+                        protectRunSession()
                         // Set free run targets so voice coach can announce progress milestones
                         viewModel.targetDistanceKm = targetDistanceKm
                         viewModel.targetDurationMinutes = targetDurationMinutes
-                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": false, "mode": outdoor ? "outdoor" : "treadmill"])
+                        viewModel.targetPaceDescription = targetPace
+                        if let range = RunScoringService.parsePaceRange(targetPace) {
+                            viewModel.targetPaceMinSec = range.min == range.max ? range.min - 15 : range.min
+                            viewModel.targetPaceMaxSec = range.min == range.max ? range.max + 15 : range.max
+                        }
+                        PostHogSDK.shared.capture("run_started", properties: ["is_planned": false, "mode": isOutdoorMode ? "outdoor" : "treadmill"])
                         withAnimation {
                             runState = .active
                             hideTabBar = true
                         }
-                    }
+                    },
+                    onOpenProfile: { selectedTab = .profile }
                 )
 
             case .active:
                 if isOutdoorMode {
                     OutdoorRunView(viewModel: viewModel, onStartRun: {
+                        if ProcessInfo.processInfo.arguments.contains("--runview-demo-countdown") { return }
                         guard !viewModel.hasActiveProvider else { return }
                         let provider = makeProvider(outdoor: true)
                         viewModel.attach(provider: provider)
@@ -449,7 +529,7 @@ struct RunTabContainer: View {
                         withAnimation {
                             runState = .summary(result, score)
                         }
-                    })
+                    }, onOpenApp: { selectedTab = .plan })
                 } else {
                     RunView(viewModel: viewModel, onFinishRun: {
                         let result = viewModel.buildRunResult()
@@ -458,11 +538,13 @@ struct RunTabContainer: View {
                         withAnimation {
                             runState = .summary(result, score)
                         }
-                    })
+                    }, onOpenApp: { selectedTab = .plan })
                     // Treadmill runs have no in-view "begin" tap (they start when
                     // belt data arrives) — attach the provider here, or the run
                     // screen never hears a single packet.
                     .onAppear {
+                        // Keep simulator screenshot fixtures stable without starting a real run clock.
+                        guard !ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }) else { return }
                         if !viewModel.hasActiveProvider {
                             viewModel.attach(provider: makeProvider(outdoor: false))
                         }
@@ -470,14 +552,16 @@ struct RunTabContainer: View {
                 }
                 
             case .summary(let result, let score):
-                RunSummaryView(result: result, score: score, shoes: Array(shoes), onSave: { feedbackRating, notes, shoeId, shoeName in
+                RunSummaryView(result: result, score: score, shoes: Array(shoes), onSave: { feedbackRating, notes, shoeId, shoeName, coachNotes in
                     PostHogSDK.shared.capture("run_completed", properties: [
                         "distance_km": result.distanceKm,
                         "duration_seconds": result.durationSeconds,
                         "is_planned": result.isPlannedRun,
                     ])
-                    saveRun(result: result, score: score, feedbackRating: feedbackRating, notes: notes, shoeId: shoeId, shoeName: shoeName)
+                    guard saveRun(result: result, score: score, feedbackRating: feedbackRating, notes: notes, shoeId: shoeId, shoeName: shoeName, coachNotes: coachNotes) else { return }
+                    if let owner = AuthService.shared.currentUserID { RunRecoveryStore.remove(ownerID: owner) }
                     viewModel.reset()
+                    AuthService.shared.endWorkoutProtection(result.sessionID)
                     withAnimation {
                         runState = .lobby
                         hideTabBar = false
@@ -485,6 +569,41 @@ struct RunTabContainer: View {
                     }
                 })
         }
+    }
+
+    private func protectRunSession() {
+        guard let owner = AuthService.shared.currentUserID else { return }
+        viewModel.prepareRecovery(ownerID: owner)
+        AuthService.shared.beginWorkoutProtection(viewModel.sessionID)
+    }
+
+    private func restoreInterruptedRunIfNeeded() {
+        guard case .lobby = runState,
+              !ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }),
+              let owner = AuthService.shared.currentUserID,
+              let checkpoint = RunRecoveryStore.load(ownerID: owner),
+              checkpoint.result.distanceKm > 0 || checkpoint.result.durationSeconds > 0 else { return }
+        let id = checkpoint.result.sessionID
+        // A crash after a successful save must not insert the same run or mileage twice.
+        let existing = (try? modelContext.fetch(FetchDescriptor<RunLog>(predicate: #Predicate { $0.id == id }))) ?? []
+        guard existing.isEmpty else {
+            RunRecoveryStore.remove(ownerID: owner)
+            AuthService.shared.endWorkoutProtection(id)
+            return
+        }
+        var result = checkpoint.result
+        result.recoveryNotice = "Recovered interrupted run at the last saved checkpoint. Review and save these recorded values; any running after the checkpoint is not included."
+        AuthService.shared.beginWorkoutProtection(result.sessionID)
+        isOutdoorMode = result.isOutdoorRun
+        runState = .summary(result, RunScoringService.calculateScore(result: result))
+        selectedTab = .run
+        hideTabBar = true
+    }
+
+    /// Enforce account access at each real run entry point as well as in the lobby.
+    private func allowedOutdoorMode(_ requestedOutdoor: Bool) -> Bool {
+        AccountRunCapabilities.forUserID(AuthService.shared.currentUserID)
+            .resolvedMode(requestedOutdoor ? .outdoor : .treadmill) == .outdoor
     }
 
     // MARK: - Provider Factory
@@ -499,7 +618,9 @@ struct RunTabContainer: View {
 
     // MARK: - Persistence
 
-    private func saveRun(result: RunResult, score: Int?, feedbackRating: Int?, notes: String, shoeId: UUID? = nil, shoeName: String? = nil) {
+    private func saveRun(result: RunResult, score: Int?, feedbackRating: Int?, notes: String, shoeId: UUID? = nil, shoeName: String? = nil, coachNotes: String? = nil) -> Bool {
+        let sessionID = result.sessionID
+        if let existing = try? modelContext.fetch(FetchDescriptor<RunLog>(predicate: #Predicate { $0.id == sessionID })), !existing.isEmpty { return true }
         // Encode km splits to JSON
         let splitsJSON: String? = {
             let codableSplits = result.kmSplits.map { split in
@@ -515,7 +636,8 @@ struct RunTabContainer: View {
         }()
 
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
-        let notesValue = trimmedNotes.isEmpty ? nil : trimmedNotes
+        let combinedNotes = [result.recoveryNotice, trimmedNotes.isEmpty ? nil : trimmedNotes].compactMap { $0 }.joined(separator: "\n")
+        let notesValue = combinedNotes.isEmpty ? nil : combinedNotes
 
         // A) Always create a RunLog — the authoritative run record
         let workout: Workout? = result.plannedWorkoutId.flatMap { wid in
@@ -549,6 +671,13 @@ struct RunTabContainer: View {
             planName: workout?.week?.plan?.raceName ?? workout?.week?.plan?.displayDistance,
             weekNumber: workout?.week?.weekNumber
         )
+        if let encoded = try? JSONEncoder().encode(result.speedSamples), !result.speedSamples.isEmpty {
+            runLog.speedSamplesJSON = String(data: encoded, encoding: .utf8)
+        }
+        let review = coachNotes?.trimmingCharacters(in: .whitespacesAndNewlines)
+        runLog.coachNotes = review?.isEmpty == false ? review : nil
+        runLog.id = result.sessionID
+        runLog.completedAt = result.completedAt
         modelContext.insert(runLog)
 
         // B) For planned runs, also update Workout as a display cache
@@ -556,11 +685,11 @@ struct RunTabContainer: View {
             // Flexible week: a session run on a different day than scheduled
             // moves to the day it was actually done.
             if workout.week?.plan?.isFlexibleSchedule == true,
-               !Calendar.current.isDateInToday(workout.date) {
-                workout.date = Date()
+               !Calendar.current.isDate(workout.date, inSameDayAs: result.completedAt) {
+                workout.date = result.completedAt
             }
             workout.isCompleted = true
-            workout.completedAt = Date()
+            workout.completedAt = result.completedAt
             workout.actualDistanceKm = result.distanceKm
             workout.actualDurationSeconds = result.durationSeconds
             workout.actualAvgPaceSecPerKm = result.avgPaceSecPerKm
@@ -577,18 +706,26 @@ struct RunTabContainer: View {
             shoe.totalDistanceKm += result.distanceKm
         }
 
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.rollback()
+            runSaveError = "Your run is still in the recovery checkpoint. Please try saving again."
+            return false
+        }
 
         // Sync to server
         RunSyncService.shared.syncPendingRuns()
 
         // Haptic feedback
         Haptics.notification(.success)
+        return true
     }
 }
 
 // MARK: - Plan Tab Container
 struct PlanTabContainer: View {
+    var onOpenProfile: () -> Void = {}
     @Environment(\.modelContext) private var modelContext
     @Query(filter: #Predicate<TrainingPlan> { $0.isArchived == false }, sort: \TrainingPlan.createdAt, order: .reverse) private var plans: [TrainingPlan]
     @State private var showOnboarding = false
@@ -597,7 +734,7 @@ struct PlanTabContainer: View {
     var body: some View {
         Group {
             if let plan = plans.first {
-                PlanView(plan: plan)
+                PlanView(plan: plan, onOpenProfile: onOpenProfile)
             } else {
                 EmptyStateView(
                     showOnboarding: $showOnboarding,
@@ -644,7 +781,7 @@ struct EmptyStateView: View {
         GeometryReader { geometry in
             let logoHeight = geometry.size.width * 88.0 / 402.0
             let buttonWidth = geometry.size.width * 236.0 / 402.0
-            
+
             VStack(spacing: 0) {
                 Spacer()
                 

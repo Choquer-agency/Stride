@@ -36,6 +36,7 @@ struct ArchivedPlansView: View {
             }
         }
         .navigationTitle("Previous Plans")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
     }
 }

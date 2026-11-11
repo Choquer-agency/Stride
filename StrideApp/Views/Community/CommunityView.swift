@@ -98,6 +98,7 @@ struct CommunityView: View {
             }
         }
         .navigationTitle("Community")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -156,7 +157,7 @@ struct CommunityView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .background(Color(.secondarySystemBackground))
+            .background { StrideSecondaryCard() }
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
@@ -194,7 +195,7 @@ struct CommunityView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .background(Color(.secondarySystemBackground))
+            .background { StrideSecondaryCard() }
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
@@ -232,7 +233,7 @@ struct CommunityView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .background(Color(.secondarySystemBackground))
+            .background { StrideSecondaryCard() }
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
@@ -270,7 +271,7 @@ struct CommunityView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .background(Color(.secondarySystemBackground))
+            .background { StrideSecondaryCard() }
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
@@ -322,7 +323,7 @@ struct CommunityView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(12)
-            .background(Color(.secondarySystemBackground))
+            .background { StrideSecondaryCard() }
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())

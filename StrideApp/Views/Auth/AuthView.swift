@@ -3,7 +3,6 @@ import AuthenticationServices
 
 struct AuthView: View {
     @EnvironmentObject private var authService: AuthService
-    @State private var showEmailAuth = false
 
     var body: some View {
         NavigationStack {
@@ -31,29 +30,7 @@ struct AuthView: View {
 
                     Spacer()
 
-                    // Sign-in buttons
-                    VStack(spacing: 14) {
-                        // Apple
-                        appleSignInButton(width: buttonWidth)
-
-                        // Google — hidden until Google OAuth is configured server-side.
-                        // Restore by re-adding the button that calls handleGoogleSignIn.
-
-                        // Email
-                        Button(action: { showEmailAuth = true }) {
-                            HStack(spacing: 10) {
-                                Image(systemName: "envelope.fill")
-                                    .font(.title3)
-                                Text("Continue with Email")
-                                    .font(.inter(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(width: buttonWidth)
-                            .padding(.vertical, 16)
-                            .background(Color.stridePrimary)
-                            .clipShape(Capsule())
-                        }
-                    }
+                    appleSignInButton(width: buttonWidth)
 
                     Spacer().frame(height: 24)
 
@@ -71,9 +48,6 @@ struct AuthView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .background(Color(.systemBackground))
-            .navigationDestination(isPresented: $showEmailAuth) {
-                EmailAuthView()
-            }
             .overlay {
                 if authService.isLoading {
                     Color.black.opacity(0.3)
@@ -148,30 +122,6 @@ struct AuthView: View {
         }
     }
 
-    // MARK: - Google Sign In
-
-    private func handleGoogleSignIn() {
-        // Google Sign-In requires the GoogleSignIn SDK.
-        // When the SDK is added via SPM, uncomment below:
-        //
-        // guard let presentingVC = UIApplication.shared.connectedScenes
-        //     .compactMap({ $0 as? UIWindowScene })
-        //     .flatMap({ $0.windows })
-        //     .first(where: { $0.isKeyWindow })?.rootViewController
-        // else { return }
-        //
-        // GIDSignIn.sharedInstance.signIn(withPresenting: presentingVC) { result, error in
-        //     guard let result, error == nil,
-        //           let idToken = result.user.idToken?.tokenString
-        //     else { return }
-        //     Task {
-        //         try? await authService.signInWithGoogle(idToken: idToken)
-        //     }
-        // }
-
-        // Placeholder: show a message that Google Sign-In SDK needs to be added
-        authService.error = "Google Sign-In requires adding the GoogleSignIn SDK via SPM"
-    }
 }
 
 #Preview {

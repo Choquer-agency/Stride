@@ -123,6 +123,7 @@ struct AddEditShoeView: View {
                 }
             }
             .navigationTitle(isEditing ? "Edit Shoe" : "Add Shoe")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

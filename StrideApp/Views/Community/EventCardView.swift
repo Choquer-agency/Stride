@@ -114,7 +114,7 @@ struct EventCardView: View {
             }
             .padding(14)
         }
-        .background(Color(.secondarySystemBackground))
+        .background { StrideSecondaryCard() }
         .cornerRadius(14)
     }
 }

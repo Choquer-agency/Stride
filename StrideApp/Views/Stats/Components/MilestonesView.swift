@@ -67,7 +67,7 @@ struct MilestonesView: View {
             }
         }
         .padding(16)
-        .background(Color(hex: "F9F9F9"))
+        .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

@@ -20,7 +20,8 @@ struct StatCardView: View {
                 .foregroundStyle(.secondary)
             
             Text(value)
-                .font(.barlowCondensed(size: 36, weight: .medium))
+                .font(.barlowCondensed(size: 34, weight: .medium))
+                .lineLimit(1).minimumScaleFactor(0.65)
                 .foregroundStyle(.primary)
             
             if let subtitle = subtitle {
@@ -39,9 +40,9 @@ struct StatCardView: View {
                 .foregroundStyle(changeText.hasPrefix("+") ? Color.green : Color.orange)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
         .padding(16)
-        .background(Color(hex: "F9F9F9"))
+        .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }

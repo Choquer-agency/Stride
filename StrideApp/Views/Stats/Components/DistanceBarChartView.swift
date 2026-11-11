@@ -1,295 +1,127 @@
 import SwiftUI
 import Charts
 
-// MARK: - Chart Scale Filter
 enum DistanceChartScale: String, CaseIterable, Identifiable {
-    case week = "Week"
-    case month = "Month"
-    case quarter = "Quarter"
-    case year = "Year"
-    case allTime = "All Time"
-
+    case week = "This Week", month = "4 Weeks", quarter = "12 Weeks", year = "12 Months", allTime = "All Time"
     var id: String { rawValue }
 }
 
 struct DistanceBarChartView: View {
     let runLogs: [RunLog]
+    var plan: TrainingPlan? = nil
+    @State private var selectedScale: DistanceChartScale = .quarter
+    @State private var selectedBucket: String?
 
-    @State private var selectedScale: DistanceChartScale = .week
-
-    // MARK: - Bucket Model
-    private struct ChartBucket: Identifiable {
-        let id: String          // label used as x-axis value
-        let distance: Double    // total completed distance in km
-        let isCurrent: Bool     // highlights the current period
+    private struct Bucket: Identifiable {
+        let id: String
+        let label: String
+        let actual: Double
+        let planned: Double
+        let current: Bool
     }
 
-    // MARK: - Aggregated Data
-    private var chartData: [ChartBucket] {
+    private func buckets() -> [Bucket] {
+        let calendar = StatsTrainingData.calendar()
+        let now = Date()
+        let today = calendar.startOfDay(for: now)
+        let workouts = plan?.weeks.flatMap(\.workouts).filter { $0.workoutType.isRunnable } ?? []
+        let formatter = DateFormatter()
+        let starts: [Date]
+        let component: Calendar.Component
         switch selectedScale {
         case .week:
-            return weekBuckets()
-        case .month:
-            return monthBuckets()
-        case .quarter:
-            return quarterBuckets()
+            let monday = StatsTrainingData.week(containing: now).start
+            starts = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: monday) }
+            component = .day; formatter.dateFormat = "EEE"
+        case .month, .quarter:
+            let count = selectedScale == .month ? 4 : 12
+            let monday = StatsTrainingData.week(containing: now).start
+            starts = (0..<count).reversed().compactMap { calendar.date(byAdding: .weekOfYear, value: -$0, to: monday) }
+            component = .weekOfYear; formatter.dateFormat = "MMM d"
         case .year:
-            return yearBuckets()
+            let month = calendar.dateInterval(of: .month, for: now)!.start
+            starts = (0..<12).reversed().compactMap { calendar.date(byAdding: .month, value: -$0, to: month) }
+            component = .month; formatter.dateFormat = "MMM"
         case .allTime:
-            return allTimeBuckets()
+            let year = calendar.component(.year, from: now)
+            let first = min(year, runLogs.map { calendar.component(.year, from: $0.completedAt) }.min() ?? year)
+            starts = (first...year).compactMap { calendar.date(from: DateComponents(year: $0, month: 1, day: 1)) }
+            component = .year; formatter.dateFormat = "yyyy"
+        }
+        return starts.map { start in
+            let end = calendar.date(byAdding: component, value: 1, to: start)!
+            let actual = runLogs.filter { $0.completedAt >= start && $0.completedAt < end && $0.completedAt <= now }.reduce(0) { $0 + $1.distanceKm }
+            let planned = workouts.filter { $0.date >= start && $0.date < end }.reduce(0) { $0 + ($1.distanceKm ?? 0) }
+            return Bucket(id: String(start.timeIntervalSince1970), label: formatter.string(from: start),
+                actual: actual, planned: planned, current: today >= start && today < end)
         }
     }
 
-    // MARK: - Rolling Average (4-bucket)
-    private var rollingAverage: [Double] {
-        let distances = chartData.map { $0.distance }
-        guard distances.count >= 4 else { return [] }
-
-        var averages: [Double] = []
-        for i in 0..<distances.count {
-            let start = max(0, i - 3)
-            let end = min(distances.count, i + 1)
-            let slice = Array(distances[start..<end])
-            let avg = slice.reduce(0, +) / Double(slice.count)
-            averages.append(avg)
-        }
-        return averages
-    }
-
-    // MARK: - Body
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header with picker
+        let data = buckets()
+        VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("Distance Over Time")
-                    .font(.inter(size: 18, weight: .semibold))
-
+                Text(plan == nil ? "Distance Over Time" : "Distance vs Plan").font(.inter(size: 18, weight: .semibold))
                 Spacer()
-
-                Picker("Scale", selection: $selectedScale) {
-                    ForEach(DistanceChartScale.allCases) { scale in
-                        Text(scale.rawValue).tag(scale)
+                Menu {
+                    Picker("Period", selection: $selectedScale) {
+                        ForEach(DistanceChartScale.allCases) { Text($0.rawValue).tag($0) }
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text(selectedScale.rawValue)
+                        Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
+                    }
+                    .font(.inter(size: 12, weight: .medium))
+                    .foregroundStyle(Color.stridePrimary)
+                    .padding(.horizontal, 10).padding(.vertical, 8)
+                    .background(Color.stridePrimary.opacity(0.07), in: Capsule())
                 }
-                .tint(.stridePrimary)
+                .accessibilityLabel("Chart period: \(selectedScale.rawValue)")
             }
-
-            // Chart
+            HStack(spacing: 18) {
+                legend("Completed", color: .stridePrimary)
+                if plan != nil { legend("Planned", color: Color(red: 0.92, green: 0.73, blue: 0.32)) }
+                Spacer()
+                Text("km").font(.inter(size: 11)).foregroundStyle(.secondary)
+            }
             Chart {
-                ForEach(Array(chartData.enumerated()), id: \.element.id) { index, bucket in
-                    BarMark(
-                        x: .value("Period", bucket.id),
-                        y: .value("Distance", bucket.distance)
-                    )
-                    .foregroundStyle(
-                        bucket.isCurrent
-                            ? Color.stridePrimary
-                            : Color.stridePrimary.opacity(0.55)
-                    )
-                    .cornerRadius(4)
-                }
-
-                // Rolling average line
-                if !rollingAverage.isEmpty {
-                    ForEach(Array(rollingAverage.enumerated()), id: \.offset) { index, avg in
-                        LineMark(
-                            x: .value("Period", chartData[index].id),
-                            y: .value("Average", avg)
-                        )
-                        .foregroundStyle(Color.stridePrimary.opacity(0.6))
-                        .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
+                ForEach(data) { bucket in
+                    if plan != nil {
+                        BarMark(x: .value("Period", bucket.id), yStart: .value("Start", 0), yEnd: .value("Planned", bucket.planned), width: .ratio(0.8))
+                            .foregroundStyle(Color(red: 0.92, green: 0.73, blue: 0.32).opacity(0.65)).cornerRadius(4)
+                    }
+                    BarMark(x: .value("Period", bucket.id), yStart: .value("Start", 0), yEnd: .value("Completed", bucket.actual), width: .ratio(0.8))
+                        .foregroundStyle(Color.stridePrimary).cornerRadius(3)
+                    if selectedBucket == bucket.id {
+                        RuleMark(x: .value("Selected", bucket.id)).foregroundStyle(Color.secondary.opacity(0.25))
                     }
                 }
             }
-            .frame(height: 200)
+            .chartXSelection(value: $selectedBucket)
             .chartXAxis {
-                AxisMarks(values: .automatic) { value in
+                AxisMarks(values: data.map(\.id)) { value in
                     AxisValueLabel {
-                        if let label = value.as(String.self) {
-                            if selectedScale == .month {
-                                let ids = chartData.map { $0.id }
-                                if let idx = ids.firstIndex(of: label),
-                                   idx % 5 == 0 {
-                                    Text(label)
-                                        .font(.inter(size: 9))
-                                } else {
-                                    Text("")
-                                }
-                            } else {
-                                Text(label)
-                                    .font(.inter(size: 9))
-                            }
+                        if let id = value.as(String.self), let index = data.firstIndex(where: { $0.id == id }),
+                           data.count <= 7 || index % 2 == 0 {
+                            Text(data[index].label).font(.inter(size: 9))
                         }
                     }
                 }
             }
-            .chartYAxis {
-                AxisMarks { value in
-                    AxisGridLine()
-                    AxisValueLabel {
-                        if let intValue = value.as(Double.self) {
-                            Text("\(Int(intValue))")
-                                .font(.inter(size: 10))
-                        }
-                    }
-                }
+            .chartYAxis { AxisMarks { AxisGridLine(); AxisValueLabel().font(.inter(size: 10)) } }
+            .frame(height: 190)
+            if let selected = data.first(where: { $0.id == selectedBucket }) {
+                Text("\(selected.label) · \(String(format: "%.1f", selected.actual)) km completed" + (plan == nil ? "" : " / \(String(format: "%.1f", selected.planned)) km planned") + (selected.current ? " · In progress" : ""))
+                    .font(.inter(size: 11, weight: .medium))
+            } else {
+                Text("Tap a bar to compare saved runs with the plan. The current period is still in progress.")
+                    .font(.inter(size: 11)).foregroundStyle(.secondary)
             }
         }
-        .padding(16)
-        .background(Color(hex: "F9F9F9"))
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(18).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
     }
-
-    // MARK: - Helper: sum distance for runLogs in a date range
-    private func distanceInRange(from start: Date, to end: Date) -> Double {
-        let calendar = Calendar.current
-        return runLogs
-            .filter { runLog in
-                let d = calendar.startOfDay(for: runLog.completedAt)
-                return d >= start && d < end
-            }
-            .reduce(0.0) { $0 + $1.distanceKm }
+    private func legend(_ title: String, color: Color) -> some View {
+        HStack(spacing: 5) { RoundedRectangle(cornerRadius: 2).fill(color).frame(width: 10, height: 10); Text(title).font(.inter(size: 11)).foregroundStyle(.secondary) }
     }
-
-    // MARK: - Week: Last 7 individual days (including today)
-    private func weekBuckets() -> [ChartBucket] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-
-        let labelFormatter = DateFormatter()
-        labelFormatter.dateFormat = "EEE"
-
-        var buckets: [ChartBucket] = []
-
-        for daysBack in stride(from: 6, through: 0, by: -1) {
-            guard let day = calendar.date(byAdding: .day, value: -daysBack, to: today) else { continue }
-            let dayStart = calendar.startOfDay(for: day)
-            guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
-
-            let distance = distanceInRange(from: dayStart, to: dayEnd)
-            let label = labelFormatter.string(from: day).uppercased()
-            let isCurrent = (daysBack == 0)
-
-            buckets.append(ChartBucket(id: label, distance: distance, isCurrent: isCurrent))
-        }
-
-        return buckets
-    }
-
-    // MARK: - Month: Last 30 individual days
-    private func monthBuckets() -> [ChartBucket] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-
-        var buckets: [ChartBucket] = []
-
-        for daysBack in stride(from: 29, through: 0, by: -1) {
-            guard let day = calendar.date(byAdding: .day, value: -daysBack, to: today) else { continue }
-            let dayStart = calendar.startOfDay(for: day)
-            guard let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
-
-            let distance = distanceInRange(from: dayStart, to: dayEnd)
-            let isCurrent = (daysBack == 0)
-
-            let monthDay = DateFormatter()
-            monthDay.dateFormat = "M/d"
-            let uniqueId = monthDay.string(from: day)
-
-            buckets.append(ChartBucket(id: uniqueId, distance: distance, isCurrent: isCurrent))
-        }
-
-        return buckets
-    }
-
-    // MARK: - Quarter: Weeks over past 3 months (~13 weeks)
-    private func quarterBuckets() -> [ChartBucket] {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.firstWeekday = 2 // Monday
-        let today = calendar.startOfDay(for: Date())
-
-        let labelFormatter = DateFormatter()
-        labelFormatter.dateFormat = "M/d"
-
-        var buckets: [ChartBucket] = []
-
-        for weeksBack in stride(from: 12, through: 0, by: -1) {
-            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -weeksBack, to: today),
-                  let mondayOfWeek = calendar.dateInterval(of: .weekOfYear, for: weekStart)?.start,
-                  let endOfWeek = calendar.date(byAdding: .day, value: 7, to: mondayOfWeek) else {
-                continue
-            }
-
-            let distance = distanceInRange(from: mondayOfWeek, to: endOfWeek)
-            let label = labelFormatter.string(from: mondayOfWeek).uppercased()
-            let isCurrent = (weeksBack == 0)
-
-            buckets.append(ChartBucket(id: label, distance: distance, isCurrent: isCurrent))
-        }
-
-        return buckets
-    }
-
-    // MARK: - Year: Every month over past 12 months
-    private func yearBuckets() -> [ChartBucket] {
-        let calendar = Calendar.current
-        let today = Date()
-        let currentMonth = calendar.dateComponents([.year, .month], from: today)
-
-        let labelFormatter = DateFormatter()
-        labelFormatter.dateFormat = "MMM"
-
-        var buckets: [ChartBucket] = []
-
-        for monthsBack in stride(from: 11, through: 0, by: -1) {
-            guard let bucketDate = calendar.date(byAdding: .month, value: -monthsBack, to: today),
-                  let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: bucketDate)),
-                  let monthEnd = calendar.date(byAdding: .month, value: 1, to: monthStart) else {
-                continue
-            }
-
-            let distance = distanceInRange(from: monthStart, to: monthEnd)
-            let label = labelFormatter.string(from: monthStart).uppercased()
-            let bucketComponents = calendar.dateComponents([.year, .month], from: monthStart)
-            let isCurrent = (bucketComponents.year == currentMonth.year && bucketComponents.month == currentMonth.month)
-
-            buckets.append(ChartBucket(id: label, distance: distance, isCurrent: isCurrent))
-        }
-
-        return buckets
-    }
-
-    // MARK: - All Time: Yearly buckets since earliest run
-    private func allTimeBuckets() -> [ChartBucket] {
-        let calendar = Calendar.current
-        let today = Date()
-        let currentYear = calendar.component(.year, from: today)
-
-        let earliestYear: Int = {
-            if let earliest = runLogs.min(by: { $0.completedAt < $1.completedAt }) {
-                return calendar.component(.year, from: earliest.completedAt)
-            }
-            return currentYear
-        }()
-
-        var buckets: [ChartBucket] = []
-
-        for year in earliestYear...currentYear {
-            guard let yearStart = calendar.date(from: DateComponents(year: year, month: 1, day: 1)),
-                  let yearEnd = calendar.date(from: DateComponents(year: year + 1, month: 1, day: 1)) else {
-                continue
-            }
-
-            let distance = distanceInRange(from: yearStart, to: yearEnd)
-            let isCurrent = (year == currentYear)
-
-            buckets.append(ChartBucket(id: "\(year)", distance: distance, isCurrent: isCurrent))
-        }
-
-        return buckets
-    }
-}
-
-#Preview {
-    DistanceBarChartView(runLogs: [])
-        .padding()
 }

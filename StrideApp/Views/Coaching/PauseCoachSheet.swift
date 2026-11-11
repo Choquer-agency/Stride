@@ -37,6 +37,7 @@ struct PauseCoachSheet: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 24)
             .navigationTitle("Pause coach")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

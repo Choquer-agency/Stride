@@ -81,7 +81,7 @@ class GoogleHealthClient:
             "state": state,
             # offline + consent → Google returns a refresh token
             "access_type": "offline",
-            "prompt": "consent",
+            "prompt": "consent select_account",
         }
         return f"{AUTHORIZE_URL}?{urlencode(params)}"
 

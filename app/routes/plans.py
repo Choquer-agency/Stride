@@ -334,13 +334,26 @@ def _build_post_run_user_prompt(req: PostRunCoachRequest) -> str:
         f"- Average pace: {req.avg_pace}/km",
     ]
 
-    if best_split:
+    if req.planned_workout_title or req.planned_workout_details:
+        lines.extend(["", "PRESCRIBED SESSION:"])
+        if req.planned_workout_title:
+            lines.append(f"- Title: {req.planned_workout_title}")
+        if req.planned_workout_details:
+            lines.append(f"- Instructions: {req.planned_workout_details}")
+    elif req.run_type == "free run":
+        lines.append("- This was an athlete-chosen free run, not a prescribed session. Do not claim it met or missed a training-plan target.")
+    if req.phase_execution:
+        lines.extend(["", "MEASURED EXECUTION BY PRESCRIBED PHASE:", req.phase_execution])
+        lines.append("Use phase measurements for pacing feedback when present. Kilometer splits cross phase boundaries and do not measure interval adherence.")
+
+    if best_split and not req.phase_execution:
         lines.append(f"- Best split: Kilometer {best_split.kilometer} at {best_split.pace}/km")
-    if slowest_split:
+    if slowest_split and not req.phase_execution:
         lines.append(f"- Slowest split: Kilometer {slowest_split.kilometer} at {slowest_split.pace}/km")
-    if req.pace_consistency_pct is not None:
+    if req.pace_consistency_pct is not None and not req.phase_execution:
         lines.append(f"- Pace consistency: {req.pace_consistency_pct:.1f}% variance across splits")
-    lines.append(f"- Negative split: {req.negative_split}")
+    if not req.phase_execution:
+        lines.append(f"- Negative split: {req.negative_split}")
     if req.avg_hr:
         lines.append(f"- Average heart rate: {req.avg_hr} bpm")
     if req.max_hr:
@@ -524,6 +537,7 @@ from uuid import UUID as _UUID
 
 from pydantic import BaseModel as _BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession as _AsyncSession
+from sqlalchemy import select as _select
 
 from app.database import get_db as _get_db
 
@@ -612,7 +626,11 @@ async def sync_plan(
     if not body.raw_plan_content.strip():
         raise HTTPException(status_code=400, detail="raw_plan_content is required")
 
+    await db.scalar(_select(User.id).where(User.id == current_user.id).with_for_update())
     existing = await plan_store.get_active(db, current_user.id)
+    if existing is not None and existing.source == "server_edit" and existing.raw_plan_content != body.raw_plan_content:
+        # A stale phone must not overwrite a coach version the athlete approved.
+        raise HTTPException(status_code=409, detail="Server plan changed; pull the current version")
     if existing is not None and existing.raw_plan_content == body.raw_plan_content:
         record = existing
     else:

@@ -15,12 +15,12 @@ struct StrengthQuickLogView: View {
                 Spacer().frame(height: 16)
 
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 64))
+                    .font(.system(size: 64, weight: .ultraLight))
                     .foregroundStyle(Color.stridePrimary)
 
                 VStack(spacing: 8) {
-                    Text("Done as prescribed")
-                        .font(.title2.weight(.semibold))
+                    Text("DONE AS PRESCRIBED")
+                        .font(.barlowCondensed(size: 42))
                     Text("One tap closes today's gym session.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -30,8 +30,8 @@ struct StrengthQuickLogView: View {
 
                 if includeRPE {
                     VStack(spacing: 10) {
-                        Text("Perceived effort")
-                            .font(.subheadline.weight(.semibold))
+                        Text("PERCEIVED EFFORT")
+                            .font(.runEyebrow(11))
                             .foregroundStyle(.secondary)
                         HStack(spacing: 8) {
                             ForEach(1...10, id: \.self) { i in
@@ -68,22 +68,23 @@ struct StrengthQuickLogView: View {
                     if viewModel.isSubmitting {
                         ProgressView().tint(.white).frame(maxWidth: .infinity).padding(.vertical, 14)
                     } else {
-                        Text("Save")
-                            .font(.headline)
+                        Text("SAVE SESSION")
+                            .font(.barlowCondensed(size: 23, weight: .semibold))
                             .foregroundStyle(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                     }
                 }
                 .background(Color.stridePrimary)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .clipShape(Capsule())
                 .disabled(viewModel.isSubmitting)
                 .padding(.horizontal, 20)
                 .padding(.bottom, 16)
             }
-            .navigationTitle("Quick log")
+            .navigationTitle("QUICK LOG")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } } }
         }
+        .strideSecondaryScreen()
     }
 }

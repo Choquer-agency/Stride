@@ -52,6 +52,7 @@ struct EventDetailView: View {
             }
         }
         .navigationTitle("")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.loadDetail(eventId: eventId)
@@ -217,7 +218,7 @@ struct EventDetailView: View {
                 Spacer()
             }
             .padding(14)
-            .background(Color(.secondarySystemBackground))
+            .background { StrideSecondaryCard() }
             .cornerRadius(12)
         }
         .padding(.horizontal, 16)

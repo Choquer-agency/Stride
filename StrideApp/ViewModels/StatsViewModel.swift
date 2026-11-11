@@ -57,19 +57,13 @@ class StatsViewModel: ObservableObject {
         self.runLogs = runLogs
     }
 
+    static var trainingCalendar: Calendar { StatsTrainingData.calendar() }
+
     // MARK: - Static Helper for No-Plan Mode
     /// Calculate weekly distance using the user's locale-aware calendar week.
-    static func weeklyDistanceForCurrentCalendarWeek(runLogs: [RunLog]) -> WeeklyDistanceStats {
-        let calendar = Calendar.current
-        guard let interval = calendar.dateInterval(of: .weekOfYear, for: Date()) else {
-            return WeeklyDistanceStats(completed: 0, planned: 0, isNoPlanMode: true)
-        }
-
-        let completed = runLogs
-            .filter { $0.isValidForStats && interval.contains($0.completedAt) }
-            .reduce(0.0) { $0 + $1.distanceKm }
-
-        return WeeklyDistanceStats(completed: completed, planned: 0, isNoPlanMode: true)
+    static func weeklyDistanceForCurrentCalendarWeek(runLogs: [RunLog], now: Date = Date(), calendar: Calendar = .current) -> WeeklyDistanceStats {
+        let interval = StatsTrainingData.week(containing: now, calendar: calendar)
+        return WeeklyDistanceStats(completed: StatsTrainingData.distance(runLogs, in: interval), planned: 0, isNoPlanMode: true)
     }
 
     // MARK: - Weekly Stats (Completed vs Planned) — plan-specific, unchanged
@@ -93,13 +87,13 @@ class StatsViewModel: ObservableObject {
             return WeeklyDistanceStats(completed: 0, planned: 0)
         }
 
-        let interval = Calendar.current.dateInterval(of: .weekOfYear, for: Date())
+        let interval = Self.trainingCalendar.dateInterval(of: .weekOfYear, for: Date())
         let completed = runLogs
-            .filter { $0.isValidForStats && (interval?.contains($0.completedAt) ?? false) }
+            .filter { log in log.isValidForStats && (interval.map { log.completedAt >= $0.start && log.completedAt < $0.end } ?? false) }
             .reduce(0.0) { $0 + $1.distanceKm }
 
         let planned = week.workouts
-            .filter { $0.workoutType != .rest }
+            .filter { $0.workoutType.isRunnable }
             .reduce(0.0) { $0 + ($1.distanceKm ?? 0) }
 
         return WeeklyDistanceStats(completed: completed, planned: planned)
@@ -114,16 +108,16 @@ class StatsViewModel: ObservableObject {
 
         let previousWeek = plan.sortedWeeks[currentWeekIndex - 1]
 
-        let calendar = Calendar.current
+        let calendar = Self.trainingCalendar
         let currentInterval = calendar.dateInterval(of: .weekOfYear, for: Date())
         let previousDate = currentInterval.flatMap { calendar.date(byAdding: .second, value: -1, to: $0.start) }
         let previousInterval = previousDate.flatMap { calendar.dateInterval(of: .weekOfYear, for: $0) }
         let completed = runLogs
-            .filter { $0.isValidForStats && (previousInterval?.contains($0.completedAt) ?? false) }
+            .filter { log in log.isValidForStats && (previousInterval.map { log.completedAt >= $0.start && log.completedAt < $0.end } ?? false) }
             .reduce(0.0) { $0 + $1.distanceKm }
 
         let planned = previousWeek.workouts
-            .filter { $0.workoutType != .rest }
+            .filter { $0.workoutType.isRunnable }
             .reduce(0.0) { $0 + ($1.distanceKm ?? 0) }
 
         return WeeklyDistanceStats(completed: completed, planned: planned)
@@ -142,13 +136,13 @@ class StatsViewModel: ObservableObject {
         Self.rolling4WeekAverage(from: runLogs)
     }
 
-    static func rolling4WeekAverage(from runLogs: [RunLog]) -> Double {
+    static func rolling4WeekAverage(from runLogs: [RunLog], now: Date = Date()) -> Double {
         let runLogs = runLogs.filter(\.isValidForStats)
-        let calendar = Calendar.current
-        let today = Date()
+        let calendar = Self.trainingCalendar
+        let today = now
 
         var weeklyDistances: [Double] = []
-        for weeksBack in 0..<4 {
+        for weeksBack in 1...4 {
             guard let weekStart = calendar.date(byAdding: .weekOfYear, value: -weeksBack, to: today) else { continue }
             guard let weekInterval = calendar.dateInterval(of: .weekOfYear, for: weekStart) else { continue }
 
@@ -173,7 +167,7 @@ class StatsViewModel: ObservableObject {
 
     static func yearToDateDistance(from runLogs: [RunLog]) -> Double {
         let runLogs = runLogs.filter(\.isValidForStats)
-        let calendar = Calendar.current
+        let calendar = Self.trainingCalendar
         let currentYear = calendar.component(.year, from: Date())
 
         return runLogs
@@ -220,48 +214,30 @@ class StatsViewModel: ObservableObject {
     var longRunProgression: [(weekNumber: Int, distance: Double)] {
         plan.sortedWeeks.map { week in
             let trainingLongRunDistance = week.workouts
-                .filter { $0.workoutType != .rest && $0.workoutType != .gym && $0.workoutType != .crossTraining && $0.workoutType != .race }
+                .filter { $0.workoutType != .rest && $0.workoutType != .gym && $0.workoutType != .crossTraining && $0.workoutType != .race && !Calendar.current.isDate($0.date, inSameDayAs: plan.raceDate) }
                 .max(by: { ($0.distanceKm ?? 0) < ($1.distanceKm ?? 0) })?
                 .distanceKm ?? 0
             return (weekNumber: week.weekNumber, distance: trainingLongRunDistance)
         }
     }
 
-    /// What actually happened, week by week, rounded to the nearest km so an
-    /// on-plan week sits exactly on the planned line. A missed week carries the
-    /// previous value forward (flat dot) instead of dropping to zero. Only
-    /// weeks that are decided — long run completed, or the week is over — are
-    /// included, so the current week doesn't read as a miss prematurely.
+    /// Actual recorded training maxima; absent weeks are left absent, never carried forward.
     var longRunActualProgression: [(weekNumber: Int, distance: Double)] {
-        let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        var result: [(weekNumber: Int, distance: Double)] = []
-        var carried = 0.0
-
-        for week in plan.sortedWeeks {
-            let runWorkouts = week.workouts.filter {
-                $0.workoutType != .rest && $0.workoutType != .gym
-                    && $0.workoutType != .crossTraining && $0.workoutType != .race
-            }
-            let longRun = runWorkouts.max(by: { ($0.distanceKm ?? 0) < ($1.distanceKm ?? 0) })
-            let weekEnd = week.workouts.map(\.date).max() ?? .distantPast
-
-            if let workout = longRun, workout.isCompleted,
-               let actual = workout.actualDistanceKm, actual > 0 {
-                carried = actual.rounded()
-                result.append((week.weekNumber, carried))
-            } else if weekEnd < today {
-                // Week's over and the long run never happened — flat line
-                result.append((week.weekNumber, carried))
-            } else {
-                break
-            }
+        plan.sortedWeeks.compactMap { week in
+            guard let start = week.mondayStart,
+                  let end = Self.trainingCalendar.date(byAdding: .day, value: 7, to: start) else { return nil }
+            let actual = runLogs.filter {
+                $0.isValidForStats && $0.completedAt >= start && $0.completedAt < end && $0.completedAt <= Date()
+                    && $0.plannedWorkoutType != .race
+                    && !Self.trainingCalendar.isDate($0.completedAt, inSameDayAs: plan.raceDate)
+            }.map(\.distanceKm).max()
+            return actual.map { (week.weekNumber, $0) }
         }
-        return result
     }
 
+    /// Completed training only: race day and future prescriptions are not achievements.
     var longestRunEver: Double {
-        longRunProgression.map { $0.distance }.max() ?? 0
+        longRunActualProgression.map(\.distance).max() ?? 0
     }
 
     var peakLongRunWeek: Int? {
@@ -333,7 +309,7 @@ class StatsViewModel: ObservableObject {
     }
 
     var mostConsistentMonth: (month: String, adherence: Double)? {
-        let calendar = Calendar.current
+        let calendar = Self.trainingCalendar
         let monthFormatter = DateFormatter()
         monthFormatter.dateFormat = "MMMM"
 
@@ -388,7 +364,7 @@ class StatsViewModel: ObservableObject {
     }
 
     static func highestWeeklyMileage(from runLogs: [RunLog]) -> Double {
-        let calendar = Calendar.current
+        let calendar = Self.trainingCalendar
         guard !runLogs.isEmpty else { return 0 }
 
         let grouped = Dictionary(grouping: runLogs.filter(\.isValidForStats)) { runLog in
@@ -443,7 +419,7 @@ class StatsViewModel: ObservableObject {
     func weeksForTimeRange(_ range: TimeRange) -> [Week] {
         let sortedWeeks = plan.sortedWeeks
         let today = Date()
-        let calendar = Calendar.current
+        let calendar = Self.trainingCalendar
 
         switch range {
         case .thisWeek:
@@ -479,4 +455,100 @@ enum TimeRange: String, CaseIterable {
     case last12Weeks = "Last 12 Weeks"
     case fullPlan = "Full Plan"
     case yearToDate = "Year-to-Date"
+}
+
+/// Calendar and sample calculations shared by Stats cards and charts.
+enum StatsTrainingData {
+    static func calendar(from source: Calendar = .current) -> Calendar {
+        var result = source
+        result.firstWeekday = 2
+        result.minimumDaysInFirstWeek = 4
+        return result
+    }
+    static func week(containing date: Date, calendar source: Calendar = .current) -> DateInterval {
+        calendar(from: source).dateInterval(of: .weekOfYear, for: date)!
+    }
+    static func distance(_ logs: [RunLog], in interval: DateInterval) -> Double {
+        logs.filter { $0.isValidForStats && $0.completedAt >= interval.start && $0.completedAt < interval.end }
+            .reduce(0) { $0 + $1.distanceKm }
+    }
+    static func inEasyRangeSeconds(_ run: RunLog) -> (inside: Double, recorded: Double) {
+        timeInRangeSeconds(run, range: 130...147)
+    }
+    static func timeInRangeSeconds(_ run: RunLog, range: ClosedRange<Int>) -> (inside: Double, recorded: Double) {
+        let samples = run.decodedHRSamples.filter { $0.t.isFinite && $0.t >= 0 && $0.bpm > 0 }.sorted { $0.t < $1.t }
+        var inside = 0.0, recorded = 0.0
+        for (index, sample) in samples.enumerated() {
+            let next = index + 1 < samples.count ? samples[index + 1].t : run.durationSeconds
+            let seconds = max(0, min(next, sample.t + 10, run.durationSeconds) - sample.t)
+            recorded += seconds
+            if range.contains(sample.bpm) { inside += seconds }
+        }
+        return (inside, recorded)
+    }
+}
+
+struct TrainingTrendWeek: Identifiable {
+    var id: Date { start }
+    let start: Date
+    let heartRate: Double?
+    let feeling: Double?
+    let hrRunCount: Int
+    let ratedRunCount: Int
+}
+
+struct TrainingInsightSummary {
+    let heartRateType: WorkoutType
+    let heartRateRange: ClosedRange<Int>
+    let weeks: [TrainingTrendWeek]
+    let recentHR: Double?
+    let previousHR: Double?
+    let recentPace: Double?
+    let previousPace: Double?
+    let recentHRCount: Int
+    let previousHRCount: Int
+    let recentFeeling: Double?
+    let previousFeeling: Double?
+    let ratedCount: Int
+    let inRangePercent: Double?
+
+    init(runLogs: [RunLog], now: Date = Date(), heartRateType: WorkoutType = .easyRun) {
+        self.heartRateType = heartRateType
+        let range: ClosedRange<Int> = heartRateType == .longRun ? 135...150 : heartRateType == .recovery ? 120...135 : 130...147
+        self.heartRateRange = range
+        let calendar = StatsTrainingData.calendar()
+        let logs = runLogs.filter { $0.isValidForStats && $0.completedAt <= now }
+        let current = StatsTrainingData.week(containing: now).start
+        let recentStart = calendar.date(byAdding: .day, value: -13, to: calendar.startOfDay(for: now))!
+        let priorStart = calendar.date(byAdding: .day, value: -14, to: recentStart)!
+        let recent = logs.filter { $0.completedAt >= recentStart }
+        let prior = logs.filter { $0.completedAt >= priorStart && $0.completedAt < recentStart }
+        func mean(_ values: [Double]) -> Double? { values.isEmpty ? nil : values.reduce(0, +) / Double(values.count) }
+        func easyHR(_ runs: [RunLog]) -> [RunLog] {
+            runs.filter { $0.plannedWorkoutType == heartRateType && ($0.avgHeartRate ?? 0) > 0 }
+        }
+        let easy = easyHR(recent), previousEasy = easyHR(prior)
+        recentHR = mean(easy.compactMap { $0.avgHeartRate.map(Double.init) })
+        previousHR = mean(previousEasy.compactMap { $0.avgHeartRate.map(Double.init) })
+        recentPace = mean(easy.map(\.avgPaceSecPerKm))
+        previousPace = mean(previousEasy.map(\.avgPaceSecPerKm))
+        recentHRCount = easy.count
+        previousHRCount = previousEasy.count
+        let ratings = recent.compactMap(\.feedbackRating).filter { (0...5).contains($0) }
+        recentFeeling = mean(ratings.map(Double.init))
+        previousFeeling = mean(prior.compactMap(\.feedbackRating).filter { (0...5).contains($0) }.map(Double.init))
+        ratedCount = ratings.count
+        let coverage = easy.map { StatsTrainingData.timeInRangeSeconds($0, range: range) }
+        let seconds = coverage.reduce(0) { $0 + $1.recorded }
+        inRangePercent = seconds > 0 ? coverage.reduce(0) { $0 + $1.inside } / seconds * 100 : nil
+        weeks = (0..<8).reversed().map { offset in
+            let start = calendar.date(byAdding: .weekOfYear, value: -offset, to: current)!
+            let end = calendar.date(byAdding: .day, value: 7, to: start)!
+            let week = logs.filter { $0.completedAt >= start && $0.completedAt < end }
+            let hr = easyHR(week)
+            let feeling = week.compactMap(\.feedbackRating).filter { (0...5).contains($0) }
+            return TrainingTrendWeek(start: start, heartRate: mean(hr.compactMap { $0.avgHeartRate.map(Double.init) }),
+                feeling: mean(feeling.map(Double.init)), hrRunCount: hr.count, ratedRunCount: feeling.count)
+        }
+    }
 }

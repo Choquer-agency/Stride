@@ -45,6 +45,20 @@ struct VoiceCoachSettingsView: View {
             Section("During Your Run") {
                 settingToggle("Announce Splits", icon: "text.bubble", keyPath: \.announceKmSplits)
                 settingToggle("Pace Alerts", icon: "gauge.with.dots.needle.33percent", keyPath: \.announcePaceZone)
+                Picker("Pace Update Frequency", selection: binding(\.paceUpdateFrequency)) {
+                    ForEach(PaceUpdateFrequency.allCases, id: \.self) { frequency in
+                        Text(frequency.label).tag(frequency)
+                    }
+                }
+                .disabled(!settings.announcePaceZone)
+                ForEach(PaceUpdateFrequency.allCases, id: \.self) { frequency in
+                    Text(frequency.explanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Text("Without a valid target, distance updates speak pace only. Updates wait for reliable moving pace and do not speak while paused. At kilometer boundaries, pace and split updates are combined.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 settingToggle("Halfway Alert", icon: "flag.checkered", keyPath: \.announceHalfway)
                 settingToggle("Pause/Resume Cues", icon: "pause.circle", keyPath: \.speakPausedResumed)
                 settingToggle("Countdown", icon: "timer", keyPath: \.announceCountdown)
@@ -62,6 +76,7 @@ struct VoiceCoachSettingsView: View {
             .disabled(!settings.isEnabled)
         }
         .navigationTitle("Voice Coach")
+        .strideSecondaryScreen()
         .navigationBarTitleDisplayMode(.inline)
         .tint(.stridePrimary)
         .safeAreaInset(edge: .top, spacing: 0) {

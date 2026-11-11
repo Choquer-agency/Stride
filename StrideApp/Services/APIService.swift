@@ -41,7 +41,7 @@ class APIService: ObservableObject {
 
     private func checkForUnauthorized(_ response: URLResponse) {
         if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 401 {
-            AuthService.shared.signOut()
+            AuthService.shared.handleUnauthorized()
         }
     }
 
@@ -3014,6 +3014,7 @@ struct ServerRunDTO: Codable, Identifiable {
     let weekNumber: Int?
     let dataSource: String
     let treadmillBrand: String?
+    let shoeId: String?
 
     enum CodingKeys: String, CodingKey {
         case id, notes
@@ -3031,6 +3032,7 @@ struct ServerRunDTO: Codable, Identifiable {
         case weekNumber = "week_number"
         case dataSource = "data_source"
         case treadmillBrand = "treadmill_brand"
+        case shoeId = "shoe_id"
     }
 
     var completedAtDate: Date? {

@@ -20,7 +20,7 @@ struct PaceGraphView: View {
     
     // Helper function to interpolate y value at any x position
     private func interpolateY(at normalizedX: CGFloat, height: CGFloat) -> CGFloat {
-        let exactIndex = normalizedX * CGFloat(dataPoints.count - 1)
+        let exactIndex = normalizedX * CGFloat(max(dataPoints.count - 1, 1))
         let lowerIndex = Int(exactIndex)
         let upperIndex = min(lowerIndex + 1, dataPoints.count - 1)
         let fraction = exactIndex - CGFloat(lowerIndex)
@@ -54,7 +54,7 @@ struct PaceGraphView: View {
                 // Vertical gradient: red at top, white at bottom
                 ForEach(0..<visibleBarCount, id: \.self) { barIndex in
                     // Calculate evenly spaced x position
-                    let normalizedX = CGFloat(barIndex) / CGFloat(visibleBarCount - 1)
+                    let normalizedX = CGFloat(barIndex) / CGFloat(max(visibleBarCount - 1, 1))
                     let lineX = normalizedX * width
                     
                     // Interpolate y value from line data points
@@ -77,40 +77,17 @@ struct PaceGraphView: View {
                         .position(x: lineX, y: height - barHeight / 2) // Center bar vertically, align x with line
                 }
                 
-                // Smooth curved line connecting bar tops
-                Path { path in
-                    // Create smooth curve through data points using Catmull-Rom style interpolation
-                    let pointCount = dataPoints.count
-                    
-                    for index in 0..<pointCount {
-                        let normalizedX = CGFloat(index) / CGFloat(pointCount - 1)
-                        let x = normalizedX * width
-                        let y = height - (CGFloat(dataPoints[index]) * graphHeight)
-                        
-                        if index == 0 {
-                            path.move(to: CGPoint(x: x, y: y))
-                        } else {
-                            // Use smooth curves for natural transitions
-                            let prevX = CGFloat(index - 1) / CGFloat(pointCount - 1) * width
-                            let prevY = height - (CGFloat(dataPoints[index - 1]) * graphHeight)
-                            
-                            // Control point for smooth curve
-                            let controlX = (prevX + x) / 2
-                            let controlY = (prevY + y) / 2
-                            
-                            path.addQuadCurve(
-                                to: CGPoint(x: x, y: y),
-                                control: CGPoint(x: controlX, y: controlY)
-                            )
-                        }
-                    }
-                }
+                // Match the distance bucketing and smooth curves used by live run traces.
+                RunGraphPath.rounded(dataPoints.enumerated().map { index, value in
+                    CGPoint(x: CGFloat(index) / CGFloat(max(dataPoints.count - 1, 1)) * width,
+                            y: height - CGFloat(value) * graphHeight)
+                })
                 .stroke(Color.stridePrimary, style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
-                
+
                 // Current position indicator (circle at rightmost point)
                 if let lastValue = dataPoints.last {
                     let lastIndex = dataPoints.count - 1
-                    let normalizedX = CGFloat(lastIndex) / CGFloat(dataPoints.count - 1)
+                    let normalizedX = CGFloat(lastIndex) / CGFloat(max(dataPoints.count - 1, 1))
                     let x = normalizedX * width
                     let y = height - (CGFloat(lastValue) * graphHeight)
                     

@@ -12,7 +12,7 @@ enum GymSessionModel {
         enum Kind {
             /// Countdown timer (SkiErg warm-up, plank holds, interval work/rest)
             case timed(seconds: Int)
-            /// Rep work — Done advances; weight (kg) is adjustable in 5 kg steps
+            /// Rep work — loads are stored canonically in kilograms.
             case reps(repsText: String, weightKg: Double?, weightSuffix: String)
             /// No timer, no reps — user taps Done when finished (e.g. 500 m SkiErg)
             case manual(detail: String)
@@ -24,6 +24,18 @@ enum GymSessionModel {
         let setLabel: String?          // "SET 2 OF 3"
         let sideLabel: String?         // "LEFT" | "RIGHT"
         let kind: Kind
+        var timedLoadKg: Double? = nil
+        var timedLoadSuffix: String = ""
+        var isStartingLoad: Bool = false
+
+        var loadKg: Double? {
+            if case .reps(_, let kg, _) = kind { return kg }
+            return timedLoadKg
+        }
+        var loadSuffix: String {
+            if case .reps(_, _, let suffix) = kind { return suffix }
+            return timedLoadSuffix
+        }
     }
 
     struct ParsedExercise {
@@ -36,6 +48,7 @@ enum GymSessionModel {
         let perSide: Bool
         let holdSeconds: Int?          // timed holds ("45 sec")
         let isSkiErg: Bool
+        var isStartingLoad: Bool = false
     }
 
     // MARK: - Entry point
@@ -49,7 +62,8 @@ enum GymSessionModel {
 
         // Warm-up: leading SkiErg item
         if let first = exercises.first, first.isSkiErg {
-            stages.append(contentsOf: skiErgStages(first, section: "Warm-up"))
+            stages.append(contentsOf: skiErgStages(first,
+                section: exercises.count == 1 ? "Session" : "Warm-up"))
             exercises.removeFirst()
         }
 
@@ -84,7 +98,8 @@ enum GymSessionModel {
         if let range = source.range(of: #"^.*?Gym(\s*\((?:AM|PM)\))?\s*[:：–—\-]\s*"#, options: .regularExpression) {
             source = String(source[range.upperBound...])
         }
-        guard source.contains(";") else { return [] }
+        // A rescheduled SkiErg interval block is a complete workout on its own.
+        guard source.contains(";") || source.lowercased().hasPrefix("skierg ") else { return [] }
         // Drop a leading focus header ("Main strength — ")
         let head = source.components(separatedBy: ";")[0]
         if let dashRange = head.range(of: #"\s[–—\-]\s"#, options: .regularExpression) {
@@ -102,28 +117,63 @@ enum GymSessionModel {
             .filter { !$0.isEmpty }
     }
 
-    private static func equipmentUnit(in item: String) -> String? {
-        let text = item.lowercased()
-        if text.range(of: #"\b(medicine\s*balls?|med[ –-]?balls?)\b"#, options: .regularExpression) != nil {
-            return "kg"
-        }
-        if text.range(of: #"\b(dumbbells?|kettlebells?|db|kb)\b"#, options: .regularExpression) != nil {
-            return "lbs"
-        }
-        return nil
+    static let kilogramsPerPound = 0.45359237
+
+    static func isDumbbell(_ text: String) -> Bool {
+        let text = text.lowercased()
+        if text.range(of: #"\b(dumbbells?|db)\b"#, options: .regularExpression) != nil { return true }
+        if text.range(of: #"\b(barbell|kettlebells?|kb|bodyweight|bw)\b"#, options: .regularExpression) != nil { return false }
+        return ["goblet squat", "split squat", "step-up", "step up", "farmer hold", "suitcase carry", "single-leg rdl", "single leg rdl", "single-leg romanian deadlift", "single leg romanian deadlift"]
+            .contains(where: text.contains)
     }
 
-    /// Correct equipment labels only; preserve the athlete's prescribed numbers.
+    static func isBarbell(_ text: String) -> Bool {
+        let text = text.lowercased()
+        guard !isDumbbell(text), !text.contains("landmine"), !text.contains("single-leg"), !text.contains("single leg") else { return false }
+        return ["barbell", "back squat", "front squat", "rdl", "romanian deadlift", "deadlift", "hip thrust", "good morning"]
+            .contains(where: text.contains)
+    }
+
+    static func barbellPlateKg(totalKg: Double, barKg: Double) -> Double {
+        max(0, (totalKg - barKg) / 2)
+    }
+
+    static func dumbbellPounds(_ kg: Double) -> Double { kg / kilogramsPerPound }
+    static func roundedDumbbellKg(_ pounds: Double) -> Double {
+        max(5, (pounds / 5).rounded(.toNearestOrAwayFromZero) * 5) * kilogramsPerPound
+    }
+
+    static func displayLoad(_ kg: Double, suffix: String) -> String {
+        let value = suffix.hasPrefix("lb") ? dumbbellPounds(kg) : kg
+        return "\(number(value)) \(suffix)"
+    }
+
+    static func number(_ value: Double) -> String {
+        abs(value - value.rounded()) < 0.001 ? String(Int(value.rounded())) : String(format: "%.2f", value)
+    }
+
+    /// A shared normalization for the plan and player: convert units, never relabel kilograms as pounds.
     static func equipmentUnits(in item: String) -> String {
-        guard let unit = equipmentUnit(in: item) else { return item }
-        return item.replacingOccurrences(of: #"\b(?:kg|kgs|lb|lbs)\b"#, with: unit,
-                                         options: [.regularExpression, .caseInsensitive])
+        let exercise = parseExercise(item)
+        guard let at = item.range(of: #"@\s*"#, options: .regularExpression) else {
+            if let kg = exercise.weightKg { return item + " @ " + displayLoad(kg, suffix: exercise.weightSuffix) + " (starting load)" }
+            return item
+        }
+        guard let kg = exercise.weightKg else { return item }
+        let original = String(item[at.upperBound...]).lowercased()
+        let starting = original.first?.isNumber != true ? " (starting load)" : ""
+        var detail = ""
+        if exercise.weightSuffix.contains("total incl. bar") {
+            let storedBar = UserDefaults.standard.double(forKey: "gym_bar_weight_kg")
+            let bar = storedBar > 0 ? storedBar : 20
+            detail = " (\(number(barbellPlateKg(totalKg: kg, barKg: bar))) kg per side + \(number(bar)) kg bar)"
+        }
+        return String(item[..<at.upperBound]) + displayLoad(kg, suffix: exercise.weightSuffix) + starting + detail
     }
 
     // MARK: - Per-exercise parsing
 
     static func parseExercise(_ item: String) -> ParsedExercise {
-        let item = equipmentUnits(in: item)
         var name = item
         var scheme = ""
         if let digitIdx = item.firstIndex(where: \.isNumber), digitIdx != item.startIndex {
@@ -150,16 +200,35 @@ enum GymSessionModel {
             } else if let numRange = loadText.range(of: #"^[\d.]+"#, options: .regularExpression) {
                 let value = Double(loadText[numRange]) ?? 0
                 let unit = String(loadText[numRange.upperBound...]).trimmingCharacters(in: .whitespaces)
-                if unit.lowercased().hasPrefix("kg")
-                    || (equipmentUnit(in: item) != nil && unit.lowercased().hasPrefix("lb")) {
-                    weightKg = value
-                    let baseUnit = unit.lowercased().hasPrefix("kg") ? "kg" : "lbs"
-                    weightSuffix = baseUnit + (unit.contains("/hand") ? "/hand" : "")
+                let lower = unit.lowercased()
+                if lower.hasPrefix("kg") || lower.hasPrefix("lb") {
+                    var kg = lower.hasPrefix("lb") ? value * kilogramsPerPound : value
+                    if isDumbbell(item) {
+                        kg = roundedDumbbellKg(dumbbellPounds(kg))
+                        weightSuffix = "lb each"
+                    } else if item.lowercased().range(of: #"\b(kettlebells?|kb)\b"#, options: .regularExpression) != nil {
+                        weightSuffix = "lb" + (lower.contains("/hand") ? " each" : "")
+                    } else if isBarbell(item) {
+                        // Legacy prescriptions without a basis remain TOTAL loads.
+                        let platesPerSide = lower.range(of: #"^(?:kgs?|lbs?)\s*(?:/side|per\s+side)"#, options: .regularExpression) != nil
+                        weightSuffix = platesPerSide ? "kg per side (plates only)" : "kg total incl. bar"
+                    } else if item.lowercased().contains("landmine") {
+                        weightSuffix = "kg plates on loaded end"
+                    } else {
+                        weightSuffix = "kg" + (lower.contains("/hand") ? " per hand" : "")
+                    }
+                    weightKg = kg
                 } else {
-                    weightSuffix = unit.isEmpty ? "" : unit   // "lb" — fixed increments, not adjustable
-                    repsText += repsText.isEmpty ? "\(Int(value)) \(unit)" : " @ \(Int(value)) \(unit)"
+                    // Preserve qualitative instructions and give adjustable dumbbells a usable starting load.
+                    weightSuffix = ""
                 }
             }
+        }
+
+        let isStartingLoad = weightKg == nil && weightSuffix != "BW" && isDumbbell(item)
+        if isStartingLoad {
+            weightKg = roundedDumbbellKg(5)
+            weightSuffix = "lb each"
         }
 
         let perSide = repsText.contains("/side") || repsText.contains("/leg")
@@ -180,7 +249,8 @@ enum GymSessionModel {
             weightSuffix: weightSuffix,
             perSide: perSide,
             holdSeconds: holdSeconds,
-            isSkiErg: name.lowercased().contains("skierg")
+            isSkiErg: name.lowercased().contains("skierg"),
+            isStartingLoad: isStartingLoad
         )
     }
 
@@ -205,7 +275,10 @@ enum GymSessionModel {
                 sectionLabel: section,
                 setLabel: setLabel,
                 sideLabel: side,
-                kind: kind
+                kind: kind,
+                timedLoadKg: exercise.holdSeconds != nil ? exercise.weightKg : nil,
+                timedLoadSuffix: exercise.holdSeconds != nil ? exercise.weightSuffix : "",
+                isStartingLoad: exercise.isStartingLoad
             )
         }
     }
@@ -232,11 +305,9 @@ enum GymSessionModel {
                     stages.append(Stage(exerciseName: "SkiErg — Hard", sectionLabel: section,
                                         setLabel: "ROUND \(i) OF \(rounds)", sideLabel: nil,
                                         kind: .timed(seconds: work)))
-                    if i < rounds {
-                        stages.append(Stage(exerciseName: "SkiErg — Easy", sectionLabel: section,
-                                            setLabel: "ROUND \(i) OF \(rounds)", sideLabel: nil,
-                                            kind: .timed(seconds: rest)))
-                    }
+                    stages.append(Stage(exerciseName: "SkiErg — Easy", sectionLabel: section,
+                                        setLabel: "ROUND \(i) OF \(rounds)", sideLabel: nil,
+                                        kind: .timed(seconds: rest)))
                 }
                 return stages
             }
@@ -255,5 +326,52 @@ enum GymSessionModel {
 
         return [Stage(exerciseName: "SkiErg", sectionLabel: section, setLabel: nil, sideLabel: nil,
                       kind: .manual(detail: exercise.scheme))]
+    }
+}
+
+
+/// A gym draft records progress, never completion. Restored timers wait for an explicit tap.
+enum GymSessionRecoveryStore {
+    struct Checkpoint: Codable {
+        let ownerID: String
+        let workoutID: UUID
+        let prescription: String
+        let sessionID: UUID
+        let sessionStart: Date
+        let stageIndex: Int
+        let remainingSeconds: Int
+        let weights: [String: Double]
+    }
+
+    private static func url(ownerID: String, workoutID: UUID) -> URL? {
+        guard let owner = UUID(uuidString: ownerID),
+              let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return nil }
+        return directory.appendingPathComponent("stride-gym-\(owner.uuidString.lowercased())-\(workoutID.uuidString.lowercased()).json")
+    }
+
+    static func save(_ checkpoint: Checkpoint) throws {
+        guard let url = url(ownerID: checkpoint.ownerID, workoutID: checkpoint.workoutID) else { return }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var options: Data.WritingOptions = [.atomic]
+        #if os(iOS)
+        options.insert(.completeFileProtectionUntilFirstUserAuthentication)
+        #endif
+        try JSONEncoder().encode(checkpoint).write(to: url, options: options)
+    }
+
+    static func load(ownerID: String, workoutID: UUID, prescription: String, stageCount: Int) -> Checkpoint? {
+        guard let url = url(ownerID: ownerID, workoutID: workoutID),
+              let data = try? Data(contentsOf: url),
+              let checkpoint = try? JSONDecoder().decode(Checkpoint.self, from: data),
+              checkpoint.ownerID.lowercased() == ownerID.lowercased(), checkpoint.workoutID == workoutID,
+              checkpoint.prescription == prescription, (0...stageCount).contains(checkpoint.stageIndex),
+              checkpoint.remainingSeconds >= 0,
+              checkpoint.weights.values.allSatisfy({ $0.isFinite && $0 >= 0 }) else { return nil }
+        return checkpoint
+    }
+
+    static func remove(ownerID: String, workoutID: UUID) {
+        guard let url = url(ownerID: ownerID, workoutID: workoutID) else { return }
+        try? FileManager.default.removeItem(at: url)
     }
 }

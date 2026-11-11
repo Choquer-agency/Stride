@@ -18,6 +18,9 @@ triggers a 2-day sync for the referenced user.
 
 import asyncio
 import logging
+import hashlib
+import secrets
+from html import escape
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -25,12 +28,14 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.database import async_session, get_db
 from app.models.user import User
+from app.models.fitbit_oauth_attempt import FitbitOAuthAttempt
 from app.services import fitbit_service
 from app.services.auth_service import decode_access_token, get_current_user
 
@@ -83,21 +88,37 @@ async def connect(
     if user is None:
         raise HTTPException(status_code=401, detail="Auth required to connect Fitbit")
 
+    browser_nonce = secrets.token_urlsafe(32)
     state_payload = {
+        "browser_nonce": browser_nonce,
         "user_id": str(user.id),
         "ts": datetime.now(timezone.utc).timestamp(),
     }
+    # Persist before redirecting; attempts survive restarts and multiple workers.
+    now = datetime.now(timezone.utc)
+    await db.execute(delete(FitbitOAuthAttempt).where(FitbitOAuthAttempt.expires_at <= now))
+    db.add(FitbitOAuthAttempt(
+        nonce_hash=hashlib.sha256(browser_nonce.encode()).hexdigest(),
+        user_id=str(user.id), expires_at=now + timedelta(seconds=_STATE_TTL_SECONDS),
+    ))
+    await db.commit()
     signed_state = _state_serializer().dumps(state_payload)
 
     authorize_url = fitbit_service.GoogleHealthClient.build_authorize_url(
         redirect_uri=settings.google_health_redirect_uri,
         state=signed_state,
     )
-    return RedirectResponse(url=authorize_url, status_code=302)
+    response = RedirectResponse(url=authorize_url, status_code=302)
+    response.set_cookie("fitbit_oauth", browser_nonce, max_age=_STATE_TTL_SECONDS,
+                        secure=True, httponly=True, samesite="lax", path="/api/fitbit")
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @router.get("/callback")
 async def callback(
+    request: Request,
     code: Optional[str] = None,
     state: Optional[str] = None,
     error: Optional[str] = None,
@@ -112,10 +133,17 @@ async def callback(
     except BadSignature:
         return _callback_html(success=False, message="Invalid or expired authorization state.")
 
-    user_id = payload["user_id"]
+    nonce = payload.get("browser_nonce")
+    if not nonce or not secrets.compare_digest(nonce, request.cookies.get("fitbit_oauth", "")):
+        return _callback_html(success=False, message="Authorization browser changed. Please connect again.")
+    user_id = payload.get("user_id")
+    if not user_id:
+        return _callback_html(success=False, message="Invalid authorization state.")
     settings = get_settings()
 
     async with async_session() as db:
+        if not await _consume_oauth_attempt(db, nonce, user_id):
+            return _callback_html(success=False, message="Authorization already used or expired. Please connect again.")
         user = await db.get(User, user_id)
         if user is None:
             return _callback_html(success=False, message="User not found.")
@@ -127,11 +155,30 @@ async def callback(
             )
         except Exception as exc:
             logger.exception("Google Health token exchange failed for user %s", user_id)
-            return _callback_html(success=False, message=f"Token exchange failed: {exc}")
+            return _callback_html(success=False, message="Google authorization failed. Please try connecting again.")
 
-        user.fitbit_access_token = tokens.get("access_token")
-        if tokens.get("refresh_token"):
-            user.fitbit_refresh_token = tokens["refresh_token"]
+        # Never combine a new access token with a previous account's refresh token.
+        if not tokens.get("access_token") or not tokens.get("refresh_token"):
+            return _callback_html(success=False, message="Google did not grant offline access. Please connect again.")
+        try:
+            identity = await fitbit_service.GoogleHealthClient(
+                access_token=tokens["access_token"]
+            ).get_identity()
+            health_user_id = identity.get("healthUserId")
+            if not health_user_id:
+                raise ValueError("Missing Health identity")
+        except Exception:
+            logger.exception("Google Health identity verification failed")
+            return _callback_html(success=False, message="Could not verify Fitbit account. Please try again.")
+        # A Google Health account must not feed two different Stride accounts.
+        existing = await db.execute(select(User).where(
+            User.fitbit_health_user_id == health_user_id, User.id != user.id
+        ))
+        if existing.scalars().first() is not None:
+            return _callback_html(success=False, message="This Fitbit account is already linked to another Stride account. Choose your own Google account.")
+        user.fitbit_access_token = tokens["access_token"]
+        user.fitbit_refresh_token = tokens["refresh_token"]
+        user.fitbit_health_user_id = health_user_id
         user.fitbit_token_expires_at = datetime.now(timezone.utc) + timedelta(
             seconds=int(tokens.get("expires_in", 3600))
         )
@@ -140,21 +187,33 @@ async def callback(
         user.fitbit_backfill_status = "pending"
         user.fitbit_backfill_progress = 0
 
-        # Resolve the Google Health user id (webhook payloads reference it)
-        try:
-            identity_client = fitbit_service.GoogleHealthClient(
-                access_token=user.fitbit_access_token
-            )
-            identity = await identity_client.get_identity()
-            user.fitbit_health_user_id = identity.get("healthUserId")
-        except Exception:
-            logger.exception("Google Health getIdentity failed (non-fatal)")
-
         db.add(user)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            # The unique index is authoritative when two callbacks race past
+            # the friendly precheck. Roll back the entire token pair.
+            await db.rollback()
+            return _callback_html(success=False, message="This Fitbit account could not be linked. It may already belong to another Stride account. Choose your own Google account.")
 
     asyncio.create_task(_run_backfill_task(user_id, days=90))
     return _callback_html(success=True, message="Fitbit connected — pulling your last 90 days now.")
+
+
+async def _consume_oauth_attempt(db: AsyncSession, nonce: str, user_id: str) -> bool:
+    """DELETE RETURNING gives exactly one winner, even across workers.
+
+    Commit before contacting Google, so failures/crashes cannot revive a state.
+    A failed exchange requires starting a new connect attempt.
+    """
+    result = await db.execute(delete(FitbitOAuthAttempt).where(
+        FitbitOAuthAttempt.nonce_hash == hashlib.sha256(nonce.encode()).hexdigest(),
+        FitbitOAuthAttempt.user_id == str(user_id),
+        FitbitOAuthAttempt.expires_at > datetime.now(timezone.utc),
+    ).returning(FitbitOAuthAttempt.nonce_hash))
+    consumed = result.scalar_one_or_none() is not None
+    await db.commit()
+    return consumed
 
 
 async def _run_backfill_task(user_id: str, days: int = 90) -> None:
@@ -173,6 +232,7 @@ def _callback_html(*, success: bool, message: str) -> HTMLResponse:
     deep_link = "stride://fitbit/connected" if success else "stride://fitbit/connected?error=1"
     title = "Fitbit connected" if success else "Couldn't connect"
     body_class = "ok" if success else "fail"
+    message = escape(message)
     html = f"""<!doctype html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{title}</title>
@@ -189,7 +249,9 @@ def _callback_html(*, success: bool, message: str) -> HTMLResponse:
     <script>setTimeout(()=>{{location.href='{deep_link}'}}, 800)</script>
   </div>
 </body></html>"""
-    return HTMLResponse(content=html)
+    response = HTMLResponse(content=html, headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer"})
+    response.delete_cookie("fitbit_oauth", path="/api/fitbit")
+    return response
 
 
 # ── Webhook (Health API subscription pushes) ────────────────────────────────
@@ -269,7 +331,9 @@ async def disconnect(
     current_user.fitbit_access_token = None
     current_user.fitbit_refresh_token = None
     current_user.fitbit_token_expires_at = None
-    # Keep fitbit_health_user_id so reconnects under the same account are recognized
+    current_user.fitbit_health_user_id = None
+    current_user.fitbit_backfill_status = "cancelled"
+    current_user.fitbit_backfill_progress = 0
     current_user.fitbit_disconnected_at = datetime.now(timezone.utc)
     db.add(current_user)
     await db.flush()

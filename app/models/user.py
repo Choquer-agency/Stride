@@ -59,6 +59,7 @@ class User(Base):
     # Community
     leaderboard_opt_in = Column(Boolean, default=False, nullable=False)
     display_name = Column(String(50), nullable=True)
+    timezone_name = Column(String(64), nullable=True)
 
     # Social
     bio = Column(String(255), nullable=True)
@@ -87,7 +88,7 @@ class User(Base):
     fitbit_access_token = Column(Text, nullable=True)
     fitbit_refresh_token = Column(Text, nullable=True)
     fitbit_token_expires_at = Column(DateTime(timezone=True), nullable=True)
-    fitbit_health_user_id = Column(String(64), nullable=True, index=True)
+    fitbit_health_user_id = Column(String(64), nullable=True, index=True, unique=True)
     fitbit_connected_at = Column(DateTime(timezone=True), nullable=True)
     fitbit_disconnected_at = Column(DateTime(timezone=True), nullable=True)
     fitbit_backfill_status = Column(String(16), nullable=False, default="pending")

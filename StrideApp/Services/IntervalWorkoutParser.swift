@@ -101,6 +101,54 @@ enum IntervalWorkoutParser {
         return segments
     }
 
+    /// Distance-based pace changes in continuous runs, without switching to interval UI.
+    /// Only accept explicit first/final distances that add up to the planned total.
+    static func progression(_ details: String?, totalKm: Double?) -> [IntervalSegment] {
+        guard let details, let totalKm, totalKm > 0 else { return [] }
+        let text = details.lowercased().replacingOccurrences(of: "-", with: "–")
+            .replacingOccurrences(of: "—", with: "–")
+        let phase = #"(\d+(?:\.\d+)?)\s*km\s*(?:at|@)\s*(\d{1,2}:\d{2}(?:\s*–\s*\d{1,2}:\d{2})?)"#
+        guard let first = firstMatch(in: text, pattern: #"\bfirst\s+"# + phase),
+              let final = firstMatch(in: text, pattern: #"\b(?:final|last)\s+"# + phase),
+              let firstKm = Double(first[1]), let finalKm = Double(final[1]),
+              firstKm > 0, finalKm > 0, abs(firstKm + finalKm - totalKm) < 0.05 else { return [] }
+        let phases = [
+            IntervalSegment(kind: .work(rep: 1, of: 2), durationSec: nil, distanceKm: firstKm, paceText: first[2]),
+            IntervalSegment(kind: .work(rep: 2, of: 2), durationSec: nil, distanceKm: finalKm, paceText: final[2])
+        ]
+        guard phases.allSatisfy({ $0.paceBounds != nil }) else { return [] }
+        return phases
+    }
+
+    /// Strides without a numeric pace use the prescribed effort, never an invented speed.
+    /// One minute of easy recovery is the displayed default when the plan omits it.
+    static func strides(_ details: String?, totalKm: Double?, easyPace: String?) -> [IntervalSegment] {
+        guard let details, let totalKm, totalKm > 0,
+              let match = firstMatch(in: details.lowercased(), pattern:
+                #"(\d+)\s*[×x]\s*(\d+)\s*(?:seconds?|secs?|s)\s+strides"#),
+              let reps = Int(match[1]), (1...20).contains(reps),
+              let seconds = Double(match[2]), seconds > 0 else { return [] }
+        let finalKm = firstMatch(in: details.lowercased(), pattern: #"final\s+(\d+(?:\.\d+)?)\s*km"#)
+            .flatMap { Double($0[1]) } ?? min(2, totalKm)
+        let recovery = firstMatch(in: details.lowercased(), pattern:
+            #"with\s+(\d+)\s*(seconds?|secs?|minutes?|mins?)\s*(?:easy|jog|recovery)"#)
+            .flatMap { measurement($0[1], $0[2])?.seconds } ?? 60
+        var segments = [IntervalSegment(kind: .warmup, durationSec: nil,
+            distanceKm: max(0, totalKm - finalKm), paceText: easyPace ?? "easy")]
+        for rep in 1...reps {
+            // A visible three-second preparation phase before every stride.
+            segments.append(IntervalSegment(kind: .float(rep: rep, of: reps), durationSec: 3,
+                distanceKm: nil, paceText: "Get ready for a stride"))
+            segments.append(IntervalSegment(kind: .work(rep: rep, of: reps), durationSec: seconds,
+                distanceKm: nil, paceText: "Fast, relaxed effort · build smoothly · no sprint"))
+            if rep < reps {
+                segments.append(IntervalSegment(kind: .float(rep: rep, of: reps), durationSec: recovery,
+                    distanceKm: nil, paceText: "easy"))
+            }
+        }
+        return segments
+    }
+
     private static func measurement(_ number: String, _ unit: String) -> (seconds: Double?, km: Double?)? {
         guard let value = Double(number), value > 0 else { return nil }
         if unit == "km" { return (nil, value) }
@@ -116,5 +164,34 @@ enum IntervalWorkoutParser {
             guard let range = Range(match.range(at: $0), in: text) else { return "" }
             return String(text[range])
         }
+    }
+}
+
+/// Preview only: proportional bars describe prescribed phases, never measured progress.
+enum RunSessionProfile {
+    static func levels(details: String?, totalKm: Double?, easyPace: String?, allowSteady: Bool) -> [Double] {
+        var phases = IntervalWorkoutParser.parse(details)
+        if phases.isEmpty { phases = IntervalWorkoutParser.progression(details, totalKm: totalKm) }
+        if phases.isEmpty { phases = IntervalWorkoutParser.strides(details, totalKm: totalKm, easyPace: easyPace) }
+        guard !phases.isEmpty else { return allowSteady ? Array(repeating: 0.3, count: 48) : [] }
+        let base = phases.compactMap { $0.paceBounds?.max }.max() ?? 390
+        // Include every phase, even a 20-second stride in a long easy run.
+        // Durations determine remaining width; a minimum bar keeps short reps visible.
+        let weights = phases.map { max(1, $0.durationSec ?? (($0.distanceKm ?? 0) * base)) }
+        let total = weights.reduce(0, +)
+        let count = max(48, phases.count)
+        var result: [Double] = []
+        for (index, phase) in phases.enumerated() {
+            let height: Double
+            switch phase.kind {
+            case .warmup, .cooldown: height = 0.28
+            case .float: height = 0.18
+            case .work:
+                height = phase.paceBounds.map { min(1, max(0.3, 0.3 + (base - $0.min) / 150)) } ?? 0.95
+            }
+            let bars = max(1, Int((weights[index] / total * Double(count)).rounded()))
+            result.append(contentsOf: repeatElement(height, count: bars))
+        }
+        return result
     }
 }

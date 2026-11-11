@@ -50,6 +50,7 @@ struct TextEntryView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
             .navigationTitle("Text entry")
+        .strideSecondaryScreen()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button("Cancel") { dismiss() } } }
         }

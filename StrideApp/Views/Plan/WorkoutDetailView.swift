@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 // Preference key to measure content height inside ScrollView
 private struct ContentHeightKey: PreferenceKey {
@@ -13,13 +14,96 @@ struct WorkoutDetailView: View {
     let workout: Workout
     let onComplete: () -> Void
     
+    @Query private var runLogs: [RunLog]
+
+    init(workout: Workout, onComplete: @escaping () -> Void) {
+        self.workout = workout
+        self.onComplete = onComplete
+        let id = workout.id
+        let day = Calendar.current.startOfDay(for: workout.completedAt ?? workout.date)
+        let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: day) ?? day.addingTimeInterval(86400)
+        _runLogs = Query(filter: #Predicate<RunLog> {
+            $0.plannedWorkoutId == id || ($0.completedAt >= day && $0.completedAt < nextDay)
+        }, sort: \RunLog.completedAt, order: .reverse)
+    }
+
+    private var isCompletedRun: Bool { workout.isCompleted && workout.workoutType.isRunnable }
+    private var historyRun: RunLog? {
+        if let exact = runLogs.first(where: { $0.plannedWorkoutId == workout.id }) { return exact }
+        guard let distance = workout.actualDistanceKm else { return nil }
+        let matches = runLogs.filter {
+            Calendar.current.isDate($0.completedAt, inSameDayAs: workout.completedAt ?? workout.date)
+                && abs($0.distanceKm - distance) < 0.2
+        }
+        return matches.count == 1 ? matches.first : nil
+    }
+
     @State private var contentHeight: CGFloat = 0
     @State private var showGymPlayer = false
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var sheetInk: Color { appearance.foreground }
+    private var sheetMuted: Color { appearance.secondary }
+    private var sheetBackground: Color { appearance.background }
+
+    private struct SessionStep {
+        let title: String
+        let detail: String?
+    }
+
+    /// Many coach plans put the entire long-run prescription on one line. Pull
+    /// the actual running blocks out of that line so the sheet doesn't repeat
+    /// the title, total distance, and fueling instruction as a paragraph.
+    private var sessionSteps: [SessionStep] {
+        if workout.workoutType == .longRun {
+            let source = workout.details ?? ""
+            let first = captures(#"first\s+(\d+(?:\.\d+)?)\s*km\s+at\s+([\d:–-]+/km)"#, in: source)
+            let finish = captures(#"(?:final|last)\s+(\d+(?:\.\d+)?)\s*km\s+at\s+([\d:–-]+/km)"#, in: source)
+            if let first, let finish {
+                let effort = captures(#"(RPE\s*[\d–-]+)"#, in: source)?.first
+                return [
+                    SessionStep(title: "LONG RUN · \(first[0]) KM", detail: first[1]),
+                    SessionStep(title: "MP FINISH · \(finish[0]) KM",
+                                detail: finish[1] + (effort.map { " · \($0)" } ?? ""))
+                ]
+            }
+            return [SessionStep(title: "LONG RUN", detail: workout.paceDescription)]
+        }
+        if !parsedDetail.segments.isEmpty {
+            return parsedDetail.segments.enumerated().map { index, segment in
+                SessionStep(title: segment.label ?? "STEP \(index + 1)", detail: segment.text)
+            }
+        }
+        // The prescription is already broken out above into distance, pace and
+        // heart-rate targets. Reprinting its source paragraph adds no guidance.
+        return [SessionStep(title: workout.workoutType.displayName, detail: nil)]
+    }
+
+    private func captures(_ pattern: String, in source: String) -> [String]? {
+        guard let expression = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive]),
+              let match = expression.firstMatch(in: source, range: NSRange(source.startIndex..., in: source)) else { return nil }
+        return (1..<match.numberOfRanges).compactMap { index in
+            guard let range = Range(match.range(at: index), in: source) else { return nil }
+            return String(source[range])
+        }
+    }
+
+    private var coachNoteText: String? {
+        if isGymWorkout { return nil } // The exercise rows carry the full prescription.
+        guard workout.workoutType == .longRun else { return parsedDetail.note }
+        let uniqueNotes = parsedDetail.noteSentences.filter { sentence in
+            let text = sentence.lowercased()
+            return !text.contains("first ") && !text.contains("final ")
+                && !text.contains("fuel during") && !text.contains("total:")
+        }
+        return uniqueNotes.isEmpty ? nil : uniqueNotes.joined(separator: " ")
+    }
     
     // Height of the drag indicator + close button area
     private let chromeHeight: CGFloat = 6
     
     private var sheetHeight: CGFloat {
+        if isCompletedRun { return UIScreen.main.bounds.height * 0.85 }
         guard contentHeight > 0 else { return 400 }
         let total = contentHeight + chromeHeight
         let maxHeight = UIScreen.main.bounds.height * 0.85
@@ -39,6 +123,14 @@ struct WorkoutDetailView: View {
         let id = UUID()
         let name: String
         let scheme: String?     // "4×6 @ 60 kg", "4 min easy", nil for focus-only
+    }
+
+    private var hasSavedGymSession: Bool {
+        guard isGymWorkout, let owner = AuthService.shared.currentUserID else { return false }
+        let prescription = workout.details ?? workout.title
+        return GymSessionRecoveryStore.load(ownerID: owner, workoutID: workout.id,
+            prescription: prescription,
+            stageCount: GymSessionModel.stages(fromPrescription: prescription).count) != nil
     }
 
     private var gymSource: String {
@@ -64,7 +156,7 @@ struct WorkoutDetailView: View {
 
     private var gymItems: [GymItem] {
         var source = gymSource
-        guard source.contains(";") else {
+        guard source.contains(";") || source.lowercased().hasPrefix("skierg ") else {
             // Old format: comma-separated focus areas, no schemes
             return source
                 .components(separatedBy: ",")
@@ -226,6 +318,294 @@ struct WorkoutDetailView: View {
     }
     
     var body: some View {
+        Group {
+            if isCompletedRun { completedRunBody }
+            else if workout.isCompleted { legacyBody }
+            else { redesignedBody }
+        }
+    }
+
+    private var completedRunBody: some View {
+        ZStack {
+            StridePageBackdrop().ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 12) {
+                    HStack {
+                        Spacer()
+                        Button { dismiss() } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(sheetInk)
+                                .frame(width: 42, height: 42)
+                                .background(sheetInk.opacity(0.09), in: Circle())
+                        }
+                        .accessibilityLabel("Close run details")
+                    }
+                    .padding(.horizontal, 22)
+                    CompletedRunDetailContent(workout: workout, run: historyRun)
+                }
+                .padding(.top, 14)
+                .padding(.bottom, 32)
+            }
+        }
+        .preferredColorScheme(appearance.colorScheme)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var redesignedBody: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    HStack(spacing: 8) {
+                        Image(systemName: workout.workoutType.icon)
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("\(workout.workoutType.displayName.uppercased()) / SESSION")
+                            .font(.runEyebrow(10))
+                            .tracking(1.2)
+                    }
+                    .foregroundStyle(Color.stridePrimary)
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(sheetInk)
+                            .frame(width: 36, height: 36)
+                            .background(sheetInk.opacity(0.08), in: Circle())
+                            .overlay(Circle().stroke(sheetInk.opacity(0.13), lineWidth: 0.6))
+                    }
+                    .accessibilityLabel("Close workout")
+                }
+
+                Text(workout.title.uppercased())
+                    .font(.barlowCondensed(size: 48, weight: .medium))
+                    .foregroundStyle(sheetInk)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.7)
+                    .padding(.top, 14)
+                Text(workout.date.formatted(.dateTime.weekday(.wide).month(.wide).day())
+                     + (workout.week.map { " · Week \($0.weekNumber)" } ?? ""))
+                    .font(.inter(size: 12))
+                    .foregroundStyle(sheetMuted)
+                    .padding(.top, 5)
+
+                HStack(alignment: .bottom) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        if let distance = workout.distanceKm {
+                            HStack(alignment: .firstTextBaseline, spacing: 5) {
+                                Text(distance == floor(distance) ? String(format: "%.0f", distance) : String(format: "%.1f", distance))
+                                    .font(.barlowCondensed(size: 76, weight: .medium))
+                                Text("KM").font(.barlowCondensed(size: 25)).foregroundStyle(sheetMuted)
+                            }
+                            .foregroundStyle(sheetInk)
+                        } else {
+                            Text(isGymWorkout ? "\(gymItems.count)" : (workout.durationDisplay ?? "—"))
+                                .font(.barlowCondensed(size: 76, weight: .medium))
+                                .foregroundStyle(sheetInk)
+                        }
+                        Text(isGymWorkout ? "EXERCISES" : (workout.durationDisplay.map { "EST. \($0)" } ?? "PLANNED SESSION"))
+                            .font(.runEyebrow(10))
+                            .tracking(1)
+                            .foregroundStyle(sheetMuted)
+                    }
+                    Spacer(minLength: 8)
+                    VStack(alignment: .trailing, spacing: 6) {
+                        if workout.workoutType != .longRun, let pace = workout.paceDescription {
+                            Text("PACE TARGET")
+                                .font(.runEyebrow(9))
+                                .tracking(1)
+                                .foregroundStyle(sheetMuted)
+                            Text(pace)
+                                .font(.barlowCondensed(size: 27, weight: .medium))
+                                .foregroundStyle(sheetInk)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                        }
+                        if let band = HeartRateZones.band(for: workout.workoutType) {
+                            Text("♥  \(band) BPM")
+                                .font(.runEyebrow(10))
+                                .foregroundStyle(sheetMuted)
+                        }
+                    }
+                }
+                .padding(.top, 23)
+                .padding(.bottom, 20)
+
+                Rectangle().fill(sheetInk.opacity(0.18)).frame(height: 0.5)
+
+                HStack {
+                    Text("THE SESSION")
+                    Spacer()
+                    Text(isGymWorkout ? "\(gymItems.count) EXERCISES" : "\(sessionSteps.count) PHASE\(sessionSteps.count == 1 ? "" : "S")")
+                }
+                .font(.runEyebrow(10))
+                .tracking(1.2)
+                .foregroundStyle(sheetMuted)
+                .padding(.top, 22)
+                .padding(.bottom, 12)
+
+                if isGymWorkout {
+                    ForEach(Array(gymItems.enumerated()), id: \.offset) { index, item in
+                        phaseRow(number: index + 1, title: item.name, detail: item.scheme, highlighted: index == 0)
+                    }
+                } else {
+                    ForEach(Array(sessionSteps.enumerated()), id: \.offset) { index, step in
+                        phaseRow(number: index + 1, title: step.title,
+                                 detail: step.detail, highlighted: index == sessionSteps.count - 1)
+                    }
+                }
+
+                if !isGymWorkout, workout.workoutType != .longRun, sessionSteps.count > 1 {
+                    HStack(alignment: .bottom, spacing: 3) {
+                        ForEach(sessionSteps.indices, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(index == sessionSteps.count - 1 ? Color.stridePrimary : Color.stridePrimary.opacity(0.55))
+                                .frame(height: index == sessionSteps.count - 1 ? 24 : 11)
+                        }
+                    }
+                    .frame(height: 26)
+                    .padding(.top, 13)
+                    .accessibilityLabel("\(sessionSteps.count) session phases")
+                }
+
+                if let fuel = effectiveFuel(for: parsedDetail) {
+                    fuelCard(fuel)
+                }
+                if let note = coachNoteText {
+                    noteStrip(note)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 22)
+            .padding(.bottom, 24)
+        }
+        .background(sheetBackground)
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            Button(action: startSelectedWorkout) {
+                HStack(spacing: 10) {
+                    Text(hasSavedGymSession ? "RESUME SESSION" : "START SESSION")
+                    Image(systemName: "arrow.up.right")
+                }
+                .font(.barlowCondensed(size: 24, weight: .semibold))
+                .tracking(0.8)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 58)
+                .background(Color.stridePrimary, in: Capsule())
+            }
+            .disabled(workout.workoutType == .rest)
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+            .padding(.bottom, 12)
+            .background(sheetBackground)
+        }
+        .fullScreenCover(isPresented: $showGymPlayer) {
+            GymWorkoutPlayerView(workout: workout) { summary in
+                onComplete()
+                Task {
+                    _ = try? await APIService.shared.logQuickStrengthSession(
+                        date: Date(), perceivedEffort: nil, notes: summary
+                    )
+                }
+                dismiss()
+            }
+        }
+        .presentationDetents([.fraction(0.88)])
+        .presentationContentInteraction(.scrolls)
+        .presentationDragIndicator(.visible)
+        .presentationCornerRadius(30)
+    }
+
+    private func phaseRow(number: Int, title: String, detail: String?, highlighted: Bool) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Text(String(format: "%02d", number))
+                .font(.runEyebrow(10))
+                .foregroundStyle(highlighted ? .white : sheetMuted)
+                .frame(width: 27, height: 27)
+                .background(highlighted ? Color.stridePrimary : sheetInk.opacity(0.08), in: Circle())
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title.uppercased())
+                    .font(.barlowCondensed(size: 24, weight: .medium))
+                    .foregroundStyle(sheetInk)
+                if let detail, !detail.isEmpty {
+                    Text(detail)
+                        .font(.inter(size: 12))
+                        .foregroundStyle(sheetMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 10)
+        .overlay(alignment: .leading) {
+            Rectangle().fill(sheetInk.opacity(0.14))
+                .frame(width: 1)
+                .offset(x: 13, y: 27)
+                .padding(.bottom, 26)
+        }
+    }
+
+    private func noteStrip(_ text: String) -> some View {
+        let bullets = text.components(separatedBy: ". ")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(bullets.enumerated()), id: \.offset) { _, bullet in
+                HStack(alignment: .firstTextBaseline, spacing: 9) {
+                    Circle().fill(Color.stridePrimary).frame(width: 4, height: 4)
+                    Text(bullet).font(.inter(size: 12)).foregroundStyle(sheetMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(sheetInk.opacity(0.06), in: RoundedRectangle(cornerRadius: 15))
+            .padding(.top, 12)
+    }
+
+    private func fuelCard(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "fork.knife")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 36, height: 36)
+                .background(Color.orange, in: Circle())
+            VStack(alignment: .leading, spacing: 5) {
+                Text("FUEL YOUR RUN")
+                    .font(.runEyebrow(10))
+                    .tracking(1.1)
+                    .foregroundStyle(Color.orange)
+                Text(text)
+                    .font(.inter(size: 13))
+                    .foregroundStyle(sheetInk)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(15)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.orange.opacity(0.09), in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.orange.opacity(0.18), lineWidth: 0.6))
+        .padding(.top, 14)
+    }
+
+    private func startSelectedWorkout() {
+        if isGymWorkout && !GymSessionModel.stages(fromPrescription: workout.details ?? workout.title).isEmpty {
+            showGymPlayer = true
+        } else if workout.workoutType.isRunnable {
+            dismiss()
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .strideStartPlannedWorkout, object: workout)
+            }
+        } else {
+            onComplete()
+            dismiss()
+        }
+    }
+
+    private var legacyBody: some View {
         VStack(spacing: 0) {
             // Drag indicator
             Capsule()
@@ -249,6 +629,9 @@ struct WorkoutDetailView: View {
             // Content
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 20) {
+                    if isCompletedRun {
+                        CompletedRunDetailContent(workout: workout, run: historyRun)
+                    } else {
                     // Flag Icon Header
                     FlagIconView(size: 24)
                         .foregroundColor(.primary)
@@ -285,7 +668,7 @@ struct WorkoutDetailView: View {
                                 value: distanceKm == floor(distanceKm) ? "\(Int(distanceKm))" : String(format: "%.1f", distanceKm),
                                 label: "km"
                             )
-                        } else if isGymWorkout && gymSource.contains(";") {
+                        } else if isGymWorkout && !GymSessionModel.stages(fromPrescription: workout.details ?? workout.title).isEmpty {
                             // Prescription gym session: exercise count is the honest
                             // headline (the parsed "duration" is just the SkiErg warm-up)
                             statBlock(value: "\(gymItems.count)", label: "exercises")
@@ -302,10 +685,6 @@ struct WorkoutDetailView: View {
                             )
                         }
 
-                        // Effort — parsed from the coach's (RPE n) annotation
-                        if !isGymWorkout, let rpe = parsedDetail.rpe {
-                            statBlock(value: rpe, label: "RPE")
-                        }
 
                         // Heart-rate band — keeps easy days honestly easy
                         if let hr = HeartRateZones.band(for: workout.workoutType) {
@@ -323,13 +702,11 @@ struct WorkoutDetailView: View {
                         runDetailCard(parsedDetail)
                     }
                     
-                    // Workout Results Card (for completed workouts with actual data)
-                    workoutResultsCard
-
+                    }
                     // Bottom Action Button (only for non-completed workouts)
                     if workout.workoutType != .rest && !workout.isCompleted {
                         Button(action: {
-                            if isGymWorkout && gymSource.contains(";") {
+                            if isGymWorkout && !GymSessionModel.stages(fromPrescription: workout.details ?? workout.title).isEmpty {
                                 showGymPlayer = true
                             } else if workout.workoutType.isRunnable {
                                 // Route to the Run tab — completion comes from
@@ -342,7 +719,7 @@ struct WorkoutDetailView: View {
                                 dismiss()
                             }
                         }) {
-                            Text("Start Workout")
+                            Text(hasSavedGymSession ? "Resume Workout" : "Start Workout")
                                 .font(.interSemibold(16))
                                 .foregroundColor(.white)
                                 .frame(width: UIScreen.main.bounds.width * 0.52)
@@ -361,9 +738,11 @@ struct WorkoutDetailView: View {
                     }
                 )
             }
+            .defaultScrollAnchor(ProcessInfo.processInfo.arguments.contains("--history-bottom") ? .bottom : .top)
         }
         .background(Color(.systemGroupedBackground))
         .onPreferenceChange(ContentHeightKey.self) { height in
+            guard !isCompletedRun, height.isFinite, abs(contentHeight - height) > 1 else { return }
             contentHeight = height
         }
         .fullScreenCover(isPresented: $showGymPlayer) {
@@ -380,164 +759,6 @@ struct WorkoutDetailView: View {
         }
         .presentationDetents([.height(sheetHeight)])
         .presentationDragIndicator(.hidden)
-    }
-
-    // MARK: - Workout Results Card
-
-    @ViewBuilder
-    private var workoutResultsCard: some View {
-        if workout.isCompleted, workout.actualDistanceKm != nil {
-            VStack(spacing: 16) {
-                // Header
-                HStack(spacing: 8) {
-                    CheckmarkCircleView(isCompleted: true, size: 18)
-
-                    Text("Workout Results")
-                        .font(.interSemibold(15))
-                        .foregroundStyle(.primary)
-                }
-
-                // Primary stats row: Distance | Time | Pace
-                HStack(spacing: 0) {
-                    // Distance
-                    VStack(spacing: 4) {
-                        Text(formatResultDistance(workout.actualDistanceKm ?? 0))
-                            .font(.barlowCondensed(size: 40, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("km")
-                            .font(.inter(size: 13, weight: .regular))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    Rectangle()
-                        .fill(Color(.systemGray4))
-                        .frame(width: 1, height: 44)
-
-                    // Time
-                    VStack(spacing: 4) {
-                        Text(formatResultDuration(workout.actualDurationSeconds ?? 0))
-                            .font(.barlowCondensed(size: 40, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("Time")
-                            .font(.inter(size: 13, weight: .regular))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-
-                    Rectangle()
-                        .fill(Color(.systemGray4))
-                        .frame(width: 1, height: 44)
-
-                    // Pace
-                    VStack(spacing: 4) {
-                        Text(formatResultPace(workout.actualPaceDisplay))
-                            .font(.barlowCondensed(size: 40, weight: .medium))
-                            .foregroundColor(.primary)
-                        Text("Pace /km")
-                            .font(.inter(size: 13, weight: .regular))
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.horizontal, 8)
-
-                // Splits table
-                if !workout.decodedKmSplits.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Rectangle()
-                            .fill(Color(.systemGray5))
-                            .frame(height: 1)
-
-                        Text("Kilometer Splits")
-                            .font(.inter(size: 15, weight: .semibold))
-                            .foregroundColor(.primary)
-                            .padding(.top, 4)
-
-                        // Header row
-                        HStack(spacing: 0) {
-                            Text("KM")
-                                .font(.inter(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .frame(width: 30, alignment: .leading)
-
-                            Spacer()
-
-                            Text("Pace")
-                                .font(.inter(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-
-                            Spacer()
-
-                            Text("Time")
-                                .font(.inter(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .frame(width: 70, alignment: .trailing)
-                        }
-
-                        ForEach(workout.decodedKmSplits) { split in
-                            HStack(spacing: 0) {
-                                HStack(spacing: 6) {
-                                    Text("\(split.kilometer)")
-                                        .font(.barlowCondensed(size: 18, weight: .medium))
-                                        .foregroundColor(.primary)
-
-                                    if split.isFastest {
-                                        Image(systemName: "flame.fill")
-                                            .font(.system(size: 11))
-                                            .foregroundColor(.stridePrimary)
-                                    }
-                                }
-                                .frame(width: 50, alignment: .leading)
-
-                                Spacer()
-
-                                Text("\(split.pace) /km")
-                                    .font(.barlowCondensed(size: 18, weight: .medium))
-                                    .foregroundColor(.primary)
-
-                                Spacer()
-
-                                Text(formatSplitTime(split.time))
-                                    .font(.barlowCondensed(size: 18, weight: .medium))
-                                    .foregroundColor(.primary)
-                                    .frame(width: 70, alignment: .trailing)
-                            }
-                            .padding(.vertical, 4)
-
-                            if split.kilometer < workout.decodedKmSplits.count {
-                                Rectangle()
-                                    .fill(Color.stridePrimary.opacity(0.15))
-                                    .frame(height: 1)
-                            }
-                        }
-                    }
-                }
-
-                // Score badge
-                if let score = workout.completionScore {
-                    Rectangle()
-                        .fill(Color(.systemGray5))
-                        .frame(height: 1)
-
-                    HStack(spacing: 8) {
-                        Text("Score")
-                            .font(.inter(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-
-                        Text("\(score)")
-                            .font(.barlowCondensed(size: 28, weight: .bold))
-                            .foregroundColor(resultScoreColor(score))
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(16)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .shadow(color: .black.opacity(0.04), radius: 8, y: 2)
-            .padding(.horizontal, 16)
-        }
     }
 
     // MARK: - Stat Block
@@ -798,4 +1019,519 @@ extension WorkoutType {
         ),
         onComplete: {}
     )
+}
+
+/// Completed runs tell one story: recorded results against targets, then the evidence.
+struct CompletedRunDetailContent: View {
+    let workout: Workout
+    let run: RunLog?
+    @Environment(\.modelContext) private var modelContext
+    @StateObject private var coach = PostRunCoachViewModel()
+    @State private var reviewSaveError: String?
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+    private var style: StridePageStyle { .init(appearance: appearance) }
+
+    private var distance: Double? { run?.distanceKm ?? workout.actualDistanceKm }
+    private var duration: Double? { run?.durationSeconds ?? workout.actualDurationSeconds }
+    private var targetDistance: Double? { run?.plannedDistanceKm ?? workout.distanceKm }
+    private var targetPace: String? { run?.plannedPaceDescription ?? workout.paceDescription }
+    private var pace: Double? {
+        run?.avgPaceSecPerKm ?? workout.actualAvgPaceSecPerKm
+            ?? distance.flatMap { km in duration.flatMap { km > 0 ? $0 / km : nil } }
+    }
+    private let splits: [CodableKilometerSplit]
+    private let hrSamples: [CodableHRSample]
+    private let speedSamples: [RunSpeedSample]
+    private let splitHeartRates: [Int: Int]
+    @Query private var matchingShoes: [Shoe]
+
+    init(workout: Workout, run: RunLog?) {
+        self.workout = workout
+        self.run = run
+        let logged = run?.decodedKmSplits ?? []
+        let splits = (logged.isEmpty ? workout.decodedKmSplits : logged).sorted { $0.kilometer < $1.kilometer }
+        self.splits = splits
+        let hr = run?.decodedHRSamples ?? []
+        self.hrSamples = hr
+        self.speedSamples = run?.speedSamplesJSON?.data(using: .utf8)
+            .flatMap { try? JSONDecoder().decode([RunSpeedSample].self, from: $0) } ?? []
+        self.splitHeartRates = Dictionary(splits.compactMap { split in
+            RunHistoryMetrics.splitHeartRate(split, allSplits: splits, samples: hr).map { (split.kilometer, $0) }
+        }, uniquingKeysWith: { first, _ in first })
+        if let shoeID = run?.shoeId {
+            _matchingShoes = Query(filter: #Predicate<Shoe> { $0.id == shoeID })
+        } else if let name = run?.shoeName {
+            _matchingShoes = Query(filter: #Predicate<Shoe> { $0.name == name })
+        } else {
+            _matchingShoes = Query(filter: #Predicate<Shoe> { _ in false })
+        }
+    }
+
+    private var recordedShoe: Shoe? { matchingShoes.count == 1 ? matchingShoes.first : nil }
+    private var hrBand: String? {
+        if let run, run.plannedWorkoutType == nil, run.plannedWorkoutTitle == nil { return nil }
+        return HeartRateZones.band(for: run?.plannedWorkoutType ?? workout.workoutType)
+    }
+    private var hrRange: ClosedRange<Int>? {
+        let values = (hrBand ?? "").split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
+        guard values.count == 2, values[0] <= values[1] else { return nil }
+        return values[0]...values[1]
+    }
+    private var speedRange: ClosedRange<Double>? {
+        guard let range = RunScoringService.parsePaceRange(targetPace), range.min > 0, range.max >= range.min else { return nil }
+        return (3600 / range.max)...(3600 / range.min)
+    }
+    private var savedReview: String? {
+        let text = (run?.coachNotes ?? workout.savedCoachNotes)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text?.isEmpty == false ? text : nil
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            historyHeader
+            if let score = run?.completionScore ?? workout.completionScore {
+                HStack(alignment: .lastTextBaseline, spacing: 12) {
+                    Text("\(score)")
+                        .font(.barlowCondensed(size: 73))
+                        .monospacedDigit()
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("SESSION SCORE")
+                            .font(.runEyebrow(10))
+                            .foregroundStyle(style.muted)
+                        Text("AGAINST YOUR PLAN")
+                            .font(.runEyebrow(9))
+                            .foregroundStyle(appearance == .red ? .white : Color.stridePrimary)
+                    }
+                    Spacer()
+                    Text("/100")
+                        .font(.runEyebrow(11))
+                        .foregroundStyle(style.muted)
+                }
+                .overlay(alignment: .bottom) { Rectangle().fill(style.rule).frame(height: 0.5) }
+            }
+
+            if let routeJSON = run?.routeJSON {
+                RouteMapView(routeJSON: routeJSON, paceData: splits, showPaceColors: false)
+            }
+
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .leading), GridItem(.flexible(), alignment: .leading)], alignment: .leading, spacing: 22) {
+                metric(distance.map(number) ?? "—", title: "DISTANCE · KM", detail: distanceTarget)
+                metric(duration.map(time) ?? "—", title: "TOTAL TIME", detail: timeTarget)
+                metric(pace.map(time) ?? "—", title: "AVG PACE · /KM", detail: paceTarget)
+                metric(run?.avgHeartRate.map(String.init) ?? "—", title: "AVG HEART RATE · BPM",
+                       detail: hrBand.map { "Target \($0) bpm" } ?? "No heart-rate target", pink: true)
+            }
+            .padding(20)
+            .stridePageCard(style, radius: 22)
+
+            if !splits.isEmpty { splitsCard }
+
+            if speedSamples.count >= 2, let duration {
+                RunSpeedGraphView(samples: speedSamples, duration: duration, targetSpeedRange: speedRange)
+            } else {
+                missingChart("Speed", message: "Speed history wasn’t recorded for this run.", color: .stridePrimary)
+            }
+            if let json = run?.hrSamplesJSON, hrSamples.count >= 2 {
+                HeartRateGraphView(hrSamplesJSON: json, avgHeartRate: run?.avgHeartRate,
+                    maxHeartRate: run?.maxHeartRate, duration: duration, targetRange: hrRange)
+            } else {
+                missingChart("Heart Rate", message: "Heart-rate history wasn’t recorded for this run.", color: .heartRatePink)
+            }
+
+            VStack(alignment: .leading, spacing: 12) {
+                sectionTitle("Shoes", icon: "shoeprints.fill")
+                HStack(spacing: 14) {
+                    if let shoe = recordedShoe { ShoePhotoView(shoe: shoe, size: 64) }
+                    else {
+                        Image(systemName: "shoe.2").font(.system(size: 28)).foregroundStyle(.secondary)
+                            .frame(width: 64, height: 64).background(Color(.systemGray6), in: Circle())
+                    }
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            shoeName
+                            shoeUsage
+                        }
+                        VStack(alignment: .leading, spacing: 5) {
+                            shoeName
+                            shoeUsage
+                        }
+                    }
+                }
+            }
+            .historyCard(style)
+
+            if let rating = run?.feedbackRating, (0...5).contains(rating) {
+                VStack(alignment: .leading, spacing: 8) {
+                    sectionTitle("How It Felt", icon: "heart.text.square")
+                    Text("\(rating) / 5 · \(["Terrible", "Rough", "Tough", "Okay", "Good", "Amazing"][rating])")
+                        .font(.barlowCondensed(size: 29))
+                }
+                .historyCard(style)
+            }
+            if let notes = run?.notes?.trimmingCharacters(in: .whitespacesAndNewlines), !notes.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    sectionTitle("Your Notes", icon: "text.bubble")
+                    Text(notes).font(.inter(size: 14)).lineSpacing(4)
+                }
+                .historyCard(style)
+            }
+
+            coachCard
+
+        }
+        .padding(.horizontal, 22)
+        .foregroundStyle(style.ink)
+        .onChange(of: coach.isGenerating) { _, generating in
+            guard !generating, coach.error == nil, !coach.coachText.isEmpty else { return }
+            workout.savedCoachNotes = coach.coachText
+            run?.coachNotes = coach.coachText
+            do { try modelContext.save() }
+            catch { reviewSaveError = "This review couldn’t be saved. Please try again." }
+        }
+    }
+
+    private var historyHeader: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 7) {
+                FlagIconView(size: 16, color: .stridePrimary)
+                Text("RUN HISTORY / COMPLETED")
+                    .font(.runEyebrow(10))
+                    .tracking(1.2)
+                    .foregroundStyle(appearance == .red ? .white : Color.stridePrimary)
+            }
+            Text(workout.title.uppercased())
+                .font(.barlowCondensed(size: 46))
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+            Text((run?.completedAt ?? workout.completedAt ?? workout.date)
+                .formatted(.dateTime.weekday(.wide).month(.wide).day().year()).uppercased())
+                .font(.runEyebrow(10))
+                .foregroundStyle(style.muted)
+        }
+        .padding(.top, 4)
+    }
+
+    private var shoeName: some View {
+        Text(run?.shoeName ?? recordedShoe?.name ?? "Not recorded")
+            .font(.inter(size: 16, weight: .medium))
+            .foregroundStyle(run?.shoeName == nil && recordedShoe == nil ? style.muted : style.ink)
+    }
+    @ViewBuilder private var shoeUsage: some View {
+        if let shoe = recordedShoe {
+            Text("|  \(shoe.usage.displayName)")
+                .font(.inter(size: 12)).foregroundStyle(.secondary)
+        }
+    }
+
+    private var distanceTarget: String {
+        guard let distance, let targetDistance else { return "No distance target" }
+        return "\(number(distance)) / \(number(targetDistance)) km"
+    }
+    private var timeTarget: String {
+        if let minutes = run?.plannedDurationMinutes ?? workout.durationMinutes { return "Target \(time(Double(minutes * 60)))" }
+        return "Elapsed run time"
+    }
+    private var paceTarget: String {
+        targetPace.map { "Target " + $0.replacingOccurrences(of: "/km", with: "").trimmingCharacters(in: .whitespaces) + " /km" } ?? "No pace target"
+    }
+
+    private func metric(_ value: String, title: String, detail: String, pink: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.runEyebrow(9)).foregroundStyle(style.muted)
+            Text(value).font(.barlowCondensed(size: 48, weight: .medium))
+                .foregroundStyle(pink ? Color.heartRatePink : style.ink)
+                .lineLimit(1).minimumScaleFactor(0.65).monospacedDigit()
+            Text(detail).font(.runEyebrow(10)).foregroundStyle(style.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var splitsCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("Kilometer Splits", icon: "flag.checkered")
+            HStack(spacing: 0) {
+                Text("KM").frame(width: 42, alignment: .leading)
+                Text("Pace /km").frame(maxWidth: .infinity, alignment: .leading)
+                Text("Time").frame(width: 66, alignment: .trailing)
+                Text("HR").foregroundStyle(Color.heartRatePink).frame(width: 48, alignment: .trailing)
+            }
+            .font(.inter(size: 10, weight: .medium)).foregroundStyle(.secondary)
+            ForEach(splits) { split in
+                HStack(spacing: 0) {
+                    HStack(spacing: 3) {
+                        Text("\(split.kilometer)")
+                        if split.isFastest { Image(systemName: "flame.fill").font(.system(size: 9)).foregroundStyle(Color.stridePrimary) }
+                    }.frame(width: 42, alignment: .leading)
+                    Text(split.pace).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(RunHistoryMetrics.elapsedSeconds(split.time).map(time) ?? split.time).frame(width: 66, alignment: .trailing)
+                    Text(splitHeartRates[split.kilometer].map(String.init) ?? "—")
+                        .foregroundStyle(Color.heartRatePink).frame(width: 48, alignment: .trailing)
+                }
+                .font(.barlowCondensed(size: 21, weight: .medium)).monospacedDigit()
+                .padding(.vertical, 5)
+                if split.id != splits.last?.id { Divider().overlay(Color.stridePrimary.opacity(0.08)) }
+            }
+            Text("HR: average of recorded readings in each kilometer. — means no data.")
+                .font(.inter(size: 10)).foregroundStyle(.secondary)
+        }
+        .historyCard(style)
+    }
+
+    private var coachCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle("AI Coach’s Notes", icon: "sparkles")
+            if let review = savedReview {
+                Text(review).font(.inter(size: 14)).lineSpacing(5)
+            } else {
+                if !coach.coachText.isEmpty { Text(coach.coachText).font(.inter(size: 14)).lineSpacing(5) }
+                if coach.isGenerating {
+                    HStack(spacing: 8) { ProgressView(); Text("Reviewing your run…").font(.inter(size: 12)) }
+                } else {
+                    if coach.coachText.isEmpty {
+                        Text("No coach review was saved for this run.").font(.inter(size: 13)).foregroundStyle(.secondary)
+                    }
+                    Button {
+                        reviewSaveError = nil
+                        coach.generateCoaching(result: reviewResult, speak: false)
+                    } label: {
+                        Label("Review this run", systemImage: "sparkles")
+                            .font(.inter(size: 13, weight: .semibold)).foregroundStyle(Color.stridePrimary)
+                    }
+                    .disabled(distance == nil || duration == nil)
+                }
+            }
+            if let error = coach.error ?? reviewSaveError {
+                Text(error).font(.inter(size: 12)).foregroundStyle(Color.stridePrimary)
+            }
+        }
+        .historyCard(style)
+    }
+
+    private var reviewResult: RunResult {
+        RunResult(sessionID: run?.id ?? workout.id,
+            completedAt: run?.completedAt ?? workout.completedAt ?? workout.date,
+            distanceKm: distance ?? 0, durationSeconds: duration ?? 0, avgPaceSecPerKm: pace ?? 0,
+            kmSplits: splits.map { KilometerSplit(kilometer: $0.kilometer, pace: $0.pace, time: $0.time,
+                isFastest: $0.isFastest, diffFromFastest: nil) },
+            plannedWorkoutId: workout.id, plannedWorkoutTitle: workout.title,
+            plannedWorkoutType: run?.plannedWorkoutType ?? workout.workoutType,
+            targetDistanceKm: targetDistance, targetPaceDescription: targetPace,
+            targetDurationMinutes: run?.plannedDurationMinutes ?? workout.durationMinutes,
+            dataSource: run?.dataSource ?? "manual", treadmillBrand: run?.treadmillBrand,
+            routeJSON: run?.routeJSON, elevationGainMeters: run?.elevationGainMeters,
+            elevationLossMeters: run?.elevationLossMeters,
+            avgHeartRate: run?.avgHeartRate, maxHeartRate: run?.maxHeartRate,
+            hrSamplesJSON: run?.hrSamplesJSON, speedSamples: speedSamples,
+            plannedWorkoutDetails: workout.details,
+            totalPauseDurationSeconds: 0, completedPauseDurations: [])
+    }
+
+    private func sectionTitle(_ title: String, icon: String) -> some View {
+        Label(title.uppercased(), systemImage: icon).font(.barlowCondensed(size: 23))
+    }
+    private func missingChart(_ title: String, message: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.inter(size: 14, weight: .semibold)).foregroundStyle(color)
+            Text(message).font(.inter(size: 12)).foregroundStyle(.secondary)
+        }.historyCard(style)
+    }
+    private func number(_ value: Double) -> String {
+        value == floor(value) ? String(Int(value)) : String(format: "%.2f", value)
+    }
+    private func time(_ seconds: Double) -> String {
+        let value = max(0, Int(seconds.rounded()))
+        return value >= 3600 ? String(format: "%d:%02d:%02d", value / 3600, value / 60 % 60, value % 60)
+            : String(format: "%d:%02d", value / 60, value % 60)
+    }
+}
+
+private extension View {
+    func historyCard(_ style: StridePageStyle) -> some View {
+        self.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+            .stridePageCard(style, radius: 20)
+    }
+}
+
+#if DEBUG
+struct PlannedWorkoutDetailPreview: View {
+    private let container: ModelContainer
+    private let workout: Workout
+    @State private var showing = true
+
+    init() {
+        container = try! ModelContainer(for: Workout.self, RunLog.self, Shoe.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        if ProcessInfo.processInfo.arguments.contains("--runview-demo-long-run") {
+            workout = Workout(
+                date: Date(), workoutType: .longRun, title: "Long Run with MP Finish",
+                details: "Long Run with MP Finish — Total: 26 km. First 22 km at 6:00–6:30/km, final 4 km at 5:30/km (adjusted MP, RPE 5–6). Fuel during: 40–60 g carbs per hour.",
+                distanceKm: 26, paceDescription: "6:00–6:30/km"
+            )
+        } else {
+            workout = Workout(
+                date: Date(), workoutType: .intervals, title: "VO₂ Intervals",
+                details: "Warm-up: 2 km easy at 6:00–6:30/km\nMain set: 5 × 1 km at 4:50–5:05/km with 500 m easy between reps\nCool-down: 3 km relaxed\nNotes: Keep the reps controlled. Take each recovery easy.",
+                distanceKm: 12, paceDescription: "4:50–5:05/km"
+            )
+        }
+        container.mainContext.insert(workout)
+    }
+
+    var body: some View {
+        Color.black.ignoresSafeArea()
+            .sheet(isPresented: $showing) {
+                WorkoutDetailView(workout: workout, onComplete: {})
+                    .modelContainer(container)
+                    .preferredColorScheme(.dark)
+            }
+    }
+}
+
+/// Isolated simulator fixture: exercises the real sheet without touching an athlete's store.
+struct CompletedRunHistoryPreview: View {
+    private let container: ModelContainer
+    private let workout: Workout
+    @State private var showing = true
+    @State private var lastPresentation = Date()
+
+    init() {
+        container = try! ModelContainer(for: Workout.self, RunLog.self, Shoe.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let saturday = ProcessInfo.processInfo.arguments.contains("--history-saturday")
+        let missing = saturday || ProcessInfo.processInfo.arguments.contains("--history-missing-data")
+        workout = Workout(date: Date(), workoutType: .easyRun, title: "Easy Run",
+            distanceKm: 6, paceDescription: "6:00–6:30/km")
+        workout.isCompleted = true
+        workout.completedAt = workout.date
+        workout.actualDistanceKm = 6
+        workout.actualDurationSeconds = 2366
+        workout.actualAvgPaceSecPerKm = 2366 / 6
+        workout.completionScore = 97
+        let values = [385, 385, 394, 406, 399, 397]
+        var elapsed = 0
+        let splits = values.enumerated().map { index, seconds in
+            elapsed += seconds
+            return CodableKilometerSplit(kilometer: index + 1,
+                pace: String(format: "%d:%02d", seconds / 60, seconds % 60),
+                time: String(format: "%d:%02d", elapsed / 60, elapsed % 60), isFastest: index == 0)
+        }
+        workout.kmSplitsJSON = String(data: try! JSONEncoder().encode(splits), encoding: .utf8)
+        let log = RunLog(distanceKm: 6, durationSeconds: 2366, avgPaceSecPerKm: 2366 / 6,
+            kmSplitsJSON: workout.kmSplitsJSON, avgHeartRate: missing ? nil : 142,
+            maxHeartRate: missing ? nil : 150, shoeName: missing ? nil : "Indoor Zoom Fly",
+            plannedWorkoutId: workout.id, plannedWorkoutTitle: workout.title,
+            plannedWorkoutTypeRaw: "easy_run", plannedDistanceKm: 6,
+            plannedPaceDescription: "6:00–6:30/km", completionScore: 97)
+        log.completedAt = workout.date
+        if saturday {
+            workout.date = Calendar.current.date(from: DateComponents(year: 2026, month: 10, day: 17, hour: 10))!
+            workout.completedAt = workout.date
+            workout.title = "Recovery Run"
+            workout.workoutType = .recovery
+            workout.distanceKm = 4
+            workout.actualDistanceKm = 4
+            workout.actualDurationSeconds = 1620
+            workout.actualAvgPaceSecPerKm = 405
+            workout.paceDescription = "6:30–6:50/km"
+            workout.kmSplitsJSON = nil
+            workout.completionScore = nil
+            log.completedAt = workout.date
+            log.distanceKm = 4
+            log.durationSeconds = 1620
+            log.avgPaceSecPerKm = 405
+            log.kmSplitsJSON = nil
+            log.plannedWorkoutTitle = workout.title
+            log.plannedWorkoutTypeRaw = "recovery"
+            log.plannedDistanceKm = 4
+            log.plannedPaceDescription = workout.paceDescription
+            log.completionScore = nil
+        }
+        if !missing {
+            let shoe = Shoe(name: "Zoom Fly", photoData: UIImage(systemName: "shoe.2")?.pngData())
+            shoe.usage = .indoor
+            log.shoeId = shoe.id
+            log.shoeName = shoe.name
+            container.mainContext.insert(shoe)
+            let speeds = stride(from: 0.0, through: 2366.0, by: 5).map { t in
+                RunSpeedSample(t: t, kmh: 9.15 + sin(t / 140) * 0.35 + cos(t / 33) * 0.12)
+            }
+            let heart = speeds.map { CodableHRSample(t: $0.t, bpm: 135 + min(11, Int($0.t / 220)) + Int(sin($0.t / 110) * 3)) }
+            log.speedSamplesJSON = String(data: try! JSONEncoder().encode(speeds), encoding: .utf8)
+            log.hrSamplesJSON = String(data: try! JSONEncoder().encode(heart), encoding: .utf8)
+            log.coachNotes = "You completed the full 6 km. Your average pace was just outside the planned range, while your heart rate stayed controlled. Keep the next easy run conversational and leave yourself fresh for the longer session."
+        }
+        container.mainContext.insert(workout)
+        container.mainContext.insert(log)
+        try! container.mainContext.save()
+    }
+
+    var body: some View {
+        Color(.systemGroupedBackground).ignoresSafeArea()
+            .sheet(isPresented: $showing) {
+                WorkoutDetailView(workout: workout, onComplete: {})
+                    .onAppear {
+                        if ProcessInfo.processInfo.arguments.contains("--history-cycle") {
+                            print("HISTORY_SHEET_READY \(Int(Date().timeIntervalSince(lastPresentation) * 1000)) ms")
+                        }
+                    }
+            }
+            .modelContainer(container)
+            .task {
+                guard ProcessInfo.processInfo.arguments.contains("--history-cycle") else { return }
+                for index in 1...5 {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    showing = false
+                    try? await Task.sleep(for: .milliseconds(400))
+                    lastPresentation = Date()
+                    showing = true
+                    print("HISTORY_REOPEN \(index)")
+                }
+                try? await Task.sleep(for: .milliseconds(600))
+                print("HISTORY_CYCLE_COMPLETE")
+            }
+    }
+}
+#endif
+
+
+/// Stats opens the same recorded review as the calendar, including free and unlinked runs.
+struct RecordedRunReviewSheet: View {
+    let run: RunLog
+    private let workout: Workout
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
+
+    init(run: RunLog, workout: Workout?) {
+        self.run = run
+        if let workout { self.workout = workout }
+        else {
+            let snapshot = Workout(date: run.completedAt, workoutType: run.plannedWorkoutType ?? .easyRun,
+                title: run.effectiveTitle, distanceKm: run.plannedDistanceKm,
+                durationMinutes: run.plannedDurationMinutes, paceDescription: run.plannedPaceDescription)
+            snapshot.isCompleted = true
+            snapshot.completedAt = run.completedAt
+            snapshot.actualDistanceKm = run.distanceKm
+            snapshot.actualDurationSeconds = run.durationSeconds
+            snapshot.actualAvgPaceSecPerKm = run.avgPaceSecPerKm
+            snapshot.kmSplitsJSON = run.kmSplitsJSON
+            snapshot.completionScore = run.completionScore
+            self.workout = snapshot
+        }
+    }
+    var body: some View {
+        ZStack {
+            StridePageBackdrop().ignoresSafeArea()
+            VStack(spacing: 4) {
+                HStack { Spacer(); Button { dismiss() } label: { Image(systemName: "xmark").font(.system(size: 14, weight: .semibold)).foregroundStyle(appearance.foreground).frame(width: 42, height: 42).background(appearance.foreground.opacity(0.09), in: Circle()) }.accessibilityLabel("Close run details") }
+                    .padding(.horizontal, 22)
+                ScrollView(showsIndicators: false) { CompletedRunDetailContent(workout: workout, run: run).padding(.top, 8).padding(.bottom, 28) }
+            }
+        }
+        .preferredColorScheme(appearance.colorScheme)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
 }

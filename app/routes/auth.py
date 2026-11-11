@@ -7,19 +7,13 @@ from app.models.user import User
 from app.models.strength_session import StrengthSession
 from app.models.strength_set import StrengthSet
 from app.models.auth_schemas import (
-    EmailRegisterRequest,
-    EmailLoginRequest,
-    GoogleAuthRequest,
     AppleAuthRequest,
     ProfileUpdateRequest,
     TokenResponse,
     UserResponse,
 )
 from app.services.auth_service import (
-    hash_password,
-    verify_password,
     create_access_token,
-    verify_google_token,
     verify_apple_token,
     get_current_user,
 )
@@ -37,98 +31,15 @@ def _build_token_response(user: User) -> TokenResponse:
     )
 
 
-# ── Email Auth ────────────────────────────────────────────────────────────────
-
-
-@router.post("/register", response_model=TokenResponse)
-async def register_email(
-    request: EmailRegisterRequest, db: AsyncSession = Depends(get_db)
-):
-    """Register a new user with email and password."""
-    # Check if email already exists
-    result = await db.execute(select(User).where(User.email == request.email))
-    if result.scalar_one_or_none() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
-        )
-
-    user = User(
-        email=request.email,
-        name=request.name,
-        auth_provider="email",
-        hashed_password=hash_password(request.password),
+# Retain explicit denials for older clients; never inspect credentials or mint tokens.
+@router.post("/register", include_in_schema=False)
+@router.post("/login", include_in_schema=False)
+@router.post("/google", include_in_schema=False)
+async def disabled_login():
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Use Sign in with Apple to continue.",
     )
-    db.add(user)
-    await db.flush()
-    await db.refresh(user)
-
-    uid = str(user.id)
-    analytics.capture(uid, "user_signed_up", {"auth_provider": "email"})
-    analytics.identify(uid, {"email": user.email, "name": user.name, "auth_provider": "email"})
-
-    return _build_token_response(user)
-
-
-@router.post("/login", response_model=TokenResponse)
-async def login_email(
-    request: EmailLoginRequest, db: AsyncSession = Depends(get_db)
-):
-    """Sign in with email and password."""
-    result = await db.execute(select(User).where(User.email == request.email))
-    user = result.scalar_one_or_none()
-
-    if user is None or user.hashed_password is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-        )
-
-    if not verify_password(request.password, user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-        )
-
-    analytics.capture(str(user.id), "user_signed_in", {"auth_provider": "email"})
-
-    return _build_token_response(user)
-
-
-# ── Google Auth ───────────────────────────────────────────────────────────────
-
-
-@router.post("/google", response_model=TokenResponse)
-async def auth_google(
-    request: GoogleAuthRequest, db: AsyncSession = Depends(get_db)
-):
-    """Sign in or register with Google."""
-    google_info = await verify_google_token(request.id_token)
-    email = google_info["email"]
-
-    # Find existing user or create new
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-
-    is_new_user = user is None
-    if is_new_user:
-        user = User(
-            email=email,
-            name=google_info.get("name"),
-            auth_provider="google",
-        )
-        db.add(user)
-        await db.flush()
-        await db.refresh(user)
-
-    uid = str(user.id)
-    if is_new_user:
-        analytics.capture(uid, "user_signed_up", {"auth_provider": "google"})
-        analytics.identify(uid, {"email": user.email, "name": user.name, "auth_provider": "google"})
-    else:
-        analytics.capture(uid, "user_signed_in", {"auth_provider": "google"})
-
-    return _build_token_response(user)
 
 
 # ── Apple Auth ────────────────────────────────────────────────────────────────
@@ -140,17 +51,24 @@ async def auth_apple(
 ):
     """Sign in or register with Apple."""
     apple_info = await verify_apple_token(request.identity_token)
+    apple_identifier = apple_info.get("sub")
+    if not apple_identifier or apple_identifier != request.user_identifier:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Apple user identifier does not match the verified token",
+        )
+
 
     # Try to find by Apple user identifier first (most reliable)
     result = await db.execute(
-        select(User).where(User.apple_user_identifier == request.user_identifier)
+        select(User).where(User.apple_user_identifier == apple_identifier)
     )
     user = result.scalar_one_or_none()
 
     is_new_user = False
     if user is None:
         # Try by email (Apple provides email on first sign-in only)
-        email = request.email or apple_info.get("email")
+        email = apple_info.get("email")
         if email:
             result = await db.execute(select(User).where(User.email == email))
             user = result.scalar_one_or_none()
@@ -160,19 +78,19 @@ async def auth_apple(
             # Create new user
             if not email:
                 # Apple didn't provide email — use a placeholder
-                email = f"apple_{request.user_identifier}@privaterelay.appleid.com"
+                email = f"apple_{apple_identifier}@privaterelay.appleid.com"
             user = User(
                 email=email,
                 name=request.full_name,
                 auth_provider="apple",
-                apple_user_identifier=request.user_identifier,
+                apple_user_identifier=apple_identifier,
             )
             db.add(user)
             await db.flush()
             await db.refresh(user)
         else:
             # Link Apple identifier to existing email account
-            user.apple_user_identifier = request.user_identifier
+            user.apple_user_identifier = apple_identifier
 
     uid = str(user.id)
     if is_new_user:

@@ -14,6 +14,8 @@ final class Workout {
     var durationMinutes: Int?
     var paceDescription: String?
     var isCompleted: Bool
+    /// Confirmed by the coach when tracking was unavailable; actual metrics stay unknown.
+    var isCoachConfirmedCompletion: Bool = false
     var completedAt: Date?
     var notes: String?
     
@@ -23,6 +25,7 @@ final class Workout {
     var actualAvgPaceSecPerKm: Double?
     var completionScore: Int?
     var kmSplitsJSON: String?
+    var savedCoachNotes: String?
     var feedbackRating: Int?  // 0-5 subjective "how did it feel?" scale
     
     // MARK: - Relationships

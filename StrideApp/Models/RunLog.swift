@@ -30,6 +30,8 @@ final class RunLog {
     var avgHeartRate: Int?
     var maxHeartRate: Int?
     var hrSamplesJSON: String?
+    var speedSamplesJSON: String?
+    var coachNotes: String?
 
     // Shoe context (denormalized — survives shoe deletion)
     var shoeId: UUID?
@@ -178,5 +180,41 @@ final class RunLog {
         self.completionScore = completionScore
         self.planName = planName
         self.weekNumber = weekNumber
+    }
+}
+
+
+/// Time-aligned history calculations use recorded samples, never the live graph's visual filter.
+enum RunHistoryMetrics {
+    static func elapsedSeconds(_ text: String) -> Double? {
+        let parts = text.split(separator: ":", omittingEmptySubsequences: false)
+        guard (2...3).contains(parts.count),
+              parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy(\.isNumber) }) else { return nil }
+        let values = parts.compactMap { Double($0) }
+        guard values.count == parts.count, values.dropFirst().allSatisfy({ $0 < 60 }) else { return nil }
+        return values.reduce(0) { $0 * 60 + $1 }
+    }
+
+    static func averageHeartRate(_ samples: [CodableHRSample], from start: Double, to end: Double) -> Int? {
+        guard start.isFinite, end.isFinite, start >= 0, end > start else { return nil }
+        let sorted = samples.filter { $0.t.isFinite && $0.t >= 0 && $0.bpm > 0 }.sorted { $0.t < $1.t }
+        var weighted = 0.0, coverage = 0.0
+        for (index, sample) in sorted.enumerated() {
+            let next = index + 1 < sorted.count ? sorted[index + 1].t : end
+            // A reading expires after ten seconds, matching the live HR freshness limit.
+            let overlap = max(0, min(end, next, sample.t + 10) - max(start, sample.t))
+            weighted += Double(sample.bpm) * overlap
+            coverage += overlap
+        }
+        return coverage > 0 ? Int((weighted / coverage).rounded()) : nil
+    }
+
+    static func splitHeartRate(_ split: CodableKilometerSplit, allSplits: [CodableKilometerSplit], samples: [CodableHRSample]) -> Int? {
+        guard let end = elapsedSeconds(split.time) else { return nil }
+        let start: Double?
+        if split.kilometer == 1 { start = 0 }
+        else { start = allSplits.first(where: { $0.kilometer == split.kilometer - 1 }).flatMap { elapsedSeconds($0.time) } }
+        guard let start else { return nil }
+        return averageHeartRate(samples, from: start, to: end)
     }
 }

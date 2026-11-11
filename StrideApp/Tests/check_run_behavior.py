@@ -24,6 +24,7 @@ struct Voice {
 final class CompletionHarness {
     var runStopped = false
     var isPaused = false
+    var isStrideWorkout = false
     var isIntervalWorkout = false
     var intervalComplete = false
     var targetDistanceKm: Double?
@@ -89,6 +90,15 @@ assert(!intervals.checkWorkoutCompletion())
 intervals.intervalComplete = true
 assert(intervals.checkWorkoutCompletion())
 
+let stridesRun = CompletionHarness()
+stridesRun.isStrideWorkout = true
+stridesRun.isIntervalWorkout = true
+stridesRun.intervalComplete = true
+stridesRun.targetDistanceKm = 6
+stridesRun.distance = 5
+assert(!stridesRun.checkWorkoutCompletion())
+stridesRun.distance = 6
+assert(stridesRun.checkWorkoutCompletion())
 let freeRun = CompletionHarness()
 freeRun.distance = 30
 freeRun.elapsedTime = 10000

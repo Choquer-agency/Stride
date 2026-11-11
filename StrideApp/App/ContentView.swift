@@ -6,6 +6,34 @@ struct ContentView: View {
 
     var body: some View {
         Group {
+            #if DEBUG
+            if ProcessInfo.processInfo.arguments.contains("--runview-demo-plan") {
+                RunLobbyDashboardPreview()
+            } else if ProcessInfo.processInfo.arguments.contains("--runview-demo-lobby") {
+                RunLobbyDashboardPreview()
+            } else if ProcessInfo.processInfo.arguments.contains("--runview-demo-stats") {
+                StatsDashboardPreview()
+            } else if ProcessInfo.processInfo.arguments.contains("--runview-demo-profile") {
+                ProfileDashboardPreview()
+            } else if ProcessInfo.processInfo.arguments.contains("--runview-demo-history") {
+                CompletedRunHistoryPreview()
+            } else if ProcessInfo.processInfo.arguments.contains("--runview-demo-workout")
+                        || ProcessInfo.processInfo.arguments.contains("--runview-demo-long-run") {
+                PlannedWorkoutDetailPreview()
+            } else {
+            normalContent
+            }
+            #else
+            normalContent
+            #endif
+        }
+        .task {
+            await authService.checkAuthState()
+        }
+    }
+
+    private var normalContent: some View {
+        Group {
             // UI-iteration hook: --runview-demo skips auth straight into the
             // tab UI (RunTabContainer seeds the demo run). Simulator only.
             if ProcessInfo.processInfo.arguments.contains(where: { $0.hasPrefix("--runview-demo") }) {
@@ -24,9 +52,7 @@ struct ContentView: View {
             }
             }
         }
-        .task {
-            await authService.checkAuthState()
-        }
+
     }
 }
 

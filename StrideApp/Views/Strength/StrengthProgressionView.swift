@@ -29,10 +29,11 @@ struct StrengthProgressionView: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
             }
-            .navigationTitle(exercise.name)
+            .navigationTitle(exercise.name.uppercased())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("Done") { dismiss() } } }
         }
+        .strideSecondaryScreen()
         .task { await load() }
     }
 
@@ -41,8 +42,8 @@ struct StrengthProgressionView: View {
             Text(exercise.equipment.capitalized)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("Progression")
-                .font(.title2.weight(.semibold))
+            Text("PROGRESSION")
+                .font(.barlowCondensed(size: 43))
         }
     }
 
@@ -50,10 +51,11 @@ struct StrengthProgressionView: View {
     private var chartSection: some View {
         Chart(points.indices, id: \.self) { i in
             let p = points[i]
-            let score = (p.weightKg ?? 0) * Double(p.reps)
+            let weight = p.weightKg.map { isDumbbell ? GymSessionModel.dumbbellPounds($0) : $0 } ?? 0
+            let score = weight * Double(p.reps)
             BarMark(
                 x: .value("Session", i + 1),
-                y: .value("Volume (kg × reps)", score)
+                y: .value(isDumbbell ? "Volume (lb each × reps)" : "Volume (kg × reps)", score)
             )
             .foregroundStyle(Color.stridePrimary)
         }
@@ -73,7 +75,7 @@ struct StrengthProgressionView: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("\(p.reps) reps × \((p.weightKg.map { String(format: "%.0f", $0) } ?? "BW")) kg")
+                    Text("\(p.reps) reps × \(p.weightKg.map { GymSessionModel.displayLoad($0, suffix: loadSuffix) } ?? "Bodyweight")")
                         .font(.callout.monospacedDigit())
                     if let rpe = p.rpe {
                         Text("RPE \(rpe)").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
@@ -82,6 +84,12 @@ struct StrengthProgressionView: View {
                 .padding(.vertical, 4)
             }
         }
+    }
+
+    private var isDumbbell: Bool { GymSessionModel.isDumbbell(exercise.name + " " + exercise.equipment) }
+    private var loadSuffix: String {
+        if isDumbbell { return "lb each" }
+        return GymSessionModel.isBarbell(exercise.name + " " + exercise.equipment) ? "kg total incl. bar" : "kg"
     }
 
     private func load() async {

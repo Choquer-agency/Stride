@@ -8,6 +8,8 @@ struct StrideApp: App {
     // doesn't expose application:didRegisterForRemoteNotifications:).
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
+    @StateObject private var lobbyPresentation = RunLobbyPresentation.shared
+    @AppStorage(RunLobbyAppearance.storageKey) private var lobbyAppearanceRaw = RunLobbyAppearance.black.rawValue
     @StateObject private var bluetoothManager = BluetoothManager()
     @StateObject private var locationManager = LocationManager()
     @StateObject private var authService = AuthService.shared
@@ -265,7 +267,7 @@ struct StrideApp: App {
                 .environmentObject(authService)
                 .environmentObject(pushManager)
                 .environmentObject(deepLinkRouter)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(lobbyPresentation.isVisible ? (RunLobbyAppearance(rawValue: lobbyAppearanceRaw) ?? .black).colorScheme : .light)
                 .onAppear {
                     RunSyncService.shared.configure(with: modelContainer)
                     // If we're already signed in when the app re-appears (backgrounded
@@ -302,7 +304,12 @@ struct StrideApp: App {
                 // in the future, or testing via Safari). Push-tap routing goes via
                 // PushNotificationManager → DeepLinkRouter directly.
                 .onOpenURL { url in
-                    deepLinkRouter.handle(url: url)
+                    if url.scheme == "stride", url.host == "run", url.path.isEmpty {
+                        UserDefaults.standard.set(true, forKey: "strideOpenRunFromActivity")
+                        NotificationCenter.default.post(name: .strideSwitchToRunTab, object: nil)
+                    } else {
+                        deepLinkRouter.handle(url: url)
+                    }
                 }
         }
         .modelContainer(modelContainer)
