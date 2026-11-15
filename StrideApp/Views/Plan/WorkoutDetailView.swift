@@ -1127,16 +1127,8 @@ struct CompletedRunDetailContent: View {
 
             if !splits.isEmpty { splitsCard }
 
-            if speedSamples.count >= 2, let duration {
-                RunSpeedGraphView(samples: speedSamples, duration: duration, targetSpeedRange: speedRange)
-            } else {
-                missingChart("Speed", message: "Speed history wasn’t recorded for this run.", color: .stridePrimary)
-            }
-            if let json = run?.hrSamplesJSON, hrSamples.count >= 2 {
-                HeartRateGraphView(hrSamplesJSON: json, avgHeartRate: run?.avgHeartRate,
-                    maxHeartRate: run?.maxHeartRate, duration: duration, targetRange: hrRange)
-            } else {
-                missingChart("Heart Rate", message: "Heart-rate history wasn’t recorded for this run.", color: .heartRatePink)
+            if let run {
+                RunReviewCharts(run: run, splits: splits)
             }
 
             VStack(alignment: .leading, spacing: 12) {
