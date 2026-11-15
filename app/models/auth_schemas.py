@@ -54,6 +54,7 @@ class UserResponse(BaseModel):
     has_completed_profile: bool = False
     leaderboard_opt_in: bool = False
     display_name: Optional[str] = None
+    timezone_name: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

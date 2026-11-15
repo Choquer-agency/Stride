@@ -15,6 +15,26 @@ final class RunPullService {
     private var inFlight = false
     private let appliedKey = "run_pull_applied_server_ids"
 
+    private var athleteCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 2
+        switch AuthService.shared.authState {
+        case .signedIn(let user), .needsProfile(let user):
+            calendar.timeZone = user.timezoneName.flatMap(TimeZone.init(identifier:)) ?? .current
+        default:
+            calendar.timeZone = .current
+        }
+        return calendar
+    }
+
+    private func isPlannedOnDay(_ scheduled: Date, of runDate: Date, calendar: Calendar) -> Bool {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let planDay = utc.dateComponents([.year, .month, .day], from: scheduled)
+        let runDay = calendar.dateComponents([.year, .month, .day], from: runDate)
+        return planDay.year == runDay.year && planDay.month == runDay.month && planDay.day == runDay.day
+    }
+
     private init() {}
 
     func reconcile(context: ModelContext) async {
@@ -29,7 +49,7 @@ final class RunPullService {
         await reconcileStrengthSessions(context: context)
         guard let serverRuns = try? await APIService.shared.fetchServerRuns() else { return }
         var applied = Set(UserDefaults.standard.stringArray(forKey: appliedKey) ?? [])
-        let calendar = Calendar.current
+        let calendar = athleteCalendar
         let localLogs = (try? context.fetch(FetchDescriptor<RunLog>())) ?? []
         var changed = repairFailedRecordingCopies(serverRuns: serverRuns, localLogs: localLogs, calendar: calendar)
 
@@ -146,7 +166,9 @@ final class RunPullService {
             context.insert(log)
 
             // 2. Check off the matching planned workout
-            markPlannedWorkoutComplete(for: run, on: runDate, context: context, calendar: calendar)
+            if run.plannedWorkoutTitle != nil {
+                markPlannedWorkoutComplete(for: run, on: runDate, context: context, calendar: calendar)
+            }
 
             applied.insert(run.id)
             changed = true
@@ -363,11 +385,12 @@ final class RunPullService {
         let hasCoachCompletions = workouts.contains { $0.isCoachConfirmedCompletion }
 
         var didChange = false
-        // Flexible week: every real run counts toward the week's sessions, so
-        // free runs are candidates too (the regular filter above excludes them).
+        // Free runs contribute to mileage, but never silently complete a
+        // different prescribed workout, even in a flexible week.
         let candidatesLogs: [RunLog] = flexible
             ? ((try? context.fetch(FetchDescriptor<RunLog>())) ?? [])
-                .filter { ($0.completedAt >= cutoff || hasCoachCompletions) && $0.distanceKm >= 0.2 }
+                .filter { ($0.completedAt >= cutoff || hasCoachCompletions) && $0.distanceKm >= 0.2
+                    && $0.plannedWorkoutTitle != nil }
             : logs
         for log in candidatesLogs {
             // Already reconciled — never re-match. (Without this, the ±1-day
@@ -376,9 +399,10 @@ final class RunPullService {
             if log.plannedWorkoutId != nil { continue }
             var match = bestWorkoutMatch(for: log.completedAt, title: log.plannedWorkoutTitle,
                                          in: workouts, calendar: calendar)
-            if match == nil, flexible {
+            if match == nil, flexible, let title = log.plannedWorkoutTitle {
                 match = flexibleWeekMatch(for: log.completedAt, distanceKm: log.distanceKm,
                                           in: plan, calendar: calendar)
+                    .flatMap { $0.title == title ? $0 : nil }
             }
             guard let workout = match else { continue }
             if flexible, !calendar.isDate(workout.date, inSameDayAs: log.completedAt) {
@@ -539,10 +563,9 @@ final class RunPullService {
         in workouts: [Workout],
         calendar: Calendar
     ) -> Workout? {
-        func candidates(dayOffset: Int) -> [Workout] {
-            guard let target = calendar.date(byAdding: .day, value: dayOffset, to: date) else { return [] }
-            return workouts.filter { workout in
-                calendar.isDate(workout.date, inSameDayAs: target)
+        func candidates() -> [Workout] {
+            workouts.filter { workout in
+                isPlannedOnDay(workout.date, of: date, calendar: calendar)
                     && (!workout.isCompleted || (workout.isCoachConfirmedCompletion && workout.actualDistanceKm == nil))
                     && workout.workoutType != .rest
                     && workout.workoutType != .gym
@@ -550,13 +573,9 @@ final class RunPullService {
                     && workout.workoutType != .mobility
             }
         }
-        // Same day first; then ±1 day for UTC/local drift, preferring title matches
-        for offset in [0, 1, -1] {
-            let pool = candidates(dayOffset: offset)
-            if let titled = pool.first(where: { $0.title == title }) { return titled }
-            if offset == 0, let any = pool.first { return any }
-        }
-        return nil
+        guard title != nil else { return nil }
+        // Only the named planned workout may be completed by this run.
+        return candidates().first { $0.title == title }
     }
 
     /// Flexible week: an off-schedule run claims the open session of its
@@ -599,7 +618,7 @@ final class RunPullService {
 
         let workouts = plan.weeks.flatMap { $0.workouts }
         let candidates = workouts.filter { workout in
-            guard calendar.isDate(workout.date, inSameDayAs: runDate) else { return false }
+            guard isPlannedOnDay(workout.date, of: runDate, calendar: calendar) else { return false }
             switch workout.workoutType {
             case .rest, .gym, .crossTraining, .mobility: return false
             default: break
@@ -607,12 +626,9 @@ final class RunPullService {
             if !workout.isCompleted { return true }
             return workout.isCoachConfirmedCompletion && workout.actualDistanceKm == nil
         }
-        // Prefer a title match when the server run is tied to a specific session
-        var matched = candidates.first { $0.title == run.plannedWorkoutTitle } ?? candidates.first
-        if matched == nil, plan.isFlexibleSchedule, run.distanceKm >= 0.2 {
-            matched = flexibleWeekMatch(for: runDate, distanceKm: run.distanceKm, in: plan, calendar: calendar)
-            if let m = matched, !calendar.isDate(m.date, inSameDayAs: runDate) { m.date = runDate }
-        }
+        // A different prescribed session is not interchangeable with this run.
+        // Keep the run in history and let the plan show the missed session.
+        let matched = candidates.first { $0.title == run.plannedWorkoutTitle }
         guard let workout = matched else { return }
 
         workout.isCompleted = true

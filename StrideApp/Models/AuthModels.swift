@@ -81,6 +81,7 @@ struct UserResponse: Codable {
     let hasCompletedProfile: Bool
     let leaderboardOptIn: Bool
     let displayName: String?
+    let timezoneName: String?
     let createdAt: String
 
     enum CodingKeys: String, CodingKey {
@@ -93,6 +94,7 @@ struct UserResponse: Codable {
         case hasCompletedProfile = "has_completed_profile"
         case leaderboardOptIn = "leaderboard_opt_in"
         case displayName = "display_name"
+        case timezoneName = "timezone_name"
         case createdAt = "created_at"
     }
 }
