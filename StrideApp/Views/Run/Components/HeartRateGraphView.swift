@@ -267,3 +267,152 @@ enum RunTimelineData {
             domain: max(0, low - 0.5)...max(high + 0.5, low + 1))
     }
 }
+
+/// Historical run charts share elapsed minutes so the same horizontal position
+/// means the same moment in each chart, even when a sensor has gaps.
+struct RunReviewCharts: View {
+    let run: RunLog
+    let splits: [CodableKilometerSplit]
+    @AppStorage(RunLobbyAppearance.storageKey) private var appearanceRaw = RunLobbyAppearance.black.rawValue
+    private var style: StridePageStyle { .init(appearance: RunLobbyAppearance(rawValue: appearanceRaw) ?? .black) }
+
+    private struct Point: Identifiable {
+        let x: Double
+        let y: Double
+        var id: Double { x }
+    }
+
+    private var route: [RoutePoint] {
+        guard let data = run.routeJSON?.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([RoutePoint].self, from: data)) ?? []
+    }
+
+    private var speeds: [RunSpeedSample] {
+        if run.dataSource == "bluetooth_ftms", let data = run.speedSamplesJSON?.data(using: .utf8) {
+            return (try? JSONDecoder().decode([RunSpeedSample].self, from: data)) ?? []
+        }
+        return route.map { RunSpeedSample(t: $0.timestamp, kmh: $0.speed * 3.6) }
+    }
+
+    private var pacePoints: [Point] {
+        let valid = speeds.filter { $0.t.isFinite && $0.t >= 0 && $0.kmh.isFinite && $0.kmh >= 4 && $0.kmh <= 40 }
+            .sorted { $0.t < $1.t }
+        if valid.count >= 2 {
+            let paces = valid.map { 60 / $0.kmh }
+            return downsample(valid.enumerated().map { index, sample in
+                // Five-reading moving average removes single GPS spikes without
+                // changing the underlying recorded data.
+                let low = max(0, index - 2), high = min(valid.count - 1, index + 2)
+                let average = paces[low...high].reduce(0, +) / Double(high - low + 1)
+                return Point(x: sample.t / 60, y: -average)
+            })
+        }
+        // Older runs may have only kilometer splits; still show their pace.
+        return splits.compactMap { split -> Point? in
+            guard let end = RunHistoryMetrics.elapsedSeconds(split.time),
+                  let pace = RunHistoryMetrics.elapsedSeconds(split.pace), pace > 0 else { return nil }
+            return Point(x: end / 60, y: -pace / 60)
+        }
+    }
+
+    private var elevationPoints: [Point] {
+        downsample(route.filter { $0.timestamp.isFinite && $0.timestamp >= 0 && $0.altitude.isFinite }
+            .sorted { $0.timestamp < $1.timestamp }
+            .map { Point(x: $0.timestamp / 60, y: $0.altitude) })
+    }
+
+    private var inclinePoints: [Point] {
+        guard let data = run.inclineSamplesJSON?.data(using: .utf8),
+              let samples = try? JSONDecoder().decode([RunInclineSample].self, from: data) else { return [] }
+        return downsample(samples.filter { $0.t.isFinite && $0.t >= 0 && $0.percent.isFinite }
+            .sorted { $0.t < $1.t }.map { Point(x: $0.t / 60, y: $0.percent) })
+    }
+
+    private var heartPoints: [Point] {
+        downsample(run.decodedHRSamples.filter { $0.t.isFinite && $0.t >= 0 && $0.bpm > 0 }
+            .sorted { $0.t < $1.t }.map { Point(x: $0.t / 60, y: Double($0.bpm)) })
+    }
+
+    private var endMinute: Double {
+        max(0.01, run.durationSeconds / 60,
+            pacePoints.last?.x ?? 0, elevationPoints.last?.x ?? 0,
+            inclinePoints.last?.x ?? 0, heartPoints.last?.x ?? 0)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("RUN TIMELINE").font(.barlowCondensed(size: 25)).foregroundStyle(style.ink)
+                Spacer()
+                Text("ELAPSED TIME").font(.runEyebrow(10)).foregroundStyle(style.muted)
+            }
+            chart("PACE", unit: "min/km", points: pacePoints, color: .stridePrimary,
+                  reverse: true, empty: "No pace samples recorded")
+            let vertical = run.dataSource == "bluetooth_ftms" ? inclinePoints : elevationPoints
+            chart(run.dataSource == "bluetooth_ftms" ? "INCLINE" : "ELEVATION",
+                  unit: run.dataSource == "bluetooth_ftms" ? "%" : "m",
+                  points: vertical, color: .blue, reverse: false,
+                  empty: run.dataSource == "bluetooth_ftms" ? "No incline recorded" : "No elevation recorded")
+            chart("HEART RATE", unit: "bpm", points: heartPoints, color: .heartRatePink,
+                  reverse: false, empty: "No heart rate recorded")
+            HStack {
+                Text("START")
+                Spacer()
+                Text("\(Int(endMinute.rounded())) MIN")
+            }
+            .font(.runEyebrow(10)).foregroundStyle(style.muted)
+        }
+        .padding(16)
+        .stridePageCard(style, radius: 20)
+    }
+
+    @ViewBuilder
+    private func chart(_ title: String, unit: String, points: [Point], color: Color,
+                       reverse: Bool, empty: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(title).font(.barlowCondensed(size: 20)).foregroundStyle(style.ink)
+                Spacer()
+                Text(unit).font(.runEyebrow(10)).foregroundStyle(style.muted)
+            }
+            if points.count >= 2 {
+                let values = points.map(\.y)
+                let low = values.min() ?? 0, high = values.max() ?? 1
+                let padding = max((high - low) * 0.12, 0.1)
+                Chart(points) { point in
+                    AreaMark(x: .value("Time", point.x),
+                             yStart: .value("Base", low - padding),
+                             yEnd: .value(unit, point.y))
+                        .foregroundStyle(color.opacity(0.12))
+                    LineMark(x: .value("Time", point.x), y: .value(unit, point.y))
+                        .interpolationMethod(.catmullRom(alpha: 0.5))
+                        .foregroundStyle(color)
+                        .lineStyle(StrokeStyle(lineWidth: 1.7, lineCap: .round))
+                }
+                .chartXScale(domain: 0...endMinute)
+                .chartYScale(domain: (low - padding)...(high + padding))
+                .chartXAxis(.hidden)
+                .chartYAxis {
+                    AxisMarks(position: .leading, values: .automatic(desiredCount: 2)) { value in
+                        AxisValueLabel {
+                            if let number = value.as(Double.self) {
+                                Text(String(format: "%.0f", reverse ? -number : number))
+                            }
+                        }
+                    }
+                }
+                .frame(height: 100)
+                .accessibilityLabel("\(title), from start to \(Int(endMinute.rounded())) minutes")
+            } else {
+                Text(empty).font(.inter(size: 12)).foregroundStyle(style.muted)
+                    .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+            }
+        }
+    }
+
+    private func downsample(_ points: [Point]) -> [Point] {
+        guard points.count > 300 else { return points }
+        let step = Int(ceil(Double(points.count) / 299))
+        return stride(from: 0, to: points.count - 1, by: step).map { points[$0] } + [points[points.count - 1]]
+    }
+}
