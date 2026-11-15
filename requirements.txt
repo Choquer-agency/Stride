@@ -21,3 +21,4 @@ apscheduler>=3.10.0
 tzdata>=2024.1
 aioapns>=3.3
 claude-agent-sdk
+mcp>=2.3.0,<3.0
