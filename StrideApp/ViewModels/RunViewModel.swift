@@ -40,6 +40,7 @@ struct RunResult: Codable {
 
     // Full-run speed history for the completion chart; independent of the rolling live graph.
     var speedSamples: [RunSpeedSample] = []
+    var inclineSamples: [RunInclineSample]? = nil
     var plannedWorkoutDetails: String? = nil
 
     // Pause tracking
@@ -102,6 +103,11 @@ struct RunResult: Codable {
 struct RunSpeedSample: Codable {
     let t: TimeInterval
     let kmh: Double
+}
+
+struct RunInclineSample: Codable {
+    let t: TimeInterval
+    let percent: Double
 }
 
 struct CodableHRSample: Codable {
@@ -329,6 +335,7 @@ class RunViewModel: ObservableObject {
     private var hrCancellables = Set<AnyCancellable>()
     private var hrSamples: [(t: TimeInterval, bpm: Int)] = []
     private var speedSamples: [RunSpeedSample] = []
+    private var inclineSamples: [RunInclineSample] = []
 
     /// Whether a data provider is already attached (guards double-attach on re-appear).
     var hasActiveProvider: Bool { dataProvider != nil }
@@ -415,6 +422,14 @@ class RunViewModel: ObservableObject {
         provider.onRunSample = { [weak self] sample in
             self?.handleRunSample(sample)
         }
+        if let bluetooth = provider as? BluetoothRunDataProvider {
+            bluetooth.onTreadmillSample = { [weak self] sample in
+                guard let self, let percent = sample.inclinationPercent, percent.isFinite else { return }
+                if self.inclineSamples.last.map({ self.elapsedTime - $0.t >= 1 }) ?? true {
+                    self.inclineSamples.append(RunInclineSample(t: self.elapsedTime, percent: percent))
+                }
+            }
+        }
         provider.start()
 
         // Every run uses a workout-relative clock, including gaps between BLE packets.
@@ -438,6 +453,7 @@ class RunViewModel: ObservableObject {
     private func startHeartRateCapture() {
         hrSamples = []
         speedSamples = []
+        inclineSamples = []
         // HeartRateManager is @MainActor; RunViewModel is not — hop over.
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -620,6 +636,7 @@ class RunViewModel: ObservableObject {
             maxHeartRate: maxHR,
             hrSamplesJSON: hrJSON,
             speedSamples: speedSamples,
+            inclineSamples: inclineSamples.isEmpty ? nil : inclineSamples,
             plannedWorkoutDetails: plannedWorkoutDetails,
             totalPauseDurationSeconds: displayTimerPausedDuration,
             completedPauseDurations: completedPauseDurations
@@ -652,6 +669,7 @@ class RunViewModel: ObservableObject {
         stopHeartRateCapture()
         hrSamples = []
         speedSamples = []
+        inclineSamples = []
         kilometerSplits = []
         paceGraphDataPoints = []
         paceGraphPaces = []

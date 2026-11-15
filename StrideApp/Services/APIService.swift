@@ -2112,6 +2112,8 @@ private struct PendingAdjustmentsResponseDTO: Decodable {
 struct AnyJSONDict: Codable {
     let raw: [String: Any]
 
+    init(raw: [String: Any]) { self.raw = raw }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
         if let dict = try? container.decode([String: AnyJSONValue].self) {
@@ -3004,6 +3006,12 @@ struct ServerRunDTO: Codable, Identifiable {
     let durationSeconds: Double
     let avgPaceSecPerKm: Double
     let kmSplitsJson: String?
+    let elevationGainM: Double?
+    let elevationLossM: Double?
+    let metricsJson: AnyJSONDict?
+    let avgHeartRate: Int?
+    let maxHeartRate: Int?
+    let hrSamplesJson: String?
     let feedbackRating: Int?
     let notes: String?
     let plannedWorkoutTitle: String?
@@ -3023,6 +3031,12 @@ struct ServerRunDTO: Codable, Identifiable {
         case durationSeconds = "duration_seconds"
         case avgPaceSecPerKm = "avg_pace_sec_per_km"
         case kmSplitsJson = "km_splits_json"
+        case elevationGainM = "elevation_gain_m"
+        case elevationLossM = "elevation_loss_m"
+        case metricsJson = "metrics_json"
+        case avgHeartRate = "avg_heart_rate"
+        case maxHeartRate = "max_heart_rate"
+        case hrSamplesJson = "hr_samples_json"
         case feedbackRating = "feedback_rating"
         case plannedWorkoutTitle = "planned_workout_title"
         case plannedWorkoutType = "planned_workout_type"

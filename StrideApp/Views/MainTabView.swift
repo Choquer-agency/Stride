@@ -674,6 +674,10 @@ struct RunTabContainer: View {
         if let encoded = try? JSONEncoder().encode(result.speedSamples), !result.speedSamples.isEmpty {
             runLog.speedSamplesJSON = String(data: encoded, encoding: .utf8)
         }
+        if let incline = result.inclineSamples, !incline.isEmpty,
+           let encoded = try? JSONEncoder().encode(incline) {
+            runLog.inclineSamplesJSON = String(data: encoded, encoding: .utf8)
+        }
         let review = coachNotes?.trimmingCharacters(in: .whitespacesAndNewlines)
         runLog.coachNotes = review?.isEmpty == false ? review : nil
         runLog.id = result.sessionID

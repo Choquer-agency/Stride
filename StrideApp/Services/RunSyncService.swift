@@ -36,9 +36,19 @@ class RunSyncService {
 
             do {
                 let context = ModelContext(container)
-                let predicate = #Predicate<RunLog> { $0.syncedToServer == false }
-                let descriptor = FetchDescriptor<RunLog>(predicate: predicate)
-                let unsyncedRuns = try context.fetch(descriptor)
+                let owner = AuthService.shared.currentUserID ?? "unknown"
+                let backfillKey = "run_metrics_backfilled_ids_\(owner)"
+                var backfilled = Set(UserDefaults.standard.stringArray(forKey: backfillKey) ?? [])
+                let allRuns = try context.fetch(FetchDescriptor<RunLog>())
+                let unsyncedRuns = allRuns.filter { run in
+                    if run.originatedFromServer { return false }
+                    if !run.syncedToServer { return true }
+                    let hasRichData = run.routeJSON != nil || run.elevationGainMeters != nil
+                        || run.elevationLossMeters != nil || run.speedSamplesJSON != nil
+                        || run.inclineSamplesJSON != nil || run.cadenceSamplesJSON != nil
+                        || run.powerSamplesJSON != nil || run.weatherJSON != nil
+                    return hasRichData && !backfilled.contains(run.id.uuidString)
+                }
 
                 guard !unsyncedRuns.isEmpty else {
                     syncLog.info("No unsynced runs to upload")
@@ -58,6 +68,10 @@ class RunSyncService {
                         durationSeconds: run.durationSeconds,
                         avgPaceSecPerKm: run.avgPaceSecPerKm,
                         kmSplitsJson: run.kmSplitsJSON,
+                        elevationGainM: run.elevationGainMeters,
+                        elevationLossM: run.elevationLossMeters,
+                        metricsJson: buildMetrics(for: run),
+                        metricsBackfillOnly: run.syncedToServer,
                         feedbackRating: run.feedbackRating,
                         notes: run.notes,
                         plannedWorkoutTitle: run.plannedWorkoutTitle,
@@ -83,13 +97,71 @@ class RunSyncService {
                 // Mark all as synced
                 for run in unsyncedRuns {
                     run.syncedToServer = true
+                    if response.metricsStored { backfilled.insert(run.id.uuidString) }
                 }
                 try context.save()
+                if response.metricsStored {
+                    UserDefaults.standard.set(Array(backfilled), forKey: backfillKey)
+                }
 
             } catch {
                 syncLog.error("Run sync failed: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func decodeJSON<T: Decodable>(_ raw: String?, as type: T.Type) -> T? {
+        guard let raw, let data = raw.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+
+    private func buildMetrics(for run: RunLog) -> RunSyncMetrics {
+        let route = decodeJSON(run.routeJSON, as: [RoutePoint].self)
+        let speed = decodeJSON(run.speedSamplesJSON, as: [RunSpeedSample].self)
+        let incline = decodeJSON(run.inclineSamplesJSON, as: [RunInclineSample].self)
+        let treadmill: RunTreadmillMetrics? = run.dataSource == "bluetooth_ftms"
+            ? RunTreadmillMetrics(device: run.treadmillBrand, speedSamples: speed, inclineSamples: incline)
+            : nil
+        let sortedSplits = run.decodedKmSplits.sorted { $0.kilometer < $1.kilometer }
+        let enriched = sortedSplits.map { split -> RunMetricSplit in
+            let end = RunHistoryMetrics.elapsedSeconds(split.time)
+            let start: Double? = split.kilometer == 1 ? 0 : sortedSplits.first {
+                $0.kilometer == split.kilometer - 1
+            }.flatMap { RunHistoryMetrics.elapsedSeconds($0.time) }
+            let segment: [RoutePoint] = {
+                guard let route, let start, let end else { return [] }
+                return route.filter { $0.timestamp >= start && $0.timestamp <= end }
+            }()
+            let pairs = zip(segment, segment.dropFirst())
+            let gain = segment.count > 1 ? pairs.reduce(0.0) { $0 + max(0, $1.1.altitude - $1.0.altitude) } : nil
+            let loss = segment.count > 1 ? zip(segment, segment.dropFirst()).reduce(0.0) {
+                $0 + max(0, $1.0.altitude - $1.1.altitude)
+            } : nil
+            return RunMetricSplit(
+                kilometer: split.kilometer, pace: split.pace, time: split.time,
+                hr: RunHistoryMetrics.splitHeartRate(split, allSplits: sortedSplits, samples: run.decodedHRSamples),
+                elevationGainM: gain, elevationLossM: loss, elevationM: segment.last?.altitude
+            )
+        }
+        return RunSyncMetrics(
+            routePoints: route,
+            elevationProfile: route?.map { RunElevationSample(t: $0.timestamp, elevationM: $0.altitude) },
+            treadmill: treadmill,
+            splits: enriched.isEmpty ? nil : enriched,
+            cadenceSamples: decodeJSON(run.cadenceSamplesJSON, as: [RunNumericSample].self),
+            powerSamples: decodeJSON(run.powerSamplesJSON, as: [RunNumericSample].self),
+            weather: run.weatherJSON.flatMap { raw in
+                guard let data = raw.data(using: .utf8),
+                      let value = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                else { return nil }
+                return AnyJSONDict(raw: value)
+            },
+            coachNotes: run.coachNotes,
+            shoeName: run.shoeName,
+            plannedWorkoutId: run.plannedWorkoutId?.uuidString,
+            plannedDurationMinutes: run.plannedDurationMinutes,
+            plannedPaceDescription: run.plannedPaceDescription
+        )
     }
 
     // MARK: - Network

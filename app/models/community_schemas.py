@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime
 from uuid import UUID
 
@@ -28,6 +28,10 @@ class RunSyncPayload(BaseModel):
     duration_seconds: float
     avg_pace_sec_per_km: float
     km_splits_json: Optional[str] = None
+    elevation_gain_m: Optional[float] = None
+    elevation_loss_m: Optional[float] = None
+    metrics_json: Optional[dict[str, Any]] = None
+    metrics_backfill_only: bool = False
 
     # User feedback
     feedback_rating: Optional[int] = None
@@ -63,6 +67,7 @@ class RunBatchSyncResponse(BaseModel):
     """Response after batch sync."""
     synced_count: int
     already_existed: int
+    metrics_stored: bool = True
     newly_unlocked: list[NewlyUnlockedAchievement] = []
 
 
@@ -77,6 +82,12 @@ class RunResponse(BaseModel):
     duration_seconds: float
     avg_pace_sec_per_km: float
     km_splits_json: Optional[str] = None
+    elevation_gain_m: Optional[float] = None
+    elevation_loss_m: Optional[float] = None
+    metrics_json: Optional[dict[str, Any]] = None
+    avg_heart_rate: Optional[int] = None
+    max_heart_rate: Optional[int] = None
+    hr_samples_json: Optional[str] = None
     feedback_rating: Optional[int] = None
     notes: Optional[str] = None
     planned_workout_title: Optional[str] = None

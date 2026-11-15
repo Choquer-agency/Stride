@@ -18,6 +18,7 @@ Public surface:
 
 import hashlib
 import hmac
+import json
 import logging
 import statistics
 import uuid
@@ -41,6 +42,7 @@ from app.models.garmin_workout import (
 )
 from app.models.run import Run
 from app.models.user import User
+from app.services.run_webhook import queue_run_webhook
 
 logger = logging.getLogger(__name__)
 
@@ -377,37 +379,69 @@ async def _upsert_run_from_garmin(db: AsyncSession, user: User, garmin_workout: 
     update the same row instead of creating duplicates.
     """
     deterministic_run_id = uuid.uuid5(uuid.NAMESPACE_URL, f"garmin:{garmin_workout.garmin_activity_id}")
-
+    raw = garmin_workout.raw_payload or {}
+    route_points = raw.get("route_points") or raw.get("routePoints")
+    elevation_profile = raw.get("elevation_profile") or raw.get("elevationProfile")
+    if not elevation_profile and isinstance(route_points, list):
+        elevation_profile = [
+            {"t": point.get("timestamp"), "elevation_m": point.get("altitude")}
+            for point in route_points if isinstance(point, dict) and point.get("altitude") is not None
+        ]
+    gain = raw.get("elevation_gain_m") or raw.get("elevationGainInMeters")
+    loss = raw.get("elevation_loss_m") or raw.get("elevationLossInMeters")
+    metrics = {
+        "splits": garmin_workout.splits,
+        "route_points": route_points,
+        "elevation_profile": elevation_profile,
+        "treadmill": {
+            "device": raw.get("device_name") or garmin_workout.activity_subtype,
+            "speed_samples": raw.get("speed_samples") or raw.get("speedSamples"),
+            "incline_samples": raw.get("incline_samples") or raw.get("inclineSamples"),
+        } if garmin_workout.is_indoor else None,
+        "cadence_samples": raw.get("cadence_samples") or raw.get("cadenceSamples"),
+        "power_samples": raw.get("power_samples") or raw.get("powerSamples"),
+        "weather": {"temp_c": garmin_workout.weather_temp_c,
+                    "humidity_pct": garmin_workout.weather_humidity_pct}
+                   if garmin_workout.weather_temp_c is not None or garmin_workout.weather_humidity_pct is not None else None,
+        "hr_zones": garmin_workout.hr_zones,
+        "training_effect_aerobic": garmin_workout.training_effect_aerobic,
+        "training_effect_anaerobic": garmin_workout.training_effect_anaerobic,
+        "estimated_vo2max": garmin_workout.estimated_vo2max,
+    }
+    values = {
+        "distance_km": garmin_workout.distance_km or 0,
+        "duration_seconds": garmin_workout.duration_seconds,
+        "avg_pace_sec_per_km": garmin_workout.avg_pace_sec_per_km or 0,
+        "completed_at": garmin_workout.start_time,
+        "km_splits_json": json.dumps(garmin_workout.splits) if garmin_workout.splits else None,
+        "avg_heart_rate": garmin_workout.avg_heart_rate,
+        "max_heart_rate": garmin_workout.max_heart_rate,
+        "hr_samples_json": json.dumps(raw.get("hr_samples")) if raw.get("hr_samples") else None,
+        "elevation_gain_m": gain,
+        "elevation_loss_m": loss,
+        "metrics_json": metrics,
+        "data_source": source,
+    }
     existing = await db.get(Run, deterministic_run_id)
     if existing:
-        existing.distance_km = garmin_workout.distance_km or 0
-        existing.duration_seconds = garmin_workout.duration_seconds
-        existing.avg_pace_sec_per_km = garmin_workout.avg_pace_sec_per_km or 0
-        existing.completed_at = garmin_workout.start_time
-        db.add(existing)
+        if existing.user_id != user.id:
+            raise ValueError("Garmin activity belongs to another athlete")
+        changed = any(getattr(existing, key) != value for key, value in values.items())
+        if changed:
+            for key, value in values.items():
+                setattr(existing, key, value)
+            db.add(existing)
+            queue_run_webhook(db, deterministic_run_id, user.id, "run.updated")
         return existing
-
-    # Build km_splits_json compatible with iOS expectations if Garmin provided splits
-    km_splits_json = None
-    if garmin_workout.splits:
-        try:
-            import json
-            km_splits_json = json.dumps(garmin_workout.splits)
-        except Exception:
-            pass
 
     run = Run(
         id=deterministic_run_id,
         user_id=user.id,
-        completed_at=garmin_workout.start_time,
-        distance_km=garmin_workout.distance_km or 0,
-        duration_seconds=garmin_workout.duration_seconds,
-        avg_pace_sec_per_km=garmin_workout.avg_pace_sec_per_km or 0,
-        km_splits_json=km_splits_json,
-        data_source=source,
+        **values,
         is_leaderboard_eligible=False,
     )
     db.add(run)
+    queue_run_webhook(db, deterministic_run_id, user.id, "run.completed")
     return run
 
 

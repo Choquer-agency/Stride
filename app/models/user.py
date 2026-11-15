@@ -111,6 +111,11 @@ class User(Base):
     # from the active plan's rest day — same pattern as current_race_type.
     checkin_day_of_week = Column(Integer, nullable=True)
 
+    # Optional run-finished webhook. Never include the key in response schemas.
+    run_webhook_url = Column(Text, nullable=True)
+    run_webhook_key = Column(Text, nullable=True)
+    run_webhook_key_header = Column(String(100), nullable=True, default="Authorization")
+
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
