@@ -113,6 +113,12 @@ final class RunPullService {
                 notes: run.notes,
                 dataSource: run.dataSource,
                 treadmillBrand: run.treadmillBrand,
+                routeJSON: jsonString(run.metricsJson?.raw["route_points"]),
+                elevationGainMeters: run.elevationGainM,
+                elevationLossMeters: run.elevationLossM,
+                avgHeartRate: run.avgHeartRate,
+                maxHeartRate: run.maxHeartRate,
+                hrSamplesJSON: run.hrSamplesJson,
                 shoeId: run.shoeId.flatMap(UUID.init(uuidString:)),
                 shoeName: run.shoeId.flatMap { id in
                     ((try? context.fetch(FetchDescriptor<Shoe>())) ?? []).first { $0.id.uuidString.lowercased() == id.lowercased() }?.name
@@ -124,7 +130,18 @@ final class RunPullService {
                 planName: run.planName,
                 weekNumber: run.weekNumber
             )
+            if let metrics = run.metricsJson?.raw {
+                let treadmill = metrics["treadmill"] as? [String: Any]
+                log.speedSamplesJSON = jsonString(treadmill?["speed_samples"])
+                log.inclineSamplesJSON = jsonString(treadmill?["incline_samples"])
+                log.cadenceSamplesJSON = jsonString(metrics["cadence_samples"])
+                log.powerSamplesJSON = jsonString(metrics["power_samples"])
+                log.weatherJSON = jsonString(metrics["weather"])
+                log.coachNotes = metrics["coach_notes"] as? String
+            }
+            if let serverID = UUID(uuidString: run.id) { log.id = serverID }
             log.completedAt = runDate
+            log.originatedFromServer = true
             log.syncedToServer = true   // it came FROM the server — never re-push
             context.insert(log)
 
@@ -170,6 +187,12 @@ final class RunPullService {
 
         if changed { try? context.save() }
         UserDefaults.standard.set(Array(applied), forKey: appliedKey)
+    }
+
+    private func jsonString(_ value: Any?) -> String? {
+        guard let value, JSONSerialization.isValidJSONObject(value),
+              let data = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 
     /// One-time phone repair for Bryce's two Maui GPS segments. The server

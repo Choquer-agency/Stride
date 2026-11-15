@@ -4,6 +4,7 @@ import Foundation
 /// Converts ParsedTreadmillSample → RunSample for the unified RunViewModel pipeline.
 final class BluetoothRunDataProvider: RunDataProvider {
     var onRunSample: ((RunSample) -> Void)?
+    var onTreadmillSample: ((ParsedTreadmillSample) -> Void)?
     let dataSourceType: String = "bluetooth_ftms"
 
     var deviceName: String? {
@@ -34,6 +35,7 @@ final class BluetoothRunDataProvider: RunDataProvider {
                 self.previousDistance = total
             }
             guard !self.paused else { return }
+            self.onTreadmillSample?(sample)
             let runSample = RunSample(
                 timestamp: sample.timestamp,
                 speedMps: sample.speedMps,
@@ -53,6 +55,7 @@ final class BluetoothRunDataProvider: RunDataProvider {
         workoutDistance = 0
         paused = false
         bluetoothManager.onTreadmillData = nil
+        onTreadmillSample = nil
     }
 
     func pause() {

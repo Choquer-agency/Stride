@@ -57,6 +57,7 @@ from app.models.strength_set import StrengthSet  # noqa: F401
 from app.models.weekly_checkin import WeeklyCheckin  # noqa: F401
 from app.models.training_plan import TrainingPlanRecord  # noqa: F401
 from app.services import analytics
+from app.services.run_metrics_migration import apply_run_metrics_migration
 from app.services.achievement_service import seed_achievement_definitions
 from app.services.challenge_service import auto_generate_weekly_challenges, auto_generate_monthly_challenge
 from app.scheduler import start_scheduler, shutdown_scheduler
@@ -149,6 +150,7 @@ async def startup():
 
     # Migrate: add is_admin column if missing
     async with engine.begin() as conn:
+        await apply_run_metrics_migration(conn)
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE"))
         await conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR(255)"))
         await conn.execute(text("ALTER TABLE runs ADD COLUMN IF NOT EXISTS shoe_id UUID REFERENCES shoes(id)"))

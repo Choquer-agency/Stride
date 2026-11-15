@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, func, or_, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from app.services.event_service import check_event_participation
 from app.services import analytics
 from app.services.social_service import log_activity
 from app.services.shoe_service import add_mileage as shoe_add_mileage
+from app.services.run_webhook import queue_run_webhook
 
 router = APIRouter(prefix="/api/runs", tags=["runs"])
 
@@ -31,7 +32,7 @@ async def sync_runs(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Batch upload runs. Uses ON CONFLICT DO NOTHING for dedup on run id."""
+    """Batch upload runs, preserving new metrics on older-client retries."""
     if not request.runs:
         return RunBatchSyncResponse(synced_count=0, already_existed=0, newly_unlocked=[])
 
@@ -42,34 +43,36 @@ async def sync_runs(
     for run_payload in request.runs:
         is_eligible = run_payload.data_source == "bluetooth_ftms"
 
-        stmt = pg_insert(Run).values(
-            id=run_payload.id,
-            user_id=current_user.id,
-            completed_at=run_payload.completed_at,
-            distance_km=run_payload.distance_km,
-            duration_seconds=run_payload.duration_seconds,
-            avg_pace_sec_per_km=run_payload.avg_pace_sec_per_km,
-            km_splits_json=run_payload.km_splits_json,
-            feedback_rating=run_payload.feedback_rating,
-            notes=run_payload.notes,
-            planned_workout_title=run_payload.planned_workout_title,
-            planned_workout_type=run_payload.planned_workout_type,
-            planned_distance_km=run_payload.planned_distance_km,
-            completion_score=run_payload.completion_score,
-            plan_name=run_payload.plan_name,
-            week_number=run_payload.week_number,
-            avg_heart_rate=run_payload.avg_heart_rate,
-            max_heart_rate=run_payload.max_heart_rate,
-            hr_samples_json=run_payload.hr_samples_json,
-            data_source=run_payload.data_source,
-            treadmill_brand=run_payload.treadmill_brand,
-            shoe_id=run_payload.shoe_id,
-            is_leaderboard_eligible=is_eligible,
-            synced_at=now,
-        ).on_conflict_do_nothing(index_elements=["id"])
+        values = run_payload.model_dump(exclude_unset=True)
+        values.pop("metrics_backfill_only", None)
+        values.update(user_id=current_user.id, is_leaderboard_eligible=is_eligible, synced_at=now)
+        inserted = (await db.execute(
+            pg_insert(Run).values(**values).on_conflict_do_nothing(index_elements=["id"]).returning(Run.id)
+        )).scalar_one_or_none() is not None
+        if inserted:
+            queue_run_webhook(db, run_payload.id, current_user.id, "run.completed")
+        else:
+            changes = {key: value for key, value in values.items()
+                       if key not in {"id", "user_id", "synced_at"}}
+            if run_payload.metrics_backfill_only:
+                changes = {key: value for key, value in changes.items()
+                           if key in {"metrics_json", "elevation_gain_m", "elevation_loss_m",
+                                      "hr_samples_json", "km_splits_json"}}
+            updated = None
+            if changes:
+                changed = or_(*(getattr(Run, key).is_distinct_from(value)
+                                for key, value in changes.items()))
+                updated = (await db.execute(update(Run).where(
+                    Run.id == run_payload.id, Run.user_id == current_user.id, changed,
+                ).values(**changes, synced_at=now).returning(Run.id))).scalar_one_or_none()
+            if updated is not None:
+                queue_run_webhook(db, run_payload.id, current_user.id, "run.updated")
+            else:
+                owner = await db.scalar(select(Run.user_id).where(Run.id == run_payload.id))
+                if owner is not None and owner != current_user.id:
+                    raise HTTPException(status_code=409, detail="Run ID belongs to another athlete")
 
-        result = await db.execute(stmt)
-        if result.rowcount > 0:
+        if inserted:
             synced_count += 1
             # Coach replies to athlete notes on fresh runs (chat thread + push)
             if (run_payload.notes or "").strip():

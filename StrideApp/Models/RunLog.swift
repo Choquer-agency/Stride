@@ -18,6 +18,7 @@ final class RunLog {
 
     // Sync & verification
     var syncedToServer: Bool = false
+    var originatedFromServer: Bool = false
     var dataSource: String = "manual"  // "bluetooth_ftms" | "gps" | "manual"
     var treadmillBrand: String?
 
@@ -31,6 +32,10 @@ final class RunLog {
     var maxHeartRate: Int?
     var hrSamplesJSON: String?
     var speedSamplesJSON: String?
+    var inclineSamplesJSON: String?
+    var cadenceSamplesJSON: String?
+    var powerSamplesJSON: String?
+    var weatherJSON: String?
     var coachNotes: String?
 
     // Shoe context (denormalized — survives shoe deletion)

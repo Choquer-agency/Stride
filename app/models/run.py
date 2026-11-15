@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import Column, String, DateTime, Float, Integer, Text, Boolean, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 
 from app.database import Base
 
@@ -20,6 +20,9 @@ class Run(Base):
     duration_seconds = Column(Float, nullable=False)
     avg_pace_sec_per_km = Column(Float, nullable=False)
     km_splits_json = Column(Text, nullable=True)
+    elevation_gain_m = Column(Float, nullable=True)
+    elevation_loss_m = Column(Float, nullable=True)
+    metrics_json = Column(JSONB, nullable=True)
 
     # User feedback
     feedback_rating = Column(Integer, nullable=True)
@@ -52,3 +55,6 @@ class Run(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+    # Atomic webhook claim, scoped to this run. No secret is stored here.
+    webhook_claimed_at = Column(DateTime(timezone=True), nullable=True)
+    webhook_payload_hash = Column(String(64), nullable=True)

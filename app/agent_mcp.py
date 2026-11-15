@@ -1,5 +1,6 @@
 """Shared Stride coaching tools, served over HTTP and local stdio."""
 
+import asyncio
 import datetime as dt
 import json
 import uuid
@@ -11,6 +12,7 @@ from sqlalchemy import text
 
 from app.database import engine
 from app.services.agent_plan_edit import replace_in_active_plan, update_active_plan
+from app.services.run_webhook import deliver_run_webhook, _route_summary
 
 DEFAULT_ATHLETE_EMAIL = "brycechoquer@me.com"
 UTC = dt.timezone.utc
@@ -111,6 +113,22 @@ def _samples(raw: str | None, max_samples: int, full_fidelity: bool) -> dict:
             "hr_samples_returned": len(selected)}
 
 
+def _elapsed_seconds(time: str) -> int:
+    try:
+        parts = time.split(":")
+        if len(parts) == 1:
+            seconds = int(parts[0])
+        elif len(parts) == 2 and len(parts[1]) == 2 and 0 <= int(parts[1]) < 60:
+            seconds = int(parts[0]) * 60 + int(parts[1])
+        else:
+            raise ValueError("Invalid mm:ss")
+    except ValueError as exc:
+        raise ValueError("time must be nonnegative seconds or mm:ss") from exc
+    if seconds < 0:
+        raise ValueError("time must be nonnegative")
+    return seconds
+
+
 @server.tool()
 async def list_athletes() -> str:
     """List all Stride athletes with email, display name, race, and run count.
@@ -208,8 +226,9 @@ async def list_runs(limit: int = 30, athlete_email: str = "", from_date: str = "
 async def get_run(run_id: str, athlete_email: str = "", max_hr_samples: int = 200,
                   full_fidelity: bool = False) -> str:
     """Read one run by ID with km splits, HR samples, shoe, notes, and matched
-    workout. Defaults to 200 evenly spaced HR samples. Set full_fidelity=true
-    for every stored sample (up to the 50000 sample safety limit)."""
+    workout, elevation gain/loss, route summary, treadmill speed and incline,
+    cadence, power, and weather. Defaults to 200 evenly spaced HR and elevation
+    samples. Set full_fidelity=true for every stored sample and GPS point."""
     if not 2 <= max_hr_samples <= 5000:
         raise ValueError("max_hr_samples must be between 2 and 5000")
     async with engine.connect() as conn:
@@ -224,6 +243,16 @@ async def get_run(run_id: str, athlete_email: str = "", max_hr_samples: int = 20
     row = rows[0]
     raw_hr = row.pop("hr_samples_json", None)
     raw_splits = row.pop("km_splits_json", None)
+    metrics = row.pop("metrics_json", None) or {}
+    route = metrics.pop("route_points", None)
+    row["route_summary"] = _route_summary(route)
+    if full_fidelity:
+        row["route_points"] = route
+    profile = metrics.get("elevation_profile")
+    if isinstance(profile, list) and not full_fidelity and len(profile) > max_hr_samples:
+        metrics["elevation_profile"] = [profile[round(i * (len(profile) - 1) / (max_hr_samples - 1))]
+                                        for i in range(max_hr_samples)]
+    row["metrics"] = metrics
     try:
         row["km_splits"] = json.loads(raw_splits) if raw_splits else []
     except ValueError:
@@ -238,18 +267,7 @@ async def hr_at(run_id: str, time: str, athlete_email: str = "") -> str:
     """Get the nearest HR sample at a run elapsed time. time is seconds such as
     '840' or mm:ss such as '14:00'. Use a run ID from list_runs. Select the
     athlete by email; only that athlete's run can be read."""
-    try:
-        parts = time.split(":")
-        if len(parts) == 1:
-            seconds = int(parts[0])
-        elif len(parts) == 2 and len(parts[1]) == 2 and 0 <= int(parts[1]) < 60:
-            seconds = int(parts[0]) * 60 + int(parts[1])
-        else:
-            raise ValueError("Invalid mm:ss")
-    except ValueError as exc:
-        raise ValueError("time must be nonnegative seconds or mm:ss") from exc
-    if seconds < 0:
-        raise ValueError("time must be nonnegative")
+    seconds = _elapsed_seconds(time)
     async with engine.connect() as conn:
         athlete = await _athlete(conn, athlete_email)
         rows = await _rows(conn, "SELECT hr_samples_json FROM runs WHERE id = :id AND user_id = :uid",
@@ -260,6 +278,31 @@ async def hr_at(run_id: str, time: str, athlete_email: str = "") -> str:
     if not samples:
         raise ValueError("Run has no HR samples")
     nearest = min(samples, key=lambda sample: abs(sample["t"] - seconds))
+    return _dump({"requested_seconds": seconds, "sample": nearest})
+
+
+@server.tool()
+async def elevation_at(run_id: str, time: str, athlete_email: str = "") -> str:
+    """Get the nearest elevation sample for a run at elapsed seconds or mm:ss.
+    Reads the stored elevation profile, or GPS route altitude when available.
+    Select the run's athlete by email; other athletes' runs are not accessible."""
+    seconds = _elapsed_seconds(time)
+    async with engine.connect() as conn:
+        athlete = await _athlete(conn, athlete_email)
+        rows = await _rows(conn, "SELECT metrics_json FROM runs WHERE id = :id AND user_id = :uid",
+                           {"id": uuid.UUID(run_id), "uid": athlete["id"]})
+    if not rows:
+        raise ValueError("Run not found for this athlete")
+    metrics = rows[0]["metrics_json"] or {}
+    profile = metrics.get("elevation_profile") or [
+        {"t": point.get("timestamp"), "elevation_m": point.get("altitude")}
+        for point in (metrics.get("route_points") or []) if isinstance(point, dict)
+    ]
+    samples = [point for point in profile if isinstance(point, dict)
+               and point.get("t") is not None and point.get("elevation_m") is not None]
+    if not samples:
+        raise ValueError("Run has no elevation samples")
+    nearest = min(samples, key=lambda sample: abs(float(sample["t"]) - seconds))
     return _dump({"requested_seconds": seconds, "sample": nearest})
 
 
@@ -277,6 +320,7 @@ async def log_run(date_iso: str, distance_km: float, duration_seconds: int,
     if when.tzinfo is None:
         when = when.replace(hour=17, minute=0, tzinfo=UTC)
     pace = round(duration_seconds / distance_km, 1)
+    new_run_id = uuid.uuid4()
     async with engine.begin() as conn:
         plan = await _active_plan(conn, athlete_email)
         await conn.execute(text(
@@ -285,10 +329,11 @@ async def log_run(date_iso: str, distance_km: float, duration_seconds: int,
             "completion_score, data_source, notes, is_leaderboard_eligible, synced_at) "
             "VALUES (:id, :uid, :at, :d, :s, :p, :title, :plan, :week, :score, "
             "'manual', :notes, false, now())"),
-            {"id": uuid.uuid4(), "uid": plan["user_id"], "at": when, "d": distance_km,
+            {"id": new_run_id, "uid": plan["user_id"], "at": when, "d": distance_km,
              "s": duration_seconds, "p": pace, "title": planned_workout_title or None,
              "plan": plan.get("race_name"), "week": week_number or None,
              "score": completion_score or None, "notes": notes or None})
+    asyncio.create_task(deliver_run_webhook(new_run_id, plan["user_id"], "run.completed"))
     return f"Run logged: {distance_km} km in {duration_seconds}s on {when.isoformat()}."
 
 
@@ -326,7 +371,9 @@ async def update_run(run_id: str, distance_km: float = 0, duration_seconds: int 
             d, duration = distance_km or row[0], duration_seconds or row[1]
             sets.append("avg_pace_sec_per_km = :pace")
             params["pace"] = round(duration / d, 1)
-        await conn.execute(text(f"UPDATE runs SET {', '.join(sets)} WHERE id = :id AND user_id = :uid"), params)
+        result = await conn.execute(text(f"UPDATE runs SET {', '.join(sets)} WHERE id = :id AND user_id = :uid"), params)
+    if result.rowcount:
+        asyncio.create_task(deliver_run_webhook(uuid.UUID(run_id), athlete["id"], "run.updated"))
     return "Run updated."
 
 
