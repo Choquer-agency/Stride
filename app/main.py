@@ -21,6 +21,9 @@ from app.routes.nutrition import router as nutrition_router, hydration_router
 from app.routes.race_prep import router as race_prep_router
 from app.routes.strength import router as strength_router
 from app.routes.voice import router as voice_router
+from app.agent_mcp import server as agent_mcp_server
+from app.agent_mcp_auth import AgentTokenMiddleware
+from mcp.server.transport_security import TransportSecuritySettings
 from sqlalchemy import text
 from app.database import init_db, async_session, engine
 from app.models.shoe import Shoe  # noqa: F401 — ensure table is created
@@ -84,6 +87,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AgentTokenMiddleware)
+
+app.mount("/mcp", agent_mcp_server.streamable_http_app(
+    streamable_http_path="/",
+    stateless_http=True,
+    json_response=True,
+    transport_security=TransportSecuritySettings(
+        allowed_hosts=["stridecoach.app", "stridecoach.app:*", "localhost", "localhost:*",
+                       "127.0.0.1", "127.0.0.1:*", "testserver"],
+        allowed_origins=["https://stridecoach.app"],
+    ),
+))
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
@@ -114,6 +129,17 @@ app.include_router(hydration_router)
 app.include_router(race_prep_router)
 app.include_router(strength_router)
 app.include_router(voice_router)
+
+
+@app.on_event("startup")
+async def start_agent_mcp():
+    app.state.agent_mcp_context = agent_mcp_server.session_manager.run()
+    await app.state.agent_mcp_context.__aenter__()
+
+
+@app.on_event("shutdown")
+async def stop_agent_mcp():
+    await app.state.agent_mcp_context.__aexit__(None, None, None)
 
 
 @app.on_event("startup")
