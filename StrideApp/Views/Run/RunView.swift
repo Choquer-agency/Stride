@@ -6,7 +6,6 @@ struct RunView: View {
     var onFinishRun: () -> Void
     var onOpenApp: () -> Void = {}
 
-    @State private var showFinishConfirmation = false
     @State private var splitDismissOffset: CGFloat = 0
 
     /// Work phases retain their red cue; pausing also shows a dedicated red screen.
@@ -96,14 +95,6 @@ struct RunView: View {
         .navigationBarTitleDisplayMode(.inline)
         .preferredColorScheme(.dark)
         .toolbar(.hidden, for: .navigationBar)
-        .alert("End Run?", isPresented: $showFinishConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("End Run", role: .destructive) {
-                onFinishRun()
-            }
-        } message: {
-            Text("End your current run and review your results.")
-        }
     }
     
     private var runControls: some View {
@@ -114,7 +105,7 @@ struct RunView: View {
                         controlLabel("Resume", foreground: .stridePrimary, background: .white)
                     }
                     HoldToEndRunButton(foreground: .white, background: .strideBrandBlack) {
-                        showFinishConfirmation = true
+                        onFinishRun()
                     }
                 }
             } else {
@@ -778,7 +769,7 @@ struct HoldToEndRunButton: View {
                     .frame(maxHeight: .infinity, alignment: .leading)
                     .clipShape(Capsule())
             }
-            Text(isHolding ? "END IN \(secondsRemaining)" : "HOLD 3 SEC TO END")
+            Text(isHolding ? "END IN \(secondsRemaining)" : "HOLD TO END")
                 .font(.barlowCondensed(size: 24, weight: .semibold))
                 .foregroundStyle(foreground)
                 .contentTransition(.numericText())
@@ -821,6 +812,7 @@ struct HoldToEndRunButton: View {
             isHolding = false
             movedTooFar = true // Do not restart while the same finger remains down.
             progress = 0
+            Haptics.notification(.success)
             onComplete()
         }
     }
