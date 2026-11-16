@@ -10,6 +10,9 @@ class RunSyncService {
 
     private var isSyncing = false
     private var modelContainer: ModelContainer?
+    private var retryTask: Task<Void, Never>?
+    private var retryAttempt = 0
+    private let retryDelays: [Duration] = [.seconds(15), .seconds(60), .seconds(180)]
 
     private var baseURL: String { APIConfiguration.serverURL }
 
@@ -52,6 +55,7 @@ class RunSyncService {
 
                 guard !unsyncedRuns.isEmpty else {
                     syncLog.info("No unsynced runs to upload")
+                    clearRetry()
                     return
                 }
 
@@ -103,11 +107,42 @@ class RunSyncService {
                 if response.metricsStored {
                     UserDefaults.standard.set(Array(backfilled), forKey: backfillKey)
                 }
+                clearRetry()
 
             } catch {
                 syncLog.error("Run sync failed: \(error.localizedDescription)")
+                if shouldRetry(error) { scheduleRetry() }
             }
         }
+    }
+
+    private func shouldRetry(_ error: Error) -> Bool {
+        if let syncError = error as? RunSyncError {
+            switch syncError {
+            case .unauthorized: return false
+            case .httpError(let status): return status == 429 || status >= 500
+            case .invalidResponse: return true
+            }
+        }
+        return error is URLError
+    }
+
+    private func scheduleRetry() {
+        guard retryTask == nil, retryAttempt < retryDelays.count else { return }
+        let delay = retryDelays[retryAttempt]
+        retryAttempt += 1
+        retryTask = Task { [weak self] in
+            do { try await Task.sleep(for: delay) } catch { return }
+            guard !Task.isCancelled else { return }
+            self?.retryTask = nil
+            self?.syncPendingRuns()
+        }
+    }
+
+    private func clearRetry() {
+        retryTask?.cancel()
+        retryTask = nil
+        retryAttempt = 0
     }
 
     private func decodeJSON<T: Decodable>(_ raw: String?, as type: T.Type) -> T? {
