@@ -293,6 +293,7 @@ struct StrideApp: App {
                 }
                 .onChange(of: scenePhase) { _, newPhase in
                     if newPhase == .active, case .signedIn = authService.authState {
+                        RunSyncService.shared.syncPendingRuns()
                         PreRunIntroPrefetcher.shared.warmUpIfNeeded(container: modelContainer)
                         Task { await pushManager.reregisterIfAuthorized() }
                         // Every foreground: pull coach-logged runs and self-heal
