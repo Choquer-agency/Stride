@@ -30,7 +30,6 @@ struct OutdoorRunView: View {
     @State private var orbPulse: CGFloat = 1
     @State private var numberPulse: CGFloat = 1
     @State private var countdownTask: Task<Void, Never>?
-    @State private var showEndConfirmation = false
 
     var body: some View {
         ZStack {
@@ -65,12 +64,6 @@ struct OutdoorRunView: View {
         .animation(.easeInOut(duration: 0.25), value: showCountdown)
         .navigationBarHidden(true)
         .preferredColorScheme(.dark)
-        .alert("End Run?", isPresented: $showEndConfirmation) {
-            Button("Keep Running", role: .cancel) { }
-            Button("End Run", role: .destructive) { onFinishRun() }
-        } message: {
-            Text("This saves your current distance. Hold to end was required to open this confirmation.")
-        }
         .onAppear {
             if ProcessInfo.processInfo.arguments.contains("--runview-demo-outdoor") {
                 viewport = .camera(center: CLLocationCoordinate2D(latitude: 49.2827, longitude: -123.1207), zoom: 16, bearing: 22, pitch: 45)
@@ -548,7 +541,7 @@ struct OutdoorRunView: View {
                     }
 
                     HoldToEndRunButton(foreground: .stridePrimary, background: .white) {
-                        showEndConfirmation = true
+                        onFinishRun()
                     }
                 }
                 .padding(.horizontal, 24)
