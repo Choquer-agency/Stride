@@ -5,8 +5,10 @@ import PostHog
 struct PlanView: View {
     @Environment(\.modelContext) private var modelContext
     @ObservedObject private var planSync = PlanSyncService.shared
+    @Query(sort: \RunLog.completedAt, order: .reverse) private var runLogs: [RunLog]
     @State private var selectedWeekNumber: Int
     @State private var selectedWorkout: Workout?
+    @State private var selectedRun: RunLog?
     @State private var showDeleteConfirmation = false
     @State private var showEditSheet = false
     @State private var showAnalysisSheet = false
@@ -85,6 +87,9 @@ struct PlanView: View {
                 }
             ).preferredColorScheme(appearance.colorScheme)
         }
+        .sheet(item: $selectedRun) { run in
+            RecordedRunReviewSheet(run: run, workout: nil)
+        }
         .alert("Plan Options", isPresented: $showDeleteConfirmation) {
             Button("Archive Plan") {
                 archivePlan()
@@ -125,16 +130,62 @@ struct PlanView: View {
     private var appearance: RunLobbyAppearance { RunLobbyAppearance(rawValue: appearanceRaw) ?? .black }
     private var ink: Color { appearance.foreground }
     private var muted: Color { appearance.secondary }
+    private var planCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.firstWeekday = 2
+        let name: String? = {
+            switch auth.authState {
+            case .signedIn(let user), .needsProfile(let user): return user.timezoneName
+            default: return nil
+            }
+        }()
+        calendar.timeZone = name.flatMap(TimeZone.init(identifier:)) ?? .current
+        return calendar
+    }
+    private func days(in week: Week) -> [Date] {
+        guard let first = week.sortedWorkouts.first else { return [] }
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let components = utc.dateComponents([.year, .month, .day], from: first.date)
+        guard let firstDay = planCalendar.date(from: DateComponents(year: components.year,
+            month: components.month, day: components.day, hour: 12)),
+            let monday = planCalendar.dateInterval(of: .weekOfYear, for: firstDay)?.start else { return [] }
+        return (0..<7).compactMap { planCalendar.date(byAdding: .day, value: $0, to: monday) }
+    }
     private var weekDays: [Date] {
-        guard let monday = selectedWeek?.mondayStart else { return [] }
-        return (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: monday) }
+        selectedWeek.map(days(in:)) ?? []
     }
     private var focusedDate: Date {
-        if let selectedDate, weekDays.contains(where: { Calendar.current.isDate($0, inSameDayAs: selectedDate) }) { return selectedDate }
+        if let selectedDate, weekDays.contains(where: { planCalendar.isDate($0, inSameDayAs: selectedDate) }) { return selectedDate }
         return PlanDayScrollTarget.date(in: weekDays, today: Date()) ?? Date()
     }
     private func sessions(on date: Date) -> [Workout] {
-        TrainingSessionSelection.onDay(date, workouts: selectedWeek?.sortedWorkouts ?? [])
+        TrainingSessionSelection.onDay(date, workouts: selectedWeek?.sortedWorkouts ?? [], calendar: planCalendar)
+    }
+    private func runs(on date: Date) -> [RunLog] {
+        runLogs.filter { $0.isValidForStats && planCalendar.isDate($0.completedAt, inSameDayAs: date) }
+            .sorted { $0.completedAt < $1.completedAt }
+    }
+    private func scheduledDay(for workout: Workout) -> Date {
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0)!
+        let components = utc.dateComponents([.year, .month, .day], from: workout.date)
+        return planCalendar.date(from: DateComponents(year: components.year,
+            month: components.month, day: components.day, hour: 12)) ?? workout.date
+    }
+    private func hasPlannedRun(for workout: Workout) -> Bool {
+        runs(on: scheduledDay(for: workout)).contains { log in
+            log.plannedWorkoutTitle != nil &&
+                (log.plannedWorkoutId == workout.id || log.plannedWorkoutTitle == workout.title)
+        }
+    }
+    private func isVisiblyComplete(_ workout: Workout) -> Bool {
+        workout.isCompleted && (!isRun(workout) || workout.isCoachConfirmedCompletion || hasPlannedRun(for: workout))
+    }
+    private func isUnplanned(_ run: RunLog) -> Bool {
+        run.plannedWorkoutTitle == nil || !focusedSessions.contains { workout in
+            run.plannedWorkoutId == workout.id || run.plannedWorkoutTitle == workout.title
+        }
     }
     private var focusedSessions: [Workout] { sessions(on: focusedDate).sorted { ($0.workoutType == .rest ? 1 : 0) < ($1.workoutType == .rest ? 1 : 0) } }
     private func isRun(_ workout: Workout) -> Bool {
@@ -142,7 +193,7 @@ struct PlanView: View {
     }
     private var weekRuns: [Workout] { selectedWeek?.sortedWorkouts.filter(isRun) ?? [] }
     private var plannedKm: Double { weekRuns.reduce(0) { $0 + ($1.distanceKm ?? 0) } }
-    private var completedKm: Double { weekRuns.filter(\.isCompleted).reduce(0) { $0 + ($1.actualDistanceKm ?? $1.distanceKm ?? 0) } }
+    private var completedKm: Double { weekDays.flatMap(runs(on:)).reduce(0) { $0 + $1.distanceKm } }
     private func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...1))) }
     private func eyebrow(_ text: String) -> some View { Text(text).font(.runEyebrow(9)).tracking(1.2).foregroundStyle(muted) }
     private var initials: String {
@@ -205,18 +256,18 @@ struct PlanView: View {
                 Spacer(minLength: 0)
                 HStack(alignment: .bottom, spacing: 6) {
                     ForEach(weekDays, id: \.self) { date in
-                        let distance = sessions(on: date).filter(isRun).reduce(0) { $0 + ($1.distanceKm ?? 0) }
+                        let distance = runs(on: date).reduce(0) { $0 + $1.distanceKm }
                         let maxDistance = max(1, weekRuns.compactMap(\.distanceKm).max() ?? 1)
                         RoundedRectangle(cornerRadius: 2)
                             .fill(Calendar.current.isDate(date, inSameDayAs: focusedDate) ? Color.stridePrimary : ink.opacity(0.10))
-                            .frame(width: 13, height: max(3, 46 * distance / maxDistance))
+                            .frame(width: 13, height: min(46, max(3, 46 * distance / maxDistance)))
                     }
-                }.frame(height: 49).accessibilityLabel("Planned daily distances for the selected week")
+                }.frame(height: 49).accessibilityLabel("Actual daily distances for the selected week")
             }
             Rectangle().fill(ink.opacity(0.09)).frame(height: 0.5)
             HStack {
                 Circle().fill(Color.stridePrimary).frame(width: 4, height: 4)
-                eyebrow("\(weekRuns.filter(\.isCompleted).count) / \(weekRuns.count) RUNS COMPLETE")
+                eyebrow("\(weekRuns.filter(isVisiblyComplete).count) / \(weekRuns.count) RUNS COMPLETE")
                 Spacer()
                 eyebrow("\(number(max(0, plannedKm - completedKm))) KM TO GO")
             }
@@ -242,9 +293,7 @@ struct PlanView: View {
         .accessibilityHint("Swipe left for the next full week, right for the previous week. Double tap the week heading to return to this week.")
     }
     private func weekCalendar(for week: Week) -> some View {
-        let days: [Date] = week.mondayStart.map { monday in
-            (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: monday) }
-        } ?? []
+        let days = days(in: week)
         return VStack(spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text("WEEK \(week.weekNumber)")
@@ -269,9 +318,13 @@ struct PlanView: View {
         .padding(.bottom, 7)
     }
     private func weekDayButton(_ date: Date, in week: Week) -> some View {
-        let selected = week.weekNumber == selectedWeekNumber && Calendar.current.isDate(date, inSameDayAs: focusedDate)
-        let today = Calendar.current.isDateInToday(date)
-        let complete = TrainingSessionSelection.isDayComplete(date, workouts: week.sortedWorkouts)
+        let selected = week.weekNumber == selectedWeekNumber && planCalendar.isDate(date, inSameDayAs: focusedDate)
+        let today = planCalendar.isDateInToday(date)
+        let dayWorkouts = TrainingSessionSelection.onDay(date, workouts: week.sortedWorkouts, calendar: planCalendar)
+        let active = dayWorkouts.filter { $0.workoutType != .rest }
+        let complete = active.isEmpty
+            ? TrainingSessionSelection.isDayComplete(date, workouts: week.sortedWorkouts, calendar: planCalendar)
+            : active.allSatisfy(isVisiblyComplete)
         let accent: Color = today ? .stridePrimary : (complete ? .blue : ink)
         let emphasized = selected || today
         let fill = emphasized ? accent : (complete ? Color.blue.opacity(0.10) : ink.opacity(0.025))
@@ -319,7 +372,7 @@ struct PlanView: View {
             HStack {
                 eyebrow(focusedDate.formatted(.dateTime.weekday(.wide).month(.abbreviated).day()).uppercased())
                 Spacer()
-                let count = focusedSessions.filter { $0.workoutType != .rest }.count
+                let count = focusedSessions.filter { $0.workoutType != .rest }.count + runs(on: focusedDate).filter(isUnplanned).count
                 eyebrow("\(count) SESSION\(count == 1 ? "" : "S")")
             }
             if focusedSessions.isEmpty {
@@ -327,6 +380,9 @@ struct PlanView: View {
             }
             ForEach(focusedSessions, id: \.id) { workout in
                 Button { selectWorkout(workout) } label: { sessionRow(workout) }.buttonStyle(.plain)
+            }
+            ForEach(runs(on: focusedDate).filter(isUnplanned), id: \.id) { run in
+                Button { selectedRun = run } label: { recordedRunRow(run) }.buttonStyle(.plain)
             }
         }
     }
@@ -347,9 +403,12 @@ struct PlanView: View {
                 Text(workout.title.uppercased()).font(.barlowCondensed(size: 27)).lineLimit(2)
                 Text(workout.paceDescription ?? workout.durationDisplay ?? workout.workoutType.displayName)
                     .font(.inter(size: 12)).foregroundStyle(muted).lineLimit(1)
-                if workout.isCompleted {
+                if isVisiblyComplete(workout) {
                     Label("COMPLETED", systemImage: "checkmark.circle.fill")
                         .font(.system(size: 10, weight: .medium)).foregroundStyle(sessionTint(workout))
+                } else if isRun(workout) && planCalendar.startOfDay(for: scheduledDay(for: workout)) < planCalendar.startOfDay(for: Date()) {
+                    Label("MISSED", systemImage: "minus.circle")
+                        .font(.system(size: 10, weight: .medium)).foregroundStyle(muted)
                 }
             }
             Spacer(minLength: 0)
@@ -360,6 +419,25 @@ struct PlanView: View {
         }.padding(.vertical, 15)
             .overlay(alignment: .bottom) { Rectangle().fill(ink.opacity(0.10)).frame(height: 0.5) }
             .contentShape(Rectangle())
+    }
+    private func recordedRunRow(_ run: RunLog) -> some View {
+        HStack(spacing: 13) {
+            RoundedRectangle(cornerRadius: 2).fill(Color.stridePrimary).frame(width: 3, height: 44)
+            Image(systemName: "figure.run").font(.system(size: 20)).foregroundStyle(Color.stridePrimary)
+                .frame(width: 34, height: 40)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("FREE RUN").font(.barlowCondensed(size: 27))
+                Text("\(run.durationDisplay) · \(run.actualPaceDisplay ?? "Pace unavailable")")
+                    .font(.inter(size: 12)).foregroundStyle(muted)
+            }
+            Spacer(minLength: 0)
+            VStack(spacing: 1) { Text(number(run.distanceKm)).font(.barlowCondensed(size: 29)); eyebrow("KM") }
+            Image(systemName: "arrow.up.right").font(.system(size: 16)).foregroundStyle(Color.stridePrimary)
+        }
+        .padding(.vertical, 15)
+        .overlay(alignment: .bottom) { Rectangle().fill(ink.opacity(0.10)).frame(height: 0.5) }
+        .contentShape(Rectangle())
+        .accessibilityLabel("Free run, \(run.distanceDisplay), \(run.durationDisplay)")
     }
     private var designBody: some View {
         GeometryReader { geometry in
