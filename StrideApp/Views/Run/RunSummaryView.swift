@@ -53,21 +53,8 @@ struct RunSummaryView: View {
                         },
                         showPaceColors: false
                     )
-                    if result.elevationGainMeters != nil || result.elevationLossMeters != nil {
-                        ElevationProfileView(routeJSON: routeJSON,
-                            elevationGain: result.elevationGainMeters,
-                            elevationLoss: result.elevationLossMeters)
-                    }
                 }
-                if result.speedSamples.count >= 2 {
-                    RunSpeedGraphView(samples: result.speedSamples, duration: result.durationSeconds)
-                }
-                if let hrJSON = result.hrSamplesJSON {
-                    HeartRateGraphView(hrSamplesJSON: hrJSON,
-                        avgHeartRate: result.avgHeartRate,
-                        maxHeartRate: result.maxHeartRate,
-                        duration: result.durationSeconds)
-                }
+                RunReviewCharts(result: result)
                 if result.isPlannedRun { plannedVsActualCard }
                 if !result.kmSplits.isEmpty { splitsSection }
                 if let shoe = selectedShoe,
