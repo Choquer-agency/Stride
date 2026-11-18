@@ -321,6 +321,9 @@ struct RunReviewCharts: View {
     }
 
     private var pacePoints: [Point] {
+        // Decode the GPS route and build its distance axis once per chart pass.
+        // Recomputing `axis` for every sample stalls the main thread on long runs.
+        let axis = self.axis
         let valid = speeds.filter { $0.t.isFinite && $0.t >= 0 && $0.kmh.isFinite && $0.kmh >= 4 && $0.kmh <= 40 }
             .sorted { $0.t < $1.t }
         if valid.count >= 2 {
@@ -342,12 +345,14 @@ struct RunReviewCharts: View {
     }
 
     private var elevationPoints: [Point] {
-        downsample(route.filter { $0.timestamp.isFinite && $0.timestamp >= 0 && $0.altitude.isFinite }
+        let axis = self.axis
+        return downsample(route.filter { $0.timestamp.isFinite && $0.timestamp >= 0 && $0.altitude.isFinite }
             .sorted { $0.timestamp < $1.timestamp }
             .map { Point(x: axis.km(at: $0.timestamp), y: $0.altitude) })
     }
 
     private var inclinePoints: [Point] {
+        let axis = self.axis
         guard let data = run.inclineSamplesJSON?.data(using: .utf8),
               let samples = try? JSONDecoder().decode([RunInclineSample].self, from: data) else { return [] }
         return downsample(samples.filter { $0.t.isFinite && $0.t >= 0 && $0.percent.isFinite }
@@ -355,7 +360,8 @@ struct RunReviewCharts: View {
     }
 
     private var heartPoints: [Point] {
-        downsample(run.decodedHRSamples.filter { $0.t.isFinite && $0.t >= 0 && $0.bpm > 0 }
+        let axis = self.axis
+        return downsample(run.decodedHRSamples.filter { $0.t.isFinite && $0.t >= 0 && $0.bpm > 0 }
             .sorted { $0.t < $1.t }.map { Point(x: axis.km(at: $0.t), y: Double($0.bpm)) })
     }
 
