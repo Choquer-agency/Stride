@@ -794,6 +794,11 @@ final class VoiceCoachService {
         tts.speakSequence([.text("Final \(Self.spokenDistance(distanceKm)) kilometers. Change to \(paceText) per kilometer.")])
     }
 
+    func announceStridePreparation() {
+        guard settings.isEnabled else { return }
+        tts.speakSequence([.text("Stride coming up. Run fast but relaxed, around eighty percent effort. Build smoothly; do not sprint.")])
+    }
+
     func announceWorkoutCompleted() {
         guard settings.isEnabled else { return }
         tts.speakSequence([.bundled("run_complete", fallbackText: "Workout completed. Nice work.")])

@@ -27,10 +27,16 @@ struct UINotificationFeedbackGenerator {
     enum Kind { case success }
     func notificationOccurred(_ kind: Kind) {}
 }
+final class IntervalCuePlayer {
+    static let shared = IntervalCuePlayer()
+    func countdown(_ second: Int) {}
+    func completed() {}
+}
 struct VoiceCoachService {
     static func spokenDistance(_ km: Double) -> String { String(km) }
     var announcements = 0
     mutating func announcePacePhase(paceText: String, distanceKm: Double) { announcements += 1 }
+    mutating func announceStridePreparation() { announcements += 1 }
 }
 final class Engine {
     var progressionSegments: [IntervalSegment] = [], progressionIndex = 0
@@ -39,10 +45,18 @@ final class Engine {
     var voiceCoach = VoiceCoachService()
     var candidateZone = Zone.noTarget, candidateZoneSince = 0.0, distanceOnlyMode = false
     var isStrideWorkout = false
+    var strideApproachAnnouncementIndex: Int?
     var basePaceMin: Double?, basePaceMax: Double?
     var isPaused = false, runStopped = false, intervalComplete = false
     var intervalSegments: [IntervalSegment] = []
     var isIntervalWorkout: Bool { !intervalSegments.isEmpty }
+    var nextIntervalSegment: IntervalSegment? {
+        let next = intervalIndex + 1
+        return next < intervalSegments.count ? intervalSegments[next] : nil
+    }
+    var currentIntervalSegment: IntervalSegment? {
+        return intervalIndex < intervalSegments.count ? intervalSegments[intervalIndex] : intervalSegments.last
+    }
     var intervalIndex = 0, lastCountdownTick = -1
     var elapsedTime = 0.0, distance = 0.0
     var segmentStartTime = 0.0, segmentStartDistance = 0.0
@@ -51,12 +65,16 @@ final class Engine {
     enum Zone { case noTarget }
     var paceZone = Zone.noTarget
 '''
-for signature in ['private func updateProgressionPace()', 'private func updateIntervalEngine()', 'private func advanceIntervalSegment()', 'private func applyIntervalPace(']:
+for signature in ['var stridePreparationCountdown:', 'var strideApproachMeters:', 'var secondsToNextStride:',
+                  'private func updateProgressionPace()', 'private func updateIntervalEngine()',
+                  'private func advanceIntervalSegment()', 'private func applyIntervalPace(']:
     code += "\n" + method(signature) + "\n"
 code += '''
 }
 let strides = IntervalWorkoutParser.strides("6 km with 4 × 20 sec strides included in the final 2 km", totalKm: 6, easyPace: "6:00–6:30")
 assert(strides.count == 12 && strides[0].distanceKm == 4)
+assert(strides[0].paceBounds?.min == 360 && strides[0].paceBounds?.max == 390)
+assert(IntervalWorkoutParser.strides("7 km with 4 × 20 sec strides included in the final 2 km", totalKm: 7, easyPace: "6:00-6:30/km")[0].paceBounds?.max == 390)
 assert(strides[1].durationSec == 3 && strides[2].durationSec == 20)
 assert(strides[3].durationSec == 60 && strides[2].paceBounds == nil)
 assert(IntervalWorkoutParser.strides("Easy run", totalKm: 6, easyPace: nil).isEmpty)
@@ -134,15 +152,29 @@ strideEngine.isStrideWorkout = true
 strideEngine.basePaceMin = 360
 strideEngine.basePaceMax = 390
 strideEngine.intervalSegments = strides
+strideEngine.distance = 3.86
+strideEngine.updateIntervalEngine()
+assert(strideEngine.strideApproachMeters == 140)
+assert(strideEngine.voiceCoach.announcements == 1)
+strideEngine.updateIntervalEngine()
+assert(strideEngine.voiceCoach.announcements == 1)
 strideEngine.distance = 4
 strideEngine.updateIntervalEngine()
 assert(strideEngine.intervalIndex == 1 && strideEngine.intervalPhaseRemaining == 3)
+assert(strideEngine.stridePreparationCountdown == 3)
+assert(strideEngine.targetPaceMinSec == 360 && strideEngine.targetPaceMaxSec == 390)
 strideEngine.elapsedTime = 3
 strideEngine.updateIntervalEngine()
 assert(strideEngine.intervalIndex == 2 && strideEngine.intervalPhaseRemaining == 20)
+assert(strideEngine.targetPaceMinSec == nil)
 strideEngine.elapsedTime = 23
 strideEngine.updateIntervalEngine()
 assert(strideEngine.intervalIndex == 3 && strideEngine.intervalPhaseRemaining == 60)
+assert(strideEngine.secondsToNextStride == 63)
+assert(strideEngine.targetPaceMinSec == 360)
+strideEngine.elapsedTime = 70
+strideEngine.updateIntervalEngine()
+assert(strideEngine.voiceCoach.announcements == 2 && strideEngine.secondsToNextStride == 16)
 strideEngine.elapsedTime = 300
 strideEngine.updateIntervalEngine()
 assert(strideEngine.intervalComplete && strideEngine.targetPaceMinSec == 360)

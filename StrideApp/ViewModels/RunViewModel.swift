@@ -234,6 +234,7 @@ class RunViewModel: ObservableObject {
     private var segmentStartTime: TimeInterval = 0
     private var segmentStartDistance: Double = 0
     private var lastCountdownTick: Int = -1
+    private var strideApproachAnnouncementIndex: Int?
     private var basePaceMin: Double?
     private var basePaceMax: Double?
 
@@ -243,6 +244,20 @@ class RunViewModel: ObservableObject {
     var stridePreparationCountdown: Int? {
         guard isStrideWorkout, !intervalComplete, currentIntervalSegment?.paceText == "Get ready for a stride" else { return nil }
         return max(1, Int(ceil(intervalPhaseRemaining)))
+    }
+    var strideApproachMeters: Int? {
+        guard isStrideWorkout, !intervalComplete,
+              let segment = currentIntervalSegment, case .warmup = segment.kind,
+              nextIntervalSegment?.paceText == "Get ready for a stride",
+              let plannedKm = segment.distanceKm else { return nil }
+        let remaining = max(0, (plannedKm - intervalPhaseDistanceDone) * 1000)
+        return remaining <= 150 ? Int(remaining.rounded()) : nil
+    }
+    var secondsToNextStride: Int? {
+        guard isStrideWorkout, !intervalComplete,
+              currentIntervalSegment?.paceText == "easy",
+              nextIntervalSegment?.paceText == "Get ready for a stride" else { return nil }
+        return Int(ceil(intervalPhaseRemaining + (nextIntervalSegment?.durationSec ?? 0)))
     }
     var isIntervalWorkout: Bool { !intervalSegments.isEmpty }
     var currentIntervalSegment: IntervalSegment? {
@@ -558,6 +573,7 @@ class RunViewModel: ObservableObject {
         intervalPhaseDistanceDone = 0
         intervalIndex = 0
         intervalComplete = false
+        strideApproachAnnouncementIndex = nil
         if let first = intervalSegments.first {
             intervalPhaseRemaining = first.durationSec ?? 0
         }
@@ -686,6 +702,7 @@ class RunViewModel: ObservableObject {
         intervalPhaseRemaining = 0
         intervalPhaseDistanceDone = 0
         intervalComplete = false
+        strideApproachAnnouncementIndex = nil
         segmentStartTime = 0
         segmentStartDistance = 0
         lastRecordedKm = 0
@@ -864,8 +881,10 @@ class RunViewModel: ObservableObject {
         if pace > 0 {
             currentPace = formatPace(secondsPerKm: pace)
 
-            // Feed pace graph (pass current distance in metres for distance-based windowing)
-            appendPaceGraphSample(pace, atDistanceMeters: distance * 1000.0)
+            // The graph follows real console speed changes; the large readout remains stable.
+            let chartPace = dataProvider?.dataSourceType == "bluetooth_ftms"
+                ? LiveSpeedSmoother.graphPace(speedMps: sample.speedMps, fallback: pace) : pace
+            appendPaceGraphSample(chartPace, atDistanceMeters: distance * 1000.0)
 
             // 5. Pace Drift — current pace vs. completed-km baseline
             updatePaceDrift()
@@ -1402,6 +1421,18 @@ class RunViewModel: ObservableObject {
               intervalIndex < intervalSegments.count else { return }
         let segment = intervalSegments[intervalIndex]
 
+        if isStrideWorkout, strideApproachAnnouncementIndex != intervalIndex {
+            let approachingWarmupEnd = segment.kind == .warmup &&
+                segment.distanceKm.map { $0 - max(0, distance - segmentStartDistance) <= 0.15 } == true
+            let approachingRecoveryEnd = segment.paceText == "easy" &&
+                segment.durationSec.map { $0 - max(0, elapsedTime - segmentStartTime) <= 15 } == true &&
+                nextIntervalSegment?.paceText == "Get ready for a stride"
+            if approachingWarmupEnd || approachingRecoveryEnd {
+                strideApproachAnnouncementIndex = intervalIndex
+                voiceCoach.announceStridePreparation()
+            }
+        }
+
         if let duration = segment.durationSec {
             let inPhase = elapsedTime - segmentStartTime
             intervalPhaseRemaining = max(0, duration - inPhase)
@@ -1450,8 +1481,12 @@ class RunViewModel: ObservableObject {
 
     private func applyIntervalPace(_ segment: IntervalSegment) {
         // Every phase owns its target, including warm-up, recovery and cool-down.
-        targetPaceMinSec = segment.paceBounds?.min
-        targetPaceMaxSec = segment.paceBounds?.max
+        let bounds = segment.paceBounds
+        let usesEasyTarget: Bool
+        if case .work = segment.kind { usesEasyTarget = false }
+        else { usesEasyTarget = isStrideWorkout }
+        targetPaceMinSec = bounds?.min ?? (usesEasyTarget ? basePaceMin : nil)
+        targetPaceMaxSec = bounds?.max ?? (usesEasyTarget ? basePaceMax : nil)
         paceZone = .noTarget
     }
 
