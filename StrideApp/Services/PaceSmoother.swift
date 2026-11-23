@@ -100,4 +100,10 @@ final class LiveSpeedSmoother {
         speed = nil
         timestamp = nil
     }
+
+    /// The chart uses the measured console speed; the large readout stays filtered.
+    static func graphPace(speedMps: Double?, fallback: Double) -> Double {
+        guard let speedMps, speedMps.isFinite, speedMps >= 0.5 else { return fallback }
+        return 1000 / speedMps
+    }
 }

@@ -31,6 +31,7 @@ final class CaptureHarness {
 code += declaration("ViewModels/RunViewModel.swift", "private func recordSpeedSample").replace("private func", "func")
 code += "\n}\n"
 code += declaration("Views/Run/Components/PaceBandGraphView.swift", "enum RunGraphPath")
+code += "\n" + declaration("Views/Run/Components/PaceBandGraphView.swift", "enum RunGraphScale")
 code += r"""
 let capture = CaptureHarness()
 capture.recordSpeedSample(10 / 3.6)
@@ -72,7 +73,8 @@ assert(original[10].y == 110) // Source measurements remain untouched.
 assert(filtered.first!.x == original.first!.x)
 assert(filtered.last! == original.last!) // Latest reading stays current.
 let interior = filtered.dropFirst(3).dropLast(3).map(\.y)
-assert(interior.max()! - interior.min()! < 2) // Actual noise reduction, not just round joins.
+assert(interior.max()! - interior.min()! > 8) // The runner can see small pace changes.
+assert(interior.max()! - interior.min()! < 20) // The display still filters sample noise.
 let repeated = [CGPoint(x: 0, y: 0), CGPoint(x: 0, y: 10),
                 CGPoint(x: 0, y: 20), CGPoint(x: 10, y: 20), CGPoint(x: 20, y: 30)]
 let bucketed = RunGraphPath.displayPoints(repeated)
@@ -89,6 +91,23 @@ RunGraphPath.rounded(original).forEach { item in
 assert(curves > 1 && lines > 1) // Partial corner rounding preserves more of each edge.
 let bounds = RunGraphPath.rounded(original).boundingRect
 assert(bounds.minY >= 90 && bounds.maxY <= 110) // Curve cannot invent an overshoot.
+let strideDomain = RunGraphScale.paceDomain(paces: [380, 370, 245, 250, 375], fast: 360, slow: 390)
+assert(strideDomain.lowerBound < 245 && strideDomain.upperBound > 390)
+assert(RunGraphScale.heartRateY(bpm: 147, target: 130...147, fastY: 20, slowY: 80, height: 120) == 20)
+assert(RunGraphScale.heartRateY(bpm: 130, target: 130...147, fastY: 20, slowY: 80, height: 120) == 80)
+assert(RunGraphScale.fixedPaceY(pace: 360, paces: [360, 390], fast: 360, slow: 390,
+                                top: 20, bottom: 80, height: 100) == 20)
+assert(RunGraphScale.fixedPaceY(pace: 390, paces: [360, 390], fast: 360, slow: 390,
+                                top: 20, bottom: 80, height: 100) == 80)
+assert(RunGraphScale.fixedPaceY(pace: 330, paces: [330, 360, 390], fast: 360, slow: 390,
+                                top: 20, bottom: 80, height: 100) < 20)
+assert(RunGraphScale.fixedHeartRateY(bpm: 150, readings: [135, 150], target: 135...150,
+                                    top: 20, bottom: 80, height: 100) == 20)
+assert(RunGraphScale.fixedHeartRateY(bpm: 135, readings: [135, 150], target: 135...150,
+                                    top: 20, bottom: 80, height: 100) == 80)
+let surge = (0..<11).map { index in CGPoint(x: Double(index) * 4, y: index == 5 ? 35 : 90) }
+let surgeDisplay = RunGraphPath.displayPoints(surge)
+assert(surgeDisplay[5].y < 55, "surge \(surgeDisplay[5].y)") // A short fast surge remains visible.
 print("PASS: full-run speed timeline, stop values, invalid samples, pause/finish gates, duplicate-distance buckets, noise reduction, smooth curves, and unchanged raw data")
 """
 with tempfile.TemporaryDirectory(prefix="stride-run-feedback-") as temporary:

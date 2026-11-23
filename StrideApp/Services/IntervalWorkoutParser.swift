@@ -16,7 +16,12 @@ struct IntervalSegment: Equatable {
 
     /// Target pace bounds in sec/km when paceText is a M:SS–M:SS range.
     var paceBounds: (min: Double, max: Double)? {
-        let parts = paceText.replacingOccurrences(of: "-", with: "–").split(separator: "–")
+        let normalized = paceText.lowercased()
+            .replacingOccurrences(of: "/km", with: "")
+            .replacingOccurrences(of: "per km", with: "")
+            .replacingOccurrences(of: "-", with: "\u{2013}")
+            .trimmingCharacters(in: .whitespaces)
+        let parts = normalized.split(separator: "\u{2013}")
         guard let first = parts.first, let lo = Self.paceSeconds(String(first)) else { return nil }
         if parts.count == 1 { return (lo - 15, lo + 15) }
         guard parts.count == 2, let hi = Self.paceSeconds(String(parts[1])) else { return nil }

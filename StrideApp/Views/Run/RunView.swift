@@ -145,23 +145,22 @@ struct RunView: View {
     private var indoorContent: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
-                HStack {
+                HStack(alignment: .bottom) {
                     Button(action: onOpenApp) {
                         Image("StrideLogoDark").resizable().scaledToFit().frame(height: 25)
                     }.buttonStyle(.plain).accessibilityLabel("Open Stride app")
                     Spacer()
-                    Text("INDOOR").font(.runEyebrow(10)).tracking(1.4)
-                        .padding(.horizontal, 12).padding(.vertical, 8)
-                        .background(.white.opacity(0.08), in: Capsule())
+                    Text(indoorWorkoutTitle)
+                        .font(.barlowCondensed(size: 16, weight: .semibold))
+                        .multilineTextAlignment(.trailing)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .frame(maxWidth: 180, alignment: .trailing)
                 }
-                HStack(alignment: .firstTextBaseline) {
-                    Text((viewModel.plannedWorkoutTitle ?? "FREE RUN").uppercased())
-                        .font(.barlowCondensed(size: 31, weight: .semibold))
-                        .lineLimit(1).minimumScaleFactor(0.7)
-                    Spacer(minLength: 8)
-                    Text(formatTime(viewModel.elapsedTime))
-                        .font(.barlowCondensed(size: 31)).monospacedDigit()
-                }.padding(.top, 20)
+                Text(formatTime(viewModel.elapsedTime))
+                    .font(.barlowCondensed(size: 31)).monospacedDigit()
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 20)
 
                 if !ProcessInfo.processInfo.arguments.contains("--runview-demo") {
                     TreadmillDataStatusBanner(bluetoothManager: bluetoothManager)
@@ -170,22 +169,22 @@ struct RunView: View {
 
                 Spacer(minLength: 10)
                 Text("CURRENT PACE /KM")
-                    .font(.runEyebrow(11)).tracking(1.8).foregroundStyle(.white.opacity(0.62))
+                    .font(.runEyebrow(14)).tracking(1.0).foregroundStyle(.white.opacity(0.78))
                 Text(viewModel.currentPace)
                     .font(.barlowCondensed(size: min(135, geometry.size.height * 0.17)))
                     .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
                     .contentTransition(.numericText())
+                    .padding(.top, -8)
 
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("TARGET").font(.runEyebrow(10)).foregroundStyle(.white.opacity(0.62))
-                    Text(indoorTargetPace).font(.barlowCondensed(size: 28))
-                    Spacer()
-                    if !viewModel.paceZone.statusText.isEmpty {
-                        Circle().fill(Color(red: 0.25, green: 0.65, blue: 1)).frame(width: 7, height: 7)
-                        Text(viewModel.paceZone.statusText.uppercased())
-                            .font(.runEyebrow(9)).foregroundStyle(Color(red: 0.35, green: 0.72, blue: 1))
-                    }
-                }.padding(.bottom, 13)
+                indoorTargetRow.padding(.bottom, 8)
+
+                if let strideCue = indoorStrideCue {
+                    Text(strideCue)
+                        .font(.inter(size: 20, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                }
 
                 PaceBandGraphView(
                     paces: viewModel.paceGraphPaces,
@@ -194,9 +193,11 @@ struct RunView: View {
                     heartRates: viewModel.paceGraphHeartRates,
                     distances: viewModel.paceGraphDistances,
                     targetHeartRateRange: currentHeartRateTarget,
-                    graphHeight: min(138, geometry.size.height * 0.17),
+                    graphHeight: min(125, geometry.size.height * 0.16),
                     paceColor: .stridePrimary,
-                    labelColor: .white.opacity(0.65)
+                    labelColor: .white.opacity(0.65),
+                    fixedGuides: true,
+                    statusText: viewModel.paceZone == .onPace ? "ON PACE" : ""
                 )
                 .padding(.vertical, 15)
 
@@ -230,8 +231,71 @@ struct RunView: View {
     }
 
     private var indoorTargetPace: String {
-        guard let fast = viewModel.targetPaceMinSec, let slow = viewModel.targetPaceMaxSec else { return "FREE RUN" }
-        return "\(formatPaceSeconds(fast))–\(formatPaceSeconds(slow))"
+        guard let fast = viewModel.targetPaceMinSec, let slow = viewModel.targetPaceMaxSec else {
+            if viewModel.isStrideWorkout && isWorkPhase { return "STRIDE EFFORT" }
+            return viewModel.isPlannedRun ? "NO SET PACE" : "YOUR PACE"
+        }
+        return "\(formatPaceSeconds(fast))-\(formatPaceSeconds(slow))"
+    }
+
+    private var indoorWorkoutTitle: String {
+        let title = (viewModel.plannedWorkoutTitle ?? "FREE RUN")
+            .replacingOccurrences(of: " with ", with: " w/ ", options: .caseInsensitive)
+            .uppercased()
+        return title.replacingOccurrences(of: " W/ ", with: "\nW/ ")
+    }
+
+    private var indoorTargetRow: some View {
+        Group {
+            if let direction = speedGuidanceDirection {
+                Text("\(direction) \(indoorTargetPace) PACE | \(speedGuidanceCountdown)")
+                    .font(.runEyebrow(14))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            } else {
+                HStack(spacing: 7) {
+                    Text("TARGET").foregroundStyle(.white.opacity(0.78))
+                    Text(indoorTargetPace)
+                    if let range = currentHeartRateTarget {
+                        Text("|").foregroundStyle(.white.opacity(0.5))
+                        Text("HR \(range.lowerBound)-\(range.upperBound)")
+                            .foregroundStyle(Color.heartRatePink)
+                    }
+                }
+                .font(.runEyebrow(14))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var speedGuidanceDirection: String? {
+        guard viewModel.targetPaceMinSec != nil, viewModel.targetPaceMaxSec != nil else { return nil }
+        switch viewModel.paceZone {
+        case .slightlySlow, .tooSlow: return "INCREASE SPEED"
+        case .slightlyFast, .tooFast: return "DECREASE SPEED"
+        case .onPace, .noTarget: return nil
+        }
+    }
+
+    private var speedGuidanceCountdown: String {
+        let remaining = max(0, Int(ceil(600 - (viewModel.elapsedTime - (viewModel.paceGuidanceStartedAt ?? viewModel.elapsedTime)))))
+        if remaining == 600 { return "10M" }
+        return String(format: "%d:%02d", remaining / 60, remaining % 60)
+    }
+
+    private var indoorStrideCue: String? {
+        if let count = viewModel.stridePreparationCountdown {
+            return "STRIDE IN \(count) - FAST, RELAXED, ABOUT 80% EFFORT"
+        }
+        if let meters = viewModel.strideApproachMeters {
+            return "STRIDES START IN \(meters) M - BUILD SPEED SMOOTHLY"
+        }
+        if let seconds = viewModel.secondsToNextStride {
+            return "NEXT STRIDE IN \(formatCountdownShort(Double(seconds)))"
+        }
+        return nil
     }
 
     private func formatPaceSeconds(_ seconds: Double) -> String {
@@ -242,10 +306,10 @@ struct RunView: View {
 
     private func indoorMetric(_ title: String, value: String, unit: String) -> some View {
         VStack(spacing: 4) {
-            Text(title).font(.runEyebrow(9)).tracking(1.2).foregroundStyle(.white.opacity(0.62))
+            Text(title).font(.runEyebrow(12)).tracking(1.2).foregroundStyle(.white.opacity(0.62))
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value).font(.barlowCondensed(size: 37)).monospacedDigit()
-                Text(unit).font(.runEyebrow(9)).foregroundStyle(.white.opacity(0.62))
+                Text(unit).font(.runEyebrow(12)).foregroundStyle(.white.opacity(0.62))
             }.lineLimit(1).minimumScaleFactor(0.7)
         }.frame(maxWidth: .infinity)
     }
@@ -303,18 +367,20 @@ struct RunView: View {
 
                         VStack(spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                Text(viewModel.isStrideWorkout ? String(format: "%.1f", viewModel.speedKmh) : viewModel.currentPace)
+                                Text(viewModel.currentPace)
                                     .font(.barlowCondensed(size: numberSize, weight: .medium))
                                     .foregroundColor(intervalFg)
                                     .contentTransition(.numericText())
-                                Text(viewModel.isStrideWorkout ? "km/h" : "/km")
+                                Text("/km")
                                     .font(.inter(size: 15, weight: .medium))
                                     .foregroundColor(intervalFgSoft)
                             }
                             HStack(spacing: 10) {
-                                Text(segment.paceText == "easy" ? "easy — shake it out" : "target \(segment.paceText)")
-                                    .font(.inter(size: 15, weight: .semibold))
+                                Text(viewModel.isStrideWorkout ? "Fast, relaxed, about 80% effort. Build smoothly." :
+                                     (segment.paceText == "easy" ? "Easy recovery" : "Target \(segment.paceText)"))
+                                    .font(.inter(size: 20, weight: .semibold))
                                     .foregroundColor(intervalFgSoft)
+                                    .multilineTextAlignment(.center)
                                 if segment.paceBounds != nil, !viewModel.paceZone.statusText.isEmpty {
                                     Text(viewModel.paceZone.statusText)
                                         .font(.inter(size: 15, weight: .bold))
@@ -394,6 +460,7 @@ struct RunView: View {
 
     private var currentHeartRateTarget: ClosedRange<Int>? {
         let type: WorkoutType?
+        if viewModel.isStrideWorkout, isWorkPhase { return nil }
         if viewModel.isIntervalWorkout, !viewModel.intervalComplete,
            let segment = viewModel.currentIntervalSegment {
             switch segment.kind {

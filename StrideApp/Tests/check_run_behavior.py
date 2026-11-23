@@ -54,6 +54,8 @@ for tick in 101...116 {
 }
 let changed = smoother.addSample(speedMps: 12 / 3.6, timestamp: start.addingTimeInterval(47))
 assert(abs(changed - 300) < 2)
+assert(abs(LiveSpeedSmoother.graphPace(speedMps: 14 / 3.6, fallback: changed) - 1000 / (14 / 3.6)) < 0.001)
+assert(LiveSpeedSmoother.graphPace(speedMps: nil, fallback: changed) == changed)
 assert(smoother.addSample(speedMps: 0, timestamp: start.addingTimeInterval(48)) == 0)
 assert(abs(smoother.addSample(speedMps: 10 / 3.6, timestamp: start.addingTimeInterval(49)) - 360) < 0.001)
 assert(abs(smoother.addSample(speedMps: 12 / 3.6, timestamp: start.addingTimeInterval(60)) - 300) < 0.001)

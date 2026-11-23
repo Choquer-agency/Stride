@@ -19,6 +19,7 @@ code = 'import Foundation\nenum WorkoutType: String, Codable { case longRun }\n'
 for file, name in [
     ('Views/Run/RunView.swift', 'struct KilometerSplit'),
     ('ViewModels/RunViewModel.swift', 'struct RunSpeedSample'),
+    ('ViewModels/RunViewModel.swift', 'struct RunInclineSample'),
     ('ViewModels/RunViewModel.swift', 'struct RunResult'),
     ('ViewModels/RunViewModel.swift', 'enum RunRecoveryStore'),
 ]:
