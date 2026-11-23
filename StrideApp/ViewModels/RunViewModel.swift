@@ -274,6 +274,7 @@ class RunViewModel: ObservableObject {
     @Published var targetPaceMinSec: Double?     // faster boundary (lower sec/km)
     @Published var targetPaceMaxSec: Double?     // slower boundary (higher sec/km)
     @Published var paceZone: PaceZone = .noTarget
+    @Published private(set) var paceGuidanceStartedAt: TimeInterval?
 
     /// Point-of-no-return flag: once set, we stop nagging about pace and let the
     /// runner focus on finishing the distance. One-way — never flips back during a run.
@@ -1052,6 +1053,7 @@ class RunViewModel: ObservableObject {
               minPace.isFinite, maxPace.isFinite, minPace > 0, maxPace >= minPace,
               smoothedPace.isFinite, smoothedPace > 0 else {
             paceZone = .noTarget
+            paceGuidanceStartedAt = nil
             candidateZone = .noTarget
             candidateZoneSince = elapsedTime
             return
@@ -1083,6 +1085,7 @@ class RunViewModel: ObservableObject {
         if sustained && candidateZone != paceZone {
             let oldZone = paceZone
             paceZone = candidateZone
+            paceGuidanceStartedAt = candidateZone.isOffPace ? elapsedTime : nil
 
             // Suppress pace-zone voice once we've pivoted to distance-only; UI still updates.
             if !distanceOnlyMode {
@@ -1488,6 +1491,7 @@ class RunViewModel: ObservableObject {
         targetPaceMinSec = bounds?.min ?? (usesEasyTarget ? basePaceMin : nil)
         targetPaceMaxSec = bounds?.max ?? (usesEasyTarget ? basePaceMax : nil)
         paceZone = .noTarget
+        paceGuidanceStartedAt = nil
     }
 
     private func appendPaceGraphSample(_ paceSecPerKm: Double, atDistanceMeters currentDistance: Double) {

@@ -12,6 +12,8 @@ struct PaceBandGraphView: View {
     var graphHeight: CGFloat = 140
     var paceColor: Color = .stridePrimary
     var labelColor: Color = .secondary
+    var fixedGuides = false
+    var statusText: String = ""
 
     private var hasPaceTarget: Bool {
         guard let lo = targetMinSec, let hi = targetMaxSec else { return false }
@@ -23,6 +25,92 @@ struct PaceBandGraphView: View {
     }
 
     var body: some View {
+        if fixedGuides {
+            fixedGuideGraph
+        } else {
+            adaptiveGraph
+        }
+    }
+
+    private var fixedGuideGraph: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Circle().fill(paceColor).frame(width: 8, height: 8)
+                Text("PACE")
+                Circle().fill(Color.heartRatePink).frame(width: 8, height: 8)
+                    .padding(.leading, 8)
+                Text("HR")
+                Spacer()
+                Text("LAST 500M").font(.runEyebrow(8))
+            }
+            .font(.runEyebrow(14))
+            .foregroundStyle(labelColor)
+            .padding(.bottom, 18)
+
+            Rectangle().fill(.white.opacity(0.85)).frame(height: 0.6)
+            GeometryReader { geometry in
+                let width = geometry.size.width
+                let height = geometry.size.height
+                let top = height * 0.18
+                let bottom = height * 0.82
+                let readings = heartRates.compactMap { $0 }
+                let points = paces.enumerated().map { index, pace in
+                    CGPoint(x: xPosition(index, width: width),
+                            y: RunGraphScale.fixedPaceY(pace: pace, paces: paces,
+                                fast: targetMinSec, slow: targetMaxSec,
+                                top: top, bottom: bottom, height: height))
+                }
+                ZStack(alignment: .topLeading) {
+                    ForEach(0..<2, id: \.self) { index in
+                        horizontalRule(y: index == 0 ? top : bottom, width: width)
+                            .stroke(Color(red: 0, green: 0.765, blue: 1),
+                                style: StrokeStyle(lineWidth: 1.2, dash: [8, 8]))
+                    }
+                    if points.count > 1 {
+                        RunGraphPath.area(points, bottom: height)
+                            .fill(LinearGradient(colors: [paceColor.opacity(0.25), paceColor.opacity(0)],
+                                                 startPoint: .top, endPoint: .bottom))
+                    }
+                    RunGraphPath.rounded(points)
+                        .stroke(paceColor, style: StrokeStyle(lineWidth: 1.9, lineCap: .round, lineJoin: .round))
+                    if let latest = points.last {
+                        Circle().fill(paceColor).frame(width: 6, height: 6).position(latest)
+                    }
+                    Path { path in
+                        var segment: [CGPoint] = []
+                        for (index, bpm) in heartRates.enumerated() {
+                            if let bpm {
+                                segment.append(CGPoint(x: xPosition(index, width: width),
+                                    y: RunGraphScale.fixedHeartRateY(bpm: bpm, readings: readings,
+                                        target: targetHeartRateRange, top: top,
+                                        bottom: bottom, height: height)))
+                            } else {
+                                path.addPath(RunGraphPath.rounded(segment))
+                                segment = []
+                            }
+                        }
+                        path.addPath(RunGraphPath.rounded(segment))
+                    }
+                    .stroke(Color.heartRatePink,
+                        style: StrokeStyle(lineWidth: 0.95, lineCap: .round, lineJoin: .round))
+                    if !statusText.isEmpty {
+                        Text(statusText.uppercased())
+                            .font(.runEyebrow(12))
+                            .foregroundStyle(Color(red: 0.35, green: 0.72, blue: 1))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity,
+                                   alignment: .bottomTrailing)
+                            .padding(.trailing, 2)
+                            .padding(.bottom, 2)
+                    }
+                }
+            }
+            .frame(height: graphHeight)
+            .clipped()
+            Rectangle().fill(.white.opacity(0.85)).frame(height: 0.6)
+        }
+    }
+
+    private var adaptiveGraph: some View {
         VStack(spacing: 6) {
             HStack(spacing: 10) {
                 Circle().fill(paceColor).frame(width: 10, height: 10)
@@ -121,6 +209,45 @@ struct PaceBandGraphView: View {
 }
 
 enum RunGraphScale {
+    static func fixedPaceY(pace: Double, paces: [Double], fast: Double?, slow: Double?,
+                           top: CGFloat, bottom: CGFloat, height: CGFloat) -> CGFloat {
+        guard pace.isFinite, pace > 0 else { return height }
+        guard let fast, let slow, fast.isFinite, slow.isFinite, slow > fast else {
+            let domain = paceDomain(paces: paces, fast: nil, slow: nil)
+            return CGFloat((pace - domain.lowerBound) / (domain.upperBound - domain.lowerBound)) * height
+        }
+        if pace < fast {
+            let minPace = paces.filter { $0.isFinite && $0 > 0 }.min() ?? fast
+            let overflow = max(fast - minPace, 15)
+            return max(0, top * (1 - 0.85 * CGFloat((fast - pace) / overflow)))
+        }
+        if pace > slow {
+            let maxPace = paces.filter { $0.isFinite && $0 > 0 }.max() ?? slow
+            let overflow = max(maxPace - slow, 15)
+            return min(height, bottom + (height - bottom) * 0.85 * CGFloat((pace - slow) / overflow))
+        }
+        return top + (bottom - top) * CGFloat((pace - fast) / (slow - fast))
+    }
+
+    static func fixedHeartRateY(bpm: Int, readings: [Int], target: ClosedRange<Int>?,
+                                top: CGFloat, bottom: CGFloat, height: CGFloat) -> CGFloat {
+        guard let target, target.upperBound > target.lowerBound else {
+            let low = min(readings.min() ?? 130, 130) - 12
+            let high = max(readings.max() ?? 160, 160) + 12
+            return height * (1 - CGFloat(bpm - low) / CGFloat(max(high - low, 1)))
+        }
+        if bpm > target.upperBound {
+            let overflow = max((readings.max() ?? bpm) - target.upperBound, 10)
+            return max(0, top * (1 - 0.85 * CGFloat(bpm - target.upperBound) / CGFloat(overflow)))
+        }
+        if bpm < target.lowerBound {
+            let overflow = max(target.lowerBound - (readings.min() ?? bpm), 10)
+            return min(height, bottom + (height - bottom) * 0.85 * CGFloat(target.lowerBound - bpm) / CGFloat(overflow))
+        }
+        return top + (bottom - top) * CGFloat(target.upperBound - bpm) /
+            CGFloat(target.upperBound - target.lowerBound)
+    }
+
     static func paceDomain(paces: [Double], fast: Double?, slow: Double?) -> ClosedRange<Double> {
         let measured = paces.filter { $0.isFinite && (120...1200).contains($0) }
         let targets = [fast, slow].compactMap { $0 }.filter { $0.isFinite && $0 > 0 }
@@ -144,7 +271,7 @@ enum RunGraphScale {
 /// Display-only filtering removes repeated-odometer spikes and subpixel noise.
 /// All calculations operate on copies; raw samples and run statistics stay intact.
 enum RunGraphPath {
-    static func displayPoints(_ points: [CGPoint], bucketWidth: CGFloat = 2.5) -> [CGPoint] {
+    static func displayPoints(_ points: [CGPoint], bucketWidth: CGFloat = 1.5) -> [CGPoint] {
         let finite = points.filter { $0.x.isFinite && $0.y.isFinite }
         guard let first = finite.first, let last = finite.last else { return [] }
         let step = max(bucketWidth, (last.x - first.x) / 100, 0.001)
@@ -164,7 +291,7 @@ enum RunGraphPath {
         // The latest value remains exact so the trace ends at the live reading.
         result[result.count - 1] = last
         if result.count > 2 {
-            for _ in 0..<2 {
+            for _ in 0..<1 {
                 let source = result
                 for index in 1..<source.count - 1 {
                     let filtered = (source[index - 1].y + 2 * source[index].y + source[index + 1].y) / 4
@@ -172,7 +299,7 @@ enum RunGraphPath {
                         abs(source[index - 2].y - source[index - 1].y) < 4 &&
                         abs(source[index + 1].y - source[index + 2].y) < 4 &&
                         abs(source[index].y - filtered) > 10
-                    let amount: CGFloat = isolatedSurge ? 0.15 : 0.595
+                    let amount: CGFloat = isolatedSurge ? 0.10 : 0.40
                     result[index].y = source[index].y + amount * (filtered - source[index].y)
                 }
             }
@@ -200,5 +327,15 @@ enum RunGraphPath {
             }
             path.addLine(to: smooth[smooth.count - 1])
         }
+    }
+
+    static func area(_ points: [CGPoint], bottom: CGFloat) -> Path {
+        let smooth = displayPoints(points)
+        guard let first = smooth.first, let last = smooth.last, smooth.count > 1 else { return Path() }
+        var path = rounded(smooth)
+        path.addLine(to: CGPoint(x: last.x, y: bottom))
+        path.addLine(to: CGPoint(x: first.x, y: bottom))
+        path.closeSubpath()
+        return path
     }
 }
