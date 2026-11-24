@@ -592,12 +592,10 @@ struct WorkoutDetailView: View {
     }
 
     private func startSelectedWorkout() {
-        if isGymWorkout && !GymSessionModel.stages(fromPrescription: workout.details ?? workout.title).isEmpty {
-            showGymPlayer = true
-        } else if workout.workoutType.isRunnable {
+        if workout.workoutType.isRunnable || isGymWorkout {
             dismiss()
             DispatchQueue.main.async {
-                NotificationCenter.default.post(name: .strideStartPlannedWorkout, object: workout)
+                NotificationCenter.default.post(name: .strideOpenPlannedWorkout, object: workout)
             }
         } else {
             onComplete()
@@ -1131,13 +1129,13 @@ struct CompletedRunDetailContent: View {
                 RunReviewCharts(run: run, splits: splits)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 sectionTitle("Shoes", icon: "shoeprints.fill")
-                HStack(spacing: 14) {
-                    if let shoe = recordedShoe { ShoePhotoView(shoe: shoe, size: 64) }
+                HStack(spacing: 12) {
+                    if let shoe = recordedShoe { ShoePhotoView(shoe: shoe, size: 48) }
                     else {
                         Image(systemName: "shoe.2").font(.system(size: 28)).foregroundStyle(.secondary)
-                            .frame(width: 64, height: 64).background(Color(.systemGray6), in: Circle())
+                            .frame(width: 48, height: 48).background(Color(.systemGray6), in: Circle())
                     }
                     ViewThatFits(in: .horizontal) {
                         HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -1151,7 +1149,9 @@ struct CompletedRunDetailContent: View {
                     }
                 }
             }
-            .historyCard(style)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .stridePageCard(style, radius: 20)
 
             if let rating = run?.feedbackRating, (0...5).contains(rating) {
                 VStack(alignment: .leading, spacing: 8) {

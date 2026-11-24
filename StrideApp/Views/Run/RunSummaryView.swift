@@ -576,7 +576,7 @@ struct RunSummaryView: View {
     // MARK: - Shoe Picker Section
 
     private var shoePickerSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             Text("SHOES")
                 .font(.barlowCondensed(size: 24))
                 .foregroundColor(.primary)
@@ -603,7 +603,7 @@ struct RunSummaryView: View {
                         selectedShoe = shoe
                     } label: {
                         HStack(spacing: 12) {
-                            ShoePhotoView(shoe: shoe, size: 56)
+                            ShoePhotoView(shoe: shoe, size: 48)
                             Text(shoe.name)
                                 .font(.inter(size: 14, weight: .medium))
                                 .foregroundColor(.primary)
@@ -613,7 +613,7 @@ struct RunSummaryView: View {
                                     .foregroundColor(.stridePrimary)
                             }
                         }
-                        .padding(12)
+                        .padding(8)
                         .background(style.card)
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }

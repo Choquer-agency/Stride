@@ -102,6 +102,9 @@ struct MainTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .strideSwitchToRunTab)) { _ in
             selectedTab = .run
         }
+        .onReceive(NotificationCenter.default.publisher(for: .strideOpenPlannedWorkout)) { _ in
+            selectedTab = .run
+        }
         .onAppear {
             if UserDefaults.standard.bool(forKey: "strideOpenRunFromActivity") {
                 selectedTab = .run
@@ -336,20 +339,6 @@ struct RunTabContainer: View {
                     Task { @MainActor in
                         RunLiveActivityCoordinator.shared.endOrphanedActivities()
                     }
-                }
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .strideStartPlannedWorkout)) { notification in
-                guard let workout = notification.object as? Workout else { return }
-                selectedTab = .run
-                guard case .lobby = runState else { return }
-                isOutdoorMode = allowedOutdoorMode(UserDefaults.standard.string(forKey: "lastRunMode") != RunMode.treadmill.rawValue)
-                viewModel.reset()
-                protectRunSession()
-                viewModel.loadPlannedWorkout(workout)
-                PostHogSDK.shared.capture("run_started", properties: ["is_planned": true, "mode": isOutdoorMode ? "outdoor" : "treadmill"])
-                withAnimation {
-                    runState = .active
-                    hideTabBar = true
                 }
             }
             .alert("Run wasn't saved", isPresented: Binding(

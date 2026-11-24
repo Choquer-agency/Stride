@@ -329,9 +329,9 @@ struct RunReviewCharts: View {
         if valid.count >= 2 {
             let paces = valid.map { 60 / $0.kmh }
             return downsample(valid.enumerated().map { index, sample in
-                // Five-reading moving average removes single GPS spikes without
+                // Nine-reading moving average removes single GPS spikes without
                 // changing the underlying recorded data.
-                let low = max(0, index - 2), high = min(valid.count - 1, index + 2)
+                let low = max(0, index - 4), high = min(valid.count - 1, index + 4)
                 let average = paces[low...high].reduce(0, +) / Double(high - low + 1)
                 return Point(x: axis.km(at: sample.t), y: -average)
             })
@@ -409,7 +409,7 @@ struct RunReviewCharts: View {
                 .chartXScale(domain: 0...axis.distanceKm)
                 .chartYScale(domain: domain)
                 .chartXAxis {
-                    AxisMarks(position: .bottom, values: axis.chartTicks) { value in
+                    AxisMarks(position: .bottom, values: Array(axis.chartTicks.dropLast())) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.6))
                         AxisValueLabel {
                             if let km = value.as(Double.self) {
@@ -433,6 +433,11 @@ struct RunReviewCharts: View {
                 .chartPlotStyle { plot in plot.clipped() }
                 .frame(height: 150)
                 .accessibilityLabel("\(title), from 0 to \(axis.distanceKm.formatted()) kilometers")
+                HStack {
+                    Spacer()
+                    Text("FINISH · \(axis.label(for: axis.distanceKm)) KM")
+                        .font(.runEyebrow(10)).foregroundStyle(style.muted)
+                }
             } else {
                 Text(empty).font(.inter(size: 12)).foregroundStyle(style.muted)
                     .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
@@ -443,13 +448,14 @@ struct RunReviewCharts: View {
     private func chartDomain(points: [Point], unit: String) -> ClosedRange<Double> {
         let values = points.map(\.y).sorted()
         guard !values.isEmpty else { return 0...1 }
-        // Focus on typical effort. Startup, pauses and isolated sensor spikes may
-        // extend beyond the plot, while the recorded values remain untouched.
-        let lower = values[Int(Double(values.count - 1) * 0.10)]
-        let upper = values[Int(Double(values.count - 1) * 0.90)]
+        // Keep every recorded point visible while leaving a little room above
+        // and below the trace. Pace readings below walking speed are filtered
+        // before this step so startup does not flatten the running detail.
+        let lower = values[0]
+        let upper = values[values.count - 1]
         let minimumSpan = unit == "bpm" ? 20.0 : unit == "min/km" ? 0.5 : 5.0
         let center = (lower + upper) / 2
-        let half = max((upper - lower) * 0.65, minimumSpan / 2)
+        let half = max((upper - lower) * 0.60, minimumSpan / 2)
         return (center - half)...(center + half)
     }
 

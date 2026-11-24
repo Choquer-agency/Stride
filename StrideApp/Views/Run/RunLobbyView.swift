@@ -50,6 +50,7 @@ struct RunLobbyView: View {
     /// Flexible week: the run the athlete picked from this week's list.
     @State private var selectedWeekWorkoutId: UUID? = nil
     @State private var selectedSessionID: UUID?
+    @State private var requestedWorkout: Workout?
     @State private var openedSession: Workout?
     @State private var freeRunDistance: Double = 12.0
     @State private var freeRunDurationMinutes: Int = 30
@@ -123,7 +124,9 @@ struct RunLobbyView: View {
     /// Keep every active session for the day, including strength. Flexible plans
     /// keep their existing pick-any-run behavior and add today's non-run work.
     private var todaysSessions: [Workout] {
-        TrainingSessionSelection.lobby(workouts: plans.first?.currentWeek?.sortedWorkouts ?? [], flexible: isFlexibleWeek)
+        let sessions = TrainingSessionSelection.lobby(workouts: plans.first?.currentWeek?.sortedWorkouts ?? [], flexible: isFlexibleWeek)
+        guard let requestedWorkout, !sessions.contains(where: { $0.id == requestedWorkout.id }) else { return sessions }
+        return sessions + [requestedWorkout]
     }
     private var todaysWorkout: Workout? {
         TrainingSessionSelection.preferred(in: todaysSessions, selectedID: selectedSessionID, fallbackID: selectedWeekWorkoutId)
@@ -207,6 +210,14 @@ struct RunLobbyView: View {
         }
         .onChange(of: locationManager.authorizationStatus) { _, _ in locationManager.requestCurrentLocation() }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { connectionCheckTime = $0 }
+        .onReceive(NotificationCenter.default.publisher(for: .strideOpenPlannedWorkout)) { notification in
+            guard let workout = notification.object as? Workout else { return }
+            requestedWorkout = workout
+            selectedWeekWorkoutId = workout.id
+            selectedSessionID = workout.id
+            selectedTab = .todaysWorkout
+            if workout.workoutType == .gym || workout.workoutType == .crossTraining { setRunMode(.treadmill) }
+        }
         .onChange(of: todaysWorkout?.id) { _, workoutId in
             if workoutId == nil { selectedTab = .freeRun }
             gymSelectedForBackdrop = modeLockedToIndoor
@@ -707,7 +718,7 @@ struct RunLobbyView: View {
 
     private var startButton: some View {
         Button {
-            guard runMode != .treadmill || bluetoothManager.hasFreshTreadmillData else { return }
+            guard !selectedSessionIsRun || runMode != .treadmill || bluetoothManager.hasFreshTreadmillData else { return }
             if selectedTab == .todaysWorkout, let workout = todaysWorkout {
                 if workout.isCompleted || !Self.isRunSession(workout) { openedSession = workout }
                 else { onStartPlannedWorkout(workout, runMode == .outdoor) }
