@@ -60,6 +60,7 @@ struct RunLobbyView: View {
     @State private var showPaceEditor = false
     @State private var showDistanceEditor = false
     @State private var connectionCheckTime = Date()
+    @State private var connectionPulse = false
 
     enum FreeRunGoalMode: String {
         case distance
@@ -163,10 +164,11 @@ struct RunLobbyView: View {
             if workout.isCompleted { return true }
             if !Self.isRunSession(workout) { return true }
         }
-        if runMode == .treadmill {
-            return isConnected
-        }
-        return true
+        return !treadmillNeedsConnection
+    }
+
+    private var treadmillNeedsConnection: Bool {
+        selectedSessionIsRun && visibleMode == .treadmill && !isConnected
     }
 
     // MARK: - Body
@@ -210,6 +212,11 @@ struct RunLobbyView: View {
         }
         .onChange(of: locationManager.authorizationStatus) { _, _ in locationManager.requestCurrentLocation() }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { connectionCheckTime = $0 }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.85).repeatForever(autoreverses: true)) {
+                connectionPulse = true
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .strideOpenPlannedWorkout)) { notification in
             guard let workout = notification.object as? Workout else { return }
             requestedWorkout = workout
@@ -731,13 +738,26 @@ struct RunLobbyView: View {
                 )
             }
         } label: {
-            HStack { Text(startButtonTitle.uppercased()); Spacer(); Image(systemName: "arrow.up.right").font(.system(size: 23, weight: .light)) }
+            HStack {
+                Text(startButtonTitle.uppercased())
+                Spacer()
+                if treadmillNeedsConnection {
+                    Circle()
+                        .fill(Color.stridePrimary)
+                        .frame(width: 10, height: 10)
+                        .scaleEffect(connectionPulse ? 1.35 : 0.8)
+                        .opacity(connectionPulse ? 1 : 0.4)
+                        .accessibilityHidden(true)
+                } else {
+                    Image(systemName: "arrow.up.right").font(.system(size: 23, weight: .light))
+                }
+            }
                 .padding(.horizontal, 21)
                 .font(.barlowCondensed(size: 23, weight: .semibold))
-                .foregroundColor(appearance == .red ? .stridePrimary : .white)
+                .foregroundColor(treadmillNeedsConnection ? ink.opacity(0.55) : (appearance == .red ? .stridePrimary : .white))
                 .frame(maxWidth: .infinity)
                 .frame(height: 56)
-                .background(appearance == .red ? Color.white : Color.stridePrimary)
+                .background(treadmillNeedsConnection ? ink.opacity(0.12) : (appearance == .red ? Color.white : Color.stridePrimary))
                 .clipShape(Capsule())
         }
         .disabled(!canStart)
@@ -749,7 +769,7 @@ struct RunLobbyView: View {
             if workout.isCompleted { return "View Completed Session" }
             if !Self.isRunSession(workout) { return "Open Session" }
         }
-        if runMode == .treadmill && !isConnected { return "Connect Treadmill to Start" }
+        if treadmillNeedsConnection { return "Connect to Treadmill" }
         return "Start Session"
     }
 
