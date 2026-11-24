@@ -2,16 +2,13 @@ import Foundation
 import SwiftData
 
 /// Manages the post-run AI coaching flow:
-/// 1. Calls Claude API to generate personalized spoken summary
-/// 2. Plays the response via ElevenLabs TTS (with disk cache)
+/// Generates a written post-run coaching summary.
 @MainActor
 final class PostRunCoachViewModel: ObservableObject {
     @Published var coachText: String = ""
     @Published var isGenerating = false
-    @Published var isPlaying = false
     @Published var error: String?
 
-    private let tts = ElevenLabsTTSService()
     private let api = APIService.shared
 
     /// Generate and speak the post-run coaching summary.
@@ -23,7 +20,6 @@ final class PostRunCoachViewModel: ObservableObject {
         trainingBlock: String? = nil,
         planWeek: Int? = nil,
         totalPlanWeeks: Int? = nil,
-        speak: Bool = true,
         onComplete: ((String) -> Void)? = nil
     ) {
         isGenerating = true
@@ -115,15 +111,6 @@ final class PostRunCoachViewModel: ObservableObject {
                     guard let self else { return }
                     self.isGenerating = false
                     self.coachText = fullText
-                    guard speak else { return }
-                    // Play the full coaching summary via TTS
-                    self.isPlaying = true
-                    self.tts.speak(fullText)
-                    // TTS will finish asynchronously — mark playing done after estimated time
-                    let estimatedDuration = Double(fullText.count) / 15.0 // ~15 chars/sec speech
-                    DispatchQueue.main.asyncAfter(deadline: .now() + estimatedDuration) {
-                        self.isPlaying = false
-                    }
                 },
                 onError: { [weak self] err in
                     self?.isGenerating = false
@@ -131,11 +118,6 @@ final class PostRunCoachViewModel: ObservableObject {
                 }
             )
         }
-    }
-
-    func stopPlayback() {
-        tts.stopSpeaking()
-        isPlaying = false
     }
 
     /// Attribute observed speed to the workout's phases, instead of treating

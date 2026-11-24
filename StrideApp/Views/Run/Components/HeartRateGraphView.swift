@@ -374,14 +374,12 @@ struct RunReviewCharts: View {
             }
             chart("PACE", unit: "min/km", points: pacePoints, color: .stridePrimary,
                   empty: "No pace samples recorded")
-            let vertical = run.dataSource == "bluetooth_ftms" ? inclinePoints : elevationPoints
-            chart(run.dataSource == "bluetooth_ftms" ? "INCLINE" : "ELEVATION",
-                  unit: run.dataSource == "bluetooth_ftms" ? "%" : "m",
-                  points: vertical, color: .blue,
-                  empty: run.dataSource == "bluetooth_ftms" ? "No incline recorded" : "No elevation recorded")
+            if run.dataSource != "bluetooth_ftms" {
+                chart("ELEVATION", unit: "m", points: elevationPoints, color: .blue,
+                      empty: "No elevation recorded")
+            }
             chart("HEART RATE", unit: "bpm", points: heartPoints, color: .heartRatePink,
                   empty: "No heart rate recorded")
-            distanceLabels
         }
         .padding(16)
         .stridePageCard(style, radius: 20)
@@ -397,24 +395,43 @@ struct RunReviewCharts: View {
                 Text(unit).font(.runEyebrow(10)).foregroundStyle(style.muted)
             }
             if points.count >= 2 {
-                let values = points.map(\.y)
-                let low = values.min() ?? 0, high = values.max() ?? 1
-                let padding = max((high - low) * 0.12, 0.1)
+                let domain = chartDomain(points: points, unit: unit)
                 Chart(points) { point in
-                    AreaMark(x: .value("Time", point.x),
-                             yStart: .value("Base", low - padding),
+                    AreaMark(x: .value("Distance", point.x),
+                             yStart: .value("Base", domain.lowerBound),
                              yEnd: .value(unit, point.y))
                         .foregroundStyle(color.opacity(0.12))
-                    LineMark(x: .value("Time", point.x), y: .value(unit, point.y))
+                    LineMark(x: .value("Distance", point.x), y: .value(unit, point.y))
                         .interpolationMethod(.catmullRom(alpha: 0.5))
                         .foregroundStyle(color)
                         .lineStyle(StrokeStyle(lineWidth: 1.7, lineCap: .round))
                 }
                 .chartXScale(domain: 0...axis.distanceKm)
-                .chartYScale(domain: (low - padding)...(high + padding))
-                .chartXAxis(.hidden)
-                .chartYAxis(.hidden)
-                .frame(height: 100)
+                .chartYScale(domain: domain)
+                .chartXAxis {
+                    AxisMarks(position: .bottom, values: axis.chartTicks) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.6))
+                        AxisValueLabel {
+                            if let km = value.as(Double.self) {
+                                Text(axis.label(for: km))
+                                    .font(.runEyebrow(10)).foregroundStyle(style.muted)
+                            }
+                        }
+                    }
+                }
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { value in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                        AxisValueLabel {
+                            if let y = value.as(Double.self) {
+                                Text(axisValue(y, unit: unit))
+                                    .font(.runEyebrow(10)).foregroundStyle(style.muted)
+                            }
+                        }
+                    }
+                }
+                .chartPlotStyle { plot in plot.clipped() }
+                .frame(height: 150)
                 .accessibilityLabel("\(title), from 0 to \(axis.distanceKm.formatted()) kilometers")
             } else {
                 Text(empty).font(.inter(size: 12)).foregroundStyle(style.muted)
@@ -423,17 +440,25 @@ struct RunReviewCharts: View {
         }
     }
 
-    private var distanceLabels: some View {
-        GeometryReader { geometry in
-            ForEach(axis.ticks, id: \.self) { km in
-                Text(axis.label(for: km))
-                    .font(.runEyebrow(10)).foregroundStyle(style.muted)
-                    .frame(width: 42)
-                    .position(x: min(max(21, geometry.size.width * km / axis.distanceKm), geometry.size.width - 21), y: 8)
-            }
+    private func chartDomain(points: [Point], unit: String) -> ClosedRange<Double> {
+        let values = points.map(\.y).sorted()
+        guard !values.isEmpty else { return 0...1 }
+        // Focus on typical effort. Startup, pauses and isolated sensor spikes may
+        // extend beyond the plot, while the recorded values remain untouched.
+        let lower = values[Int(Double(values.count - 1) * 0.10)]
+        let upper = values[Int(Double(values.count - 1) * 0.90)]
+        let minimumSpan = unit == "bpm" ? 20.0 : unit == "min/km" ? 0.5 : 5.0
+        let center = (lower + upper) / 2
+        let half = max((upper - lower) * 0.65, minimumSpan / 2)
+        return (center - half)...(center + half)
+    }
+
+    private func axisValue(_ y: Double, unit: String) -> String {
+        if unit == "min/km" {
+            let seconds = Int((-y * 60).rounded())
+            return String(format: "%d:%02d", max(0, seconds) / 60, max(0, seconds) % 60)
         }
-        .frame(height: 18)
-        .accessibilityLabel("Distance in kilometers, 0 to \(axis.label(for: axis.distanceKm))")
+        return String(Int(y.rounded()))
     }
 
     private func downsample(_ points: [Point]) -> [Point] {
@@ -512,6 +537,11 @@ struct RunDistanceAxis {
         if let last = values.last, distanceKm - last < step * 0.35 { values.removeLast() }
         values.append(distanceKm)
         return values
+    }
+
+    var chartTicks: [Double] {
+        let count = distanceKm < 3 ? 2 : distanceKm < 10 ? 3 : 4
+        return (0...count).map { Double($0) * distanceKm / Double(count) }
     }
 
     func label(for km: Double) -> String {

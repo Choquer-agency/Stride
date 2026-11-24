@@ -254,6 +254,11 @@ struct RunSummaryView: View {
                     )
                 }
                 
+                if let heartTarget = plannedHeartRateRange, let average = result.avgHeartRate {
+                    comparisonRow(label: "Heart Rate", planned: "\(heartTarget.lowerBound)–\(heartTarget.upperBound) bpm",
+                                  actual: "\(average) bpm", isGood: heartTarget.contains(average))
+                }
+
                 if let targetMins = result.targetDurationMinutes {
                     comparisonRow(
                         label: "Duration",
@@ -269,25 +274,35 @@ struct RunSummaryView: View {
         .stridePageCard(style, radius: 20)
     }
     
+    private var plannedHeartRateRange: ClosedRange<Int>? {
+        guard let details = result.plannedWorkoutDetails else { return nil }
+        let pattern = #"(\d{2,3})\s*[–-]\s*(\d{2,3})\s*(?:bpm|BPM)"#
+        guard let match = details.range(of: pattern, options: .regularExpression) else { return nil }
+        let numbers = details[match].components(separatedBy: CharacterSet.decimalDigits.inverted)
+            .compactMap(Int.init)
+        guard numbers.count >= 2, numbers[0] <= numbers[1] else { return nil }
+        return numbers[0]...numbers[1]
+    }
+
     private func comparisonRow(label: String, planned: String, actual: String, isGood: Bool) -> some View {
-        HStack {
+        HStack(spacing: 6) {
             Text(label)
-                .font(.inter(size: 13, weight: .medium))
+                .font(.inter(size: 12, weight: .medium))
                 .foregroundColor(.secondary)
-                .frame(width: 70, alignment: .leading)
-            
-            Spacer()
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
             
             // Planned
             VStack(spacing: 2) {
                 Text(planned)
                     .font(.barlowCondensed(size: 18, weight: .medium))
+                    .lineLimit(1).minimumScaleFactor(0.72)
                     .foregroundColor(.secondary)
                 Text("Planned")
                     .font(.inter(size: 10, weight: .regular))
                     .foregroundColor(Color(.tertiaryLabel))
             }
-            .frame(width: 80)
+            .frame(minWidth: 100, alignment: .leading)
             
             // Arrow
             Image(systemName: "arrow.right")
@@ -298,12 +313,13 @@ struct RunSummaryView: View {
             VStack(spacing: 2) {
                 Text(actual)
                     .font(.barlowCondensed(size: 18, weight: .medium))
+                    .lineLimit(1).minimumScaleFactor(0.72)
                     .foregroundColor(isGood ? .green : .orange)
                 Text("Actual")
                     .font(.inter(size: 10, weight: .regular))
                     .foregroundColor(Color(.tertiaryLabel))
             }
-            .frame(width: 80)
+            .frame(minWidth: 80, alignment: .trailing)
         }
     }
     
@@ -391,15 +407,6 @@ struct RunSummaryView: View {
 
                 Spacer()
 
-                if coachVM.isPlaying {
-                    Button {
-                        coachVM.stopPlayback()
-                    } label: {
-                        Image(systemName: "stop.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(.stridePrimary)
-                    }
-                }
             }
 
             if coachVM.isGenerating {
@@ -418,19 +425,6 @@ struct RunSummaryView: View {
                     .foregroundColor(.primary)
                     .lineSpacing(4)
 
-                if coachVM.isPlaying {
-                    HStack(spacing: 6) {
-                        ForEach(0..<3, id: \.self) { i in
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.stridePrimary)
-                                .frame(width: 3, height: CGFloat.random(in: 8...16))
-                        }
-                        Text("Playing...")
-                            .font(.inter(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.top, 4)
-                }
             }
 
             if let error = coachVM.error {

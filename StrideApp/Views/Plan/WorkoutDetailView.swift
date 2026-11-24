@@ -1286,7 +1286,7 @@ struct CompletedRunDetailContent: View {
                     }
                     Button {
                         reviewSaveError = nil
-                        coach.generateCoaching(result: reviewResult, speak: false)
+                        coach.generateCoaching(result: reviewResult)
                     } label: {
                         Label("Review this run", systemImage: "sparkles")
                             .font(.inter(size: 13, weight: .semibold)).foregroundStyle(Color.stridePrimary)
