@@ -52,6 +52,7 @@ struct RunLobbyView: View {
     @State private var selectedSessionID: UUID?
     @State private var requestedWorkout: Workout?
     @State private var openedSession: Workout?
+    @State private var openedGymWorkout: Workout?
     @State private var freeRunDistance: Double = 12.0
     @State private var freeRunDurationMinutes: Int = 30
     @State private var freeRunGoalMode: FreeRunGoalMode = .distance
@@ -253,6 +254,18 @@ struct RunLobbyView: View {
                 workout.toggleCompletion()
                 try? modelContext.save()
             }.preferredColorScheme(.light)
+        }
+        .fullScreenCover(item: $openedGymWorkout) { workout in
+            GymWorkoutPlayerView(workout: workout) { summary in
+                guard !workout.isCompleted else { return }
+                workout.toggleCompletion()
+                try? modelContext.save()
+                Task {
+                    _ = try? await APIService.shared.logQuickStrengthSession(
+                        date: Date(), perceivedEffort: nil, notes: summary
+                    )
+                }
+            }
         }
         .sheet(isPresented: $showHeartRatePicker) {
             NavigationStack {
@@ -727,7 +740,11 @@ struct RunLobbyView: View {
         Button {
             guard !selectedSessionIsRun || runMode != .treadmill || bluetoothManager.hasFreshTreadmillData else { return }
             if selectedTab == .todaysWorkout, let workout = todaysWorkout {
-                if workout.isCompleted || !Self.isRunSession(workout) { openedSession = workout }
+                if workout.isCompleted { openedSession = workout }
+                else if workout.workoutType == .gym || workout.workoutType == .crossTraining {
+                    openedGymWorkout = workout
+                }
+                else if !Self.isRunSession(workout) { openedSession = workout }
                 else { onStartPlannedWorkout(workout, runMode == .outdoor) }
             } else {
                 onStartFreeRun(

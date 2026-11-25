@@ -300,6 +300,33 @@ enum CoachReportedCompletions {
                 changed += 1
             }
         }
+        // Athlete-reported gym completion is scoped to one calendar day and
+        // applied only when exactly one gym workout exists on that day.
+        let gymPattern = #"(?m)^Coach-confirmed gym session on (\d{4}-\d{2}-\d{2}) completed\.$"#
+        if let gymRegex = try? NSRegularExpression(pattern: gymPattern) {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Vancouver")!
+            let formatter = DateFormatter()
+            formatter.calendar = calendar
+            formatter.timeZone = calendar.timeZone
+            formatter.dateFormat = "yyyy-MM-dd"
+            for match in gymRegex.matches(in: content, range: NSRange(content.startIndex..., in: content)) {
+                guard let range = Range(match.range(at: 1), in: content) else { continue }
+                let date = String(content[range])
+                let matching = plan.weeks.flatMap(\.workouts).filter {
+                    ($0.workoutType == .gym || $0.workoutType == .crossTraining)
+                        && formatter.string(from: $0.date) == date
+                }
+                guard matching.count == 1, let workout = matching.first,
+                      calendar.startOfDay(for: workout.date) <= calendar.startOfDay(for: now) else { continue }
+                guard !workout.isCompleted else { continue }
+                workout.isCompleted = true
+                workout.isCoachConfirmedCompletion = true
+                let note = "Athlete reported this gym session complete. Sets and loads were not recorded in Stride."
+                workout.notes = [workout.notes, note].compactMap { $0 }.joined(separator: "\n")
+                changed += 1
+            }
+        }
         return changed
     }
 }
